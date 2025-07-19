@@ -1,0 +1,145 @@
+# Domain Configuration for TaskFlow
+# This file defines the domain-specific settings for the AI processing system
+# Modify these settings to adapt TaskFlow to your specific use case
+
+# Domain information
+domain:
+  name: "Generic Task Processing System"
+  description: "Configurable system for processing various types of tasks and requests"
+  version: "1.0.0"
+
+# Core terminology used throughout the system
+terminology:
+  request_type: "task request"
+  requester: "requester"
+  analyst: "analyst"
+  processing: "analysis"
+  reviewer: "reviewer"
+  approver: "approver"
+
+# AI processing configuration
+ai_processing:
+  # Default model settings
+  model:
+    name: "gemma3:1b"
+    max_tokens: 4096
+    temperature: 0.1
+    
+  # Available processing types
+  processing_types:
+    - extract_metadata
+    - classify_topic
+    - summarize_request
+    - sensitivity_score
+    - suggest_redactions
+    
+  # Custom prompt templates (override default templates)
+  prompt_templates:
+    system_role: "AI assistant specialized in analyzing task requests"
+    system_purpose: "help analysts process requests efficiently and accurately"
+    system_guidelines: "follow strict guidelines for handling sensitive information and protecting privacy"
+    system_format: "Always respond with valid JSON in the exact format requested. Be thorough but concise in your analysis."
+
+# Workflow configuration
+workflows:
+  # Default workflow settings
+  default_workflow_id: 1
+  auto_assign: true
+  
+  # Processing stages
+  stages:
+    - name: "intake"
+      description: "Initial task receipt and basic validation"
+      required: true
+      
+    - name: "analysis"
+      description: "AI-powered analysis and categorization"
+      required: true
+      ai_processing: true
+      
+    - name: "review"
+      description: "Human analyst review and verification"
+      required: true
+      assignable: true
+      
+    - name: "approval"
+      description: "Final approval and task completion"
+      required: true
+      roles: ["SUPERVISOR", "ADMIN"]
+
+# Dashboard configuration
+dashboard:
+  # Default dashboard settings
+  refresh_interval: 30 # seconds
+  max_recent_items: 10
+  
+  # Available metrics
+  metrics:
+    - name: "total_tasks"
+      title: "Total Tasks"
+      query: "SELECT COUNT(*) as value FROM requests"
+      
+    - name: "pending_tasks"
+      title: "Pending Tasks"
+      query: "SELECT COUNT(*) as value FROM requests WHERE status IN ('NEW', 'IN_REVIEW')"
+      
+    - name: "completed_tasks"
+      title: "Completed Tasks"
+      query: "SELECT COUNT(*) as value FROM requests WHERE status = 'CLOSED'"
+      
+    - name: "avg_processing_time"
+      title: "Average Processing Time (Hours)"
+      query: "SELECT ROUND(AVG(TIMESTAMPDIFF(HOUR, created_at, updated_at)), 1) as value FROM requests WHERE status = 'CLOSED'"
+
+# Security and privacy settings
+security:
+  # Data retention policies
+  retention:
+    completed_tasks_days: 365
+    logs_days: 90
+    ai_outputs_days: 180
+    
+  # Access control
+  access_control:
+    require_assignment: true
+    allow_self_assignment: true
+    supervisor_override: true
+    
+  # Privacy settings
+  privacy:
+    mask_sensitive_data: true
+    redaction_required: false
+    audit_trail: true
+
+# Integration settings
+integrations:
+  # API configuration
+  api:
+    rate_limit: 100 # requests per minute
+    timeout: 30 # seconds
+    
+  # External services
+  external_services:
+    notification_service: false
+    document_storage: false
+    identity_provider: false
+
+# Custom fields for requests
+custom_fields:
+  - name: "priority"
+    type: "select"
+    options: ["LOW", "MEDIUM", "HIGH", "URGENT"]
+    required: false
+    
+  - name: "category"
+    type: "text"
+    required: false
+    
+  - name: "estimated_effort"
+    type: "number"
+    unit: "hours"
+    required: false
+    
+  - name: "external_reference"
+    type: "text"
+    required: false

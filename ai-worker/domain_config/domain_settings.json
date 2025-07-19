@@ -1,0 +1,99 @@
+{
+  "domain": {
+    "name": "Legal Document Review System",
+    "description": "System for reviewing legal documents and contracts"
+  },
+  "terminology": {
+    "request_type": "legal review request",
+    "requester": "client",
+    "analyst": "legal reviewer",
+    "processing": "legal analysis"
+  },
+  "prompts": {
+    "system": {
+      "role": "AI assistant specialized in analyzing document requests",
+      "purpose": "help analysts process requests efficiently and accurately",
+      "guidelines": "follow strict guidelines for handling sensitive information and protecting privacy",
+      "format": "Always respond with valid JSON in the exact format requested. Be thorough but concise in your analysis."
+    },
+    "extract_metadata": {
+      "task": "Analyze this {request_type} and extract basic metadata",
+      "input_label": "Request Text",
+      "considerations": "Consider factors like complexity, scope, and legal requirements when estimating processing time.",
+      "output_schema": {
+        "word_count": "number",
+        "estimated_processing_time": "minutes",
+        "document_type": "string describing the type of request",
+        "urgency_level": "LOW|MEDIUM|HIGH"
+      }
+    },
+    "classify_topic": {
+      "task": "Classify the topic and subject matter of this {request_type}",
+      "input_label": "Request Text",
+      "examples": "Law Enforcement, Healthcare, Financial, Environmental, Legal, Administrative, etc.",
+      "output_schema": {
+        "primary_topic": "main subject area",
+        "secondary_topics": [
+          "topic1",
+          "topic2"
+        ],
+        "confidence_score": "float between 0.0 and 1.0"
+      }
+    },
+    "summarize_request": {
+      "task": "Create a comprehensive summary of this {request_type}",
+      "input_label": "Request Text",
+      "focus": "what specific records or information the requester is seeking",
+      "output_schema": {
+        "executive_summary": "2-3 sentence overview",
+        "key_points": [
+          "point1",
+          "point2",
+          "point3"
+        ],
+        "requested_records": [
+          "record type 1",
+          "record type 2"
+        ]
+      }
+    },
+    "sensitivity_score": {
+      "task": "Assess the sensitivity level of this {request_type} based on the topic classification",
+      "input_label": "Request Text",
+      "factors": "privacy implications, security considerations, confidentiality concerns, etc.",
+      "output_schema": {
+        "score": "float between 0.0 and 1.0",
+        "risk_factors": [
+          "factor1",
+          "factor2"
+        ],
+        "explanation": "brief explanation of the score"
+      }
+    },
+    "suggest_redactions": {
+      "task": "Analyze this {request_type} and suggest potential redactions based on common exemptions",
+      "input_label": "Request Text",
+      "exemption_categories": [
+        "Privacy protection",
+        "Security considerations",
+        "Internal procedures",
+        "Statutory exemptions",
+        "Trade secrets",
+        "Deliberative process",
+        "Confidential information"
+      ],
+      "output_schema": {
+        "redaction_suggestions": [
+          {
+            "text_span": "exact text that might need redaction",
+            "start_pos": "character position",
+            "end_pos": "character position",
+            "reason": "explanation",
+            "exemption_category": "category from exemption_categories",
+            "confidence": "float between 0.0 and 1.0"
+          }
+        ]
+      }
+    }
+  }
+}

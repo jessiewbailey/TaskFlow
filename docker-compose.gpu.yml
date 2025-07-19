@@ -1,0 +1,172 @@
+# TaskFlow Docker Compose Configuration with GPU Support
+# 
+# PREREQUISITES:
+# 1. NVIDIA GPU with CUDA support
+# 2. NVIDIA Container Toolkit installed (nvidia-docker2)
+# 3. Docker Compose v1.28.0+ with Compose file version 3.8+
+#
+# USAGE:
+# docker-compose -f docker-compose.gpu.yml up
+#
+# SECURITY NOTE: This file uses environment variables with fallback defaults.
+# For production, create a .env file with proper credentials (see .env.example)
+# Do NOT use the default passwords in production!
+#
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: taskflow-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/setup/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./config/database-init/init-workflows.sql:/docker-entrypoint-initdb.d/02-init-workflows.sql:ro
+      - ./config/workflows:/app/config/workflows:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - taskflow-network
+
+  # Ollama for AI processing with GPU support
+  ollama:
+    image: ollama/ollama:latest
+    container_name: taskflow-ollama
+    runtime: nvidia
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_DEBUG=1
+      - OLLAMA_VERBOSE=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - taskflow-network
+
+  # Model puller - downloads the model on startup
+  ollama-puller:
+    image: ollama/ollama:latest
+    container_name: taskflow-ollama-puller
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "
+        echo 'Waiting for Ollama to be ready...' &&
+        sleep 10 &&
+        echo 'Pulling gemma3:1b model...' &&
+        ollama pull gemma3:1b &&
+        echo 'Model pull completed successfully!'
+      "
+    networks:
+      - taskflow-network
+
+  # Backend API
+  taskflow-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: taskflow-api
+    user: "0:0"  # Run as root to access Docker socket
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=mysql+aiomysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      - AI_WORKER_URL=http://taskflow-ai:8001
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=${DEBUG:-false}
+    volumes:
+      - ./config:/app/config:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - taskflow-network
+
+  # AI Worker
+  taskflow-ai:
+    build:
+      context: ./ai-worker
+      dockerfile: Dockerfile
+    container_name: taskflow-ai
+    ports:
+      - "8001:8001"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - MODEL_NAME=gemma3:1b
+      - BACKEND_API_URL=http://taskflow-api:8000
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      ollama:
+        condition: service_healthy
+      taskflow-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/healthz"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
+    networks:
+      - taskflow-network
+
+  # Frontend
+  taskflow-web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: taskflow-web
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      - taskflow-api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - taskflow-network
+
+volumes:
+  mysql_data:
+  ollama_data:
+
+networks:
+  taskflow-network:
+    driver: bridge
