@@ -44,7 +44,7 @@ Build complex AI workflows visually, create custom dashboards, and process batch
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/jessiewbailey/TaskFlow.git
    cd TaskFlow
    ```
 
@@ -77,17 +77,6 @@ Build complex AI workflows visually, create custom dashboards, and process batch
    - API Documentation: http://localhost:8000/docs
    - API Health: http://localhost:8000/healthz
 
-5. **Deploy to Kubernetes (for teams)**
-   ```bash
-   # Apply all manifests
-   kubectl apply -k k8s/
-   
-   # Check deployment status
-   kubectl get pods -n taskflow
-   
-   # Access the application
-   kubectl port-forward -n taskflow svc/taskflow-web 3000:3000
-   ```
 
 ### Building Images
 
@@ -181,19 +170,6 @@ docker build -t registry.local/taskflow-web:latest frontend/
 - **Quality Assurance**: Develop workflows to check compliance and accuracy at scale
 - **Experimentation**: Rapidly test different AI approaches to find what works best
 
-### Kubernetes Deployment for Teams
-
-```bash
-# Deploy TaskFlow to your K8s cluster in minutes
-kubectl apply -k k8s/
-
-# Scale AI workers for parallel processing
-kubectl scale deployment taskflow-ai --replicas=5 -n taskflow
-
-# Access from anywhere in your organization
-kubectl port-forward svc/taskflow-web 3000:3000 -n taskflow
-```
-
 ## Visual Workflow Builder
 
 The drag-and-drop workflow builder makes it easy to create complex AI pipelines without coding:
@@ -229,14 +205,6 @@ Build your own dashboards to visualize workflow results and track performance:
 - **Responsive Design**: Works on desktop and mobile
 - **Share & Export**: Save dashboard configurations
 - **Custom Styling**: Match your organization's branding
-
-### Security Features
-
-- Non-root containers (UID 1000)
-- Read-only root filesystems
-- Security contexts and capabilities dropping
-- TLS termination at ingress
-- Network policies for internal communication
 
 ### API Endpoints
 
@@ -316,7 +284,6 @@ TaskFlow/
 │   ├── SECURITY.md
 │   └── ...
 ├── config/            # Configuration files
-├── k8s/              # Kubernetes manifests
 ├── scripts/          # Setup and utility scripts
 └── test-files/       # Test data and examples
 ```
@@ -407,80 +374,6 @@ cd frontend
 npm run lint
 npm run typecheck
 ```
-
-## Deployment
-
-### Kubernetes Deployment
-
-1. **Configure secrets**
-   ```bash
-   # Edit k8s/secrets.yaml with your values
-   kubectl apply -f k8s/secrets.yaml
-   ```
-
-2. **Deploy services**
-   ```bash
-   kubectl apply -k k8s/
-   ```
-
-3. **Verify deployment**
-   ```bash
-   kubectl get pods -n taskflow
-   kubectl logs -n taskflow deployment/taskflow-api
-   ```
-
-### Monitoring
-
-The application includes built-in observability:
-
-- **Metrics**: Prometheus metrics at `/metrics`
-- **Logging**: Structured JSON logging
-- **Health Checks**: `/healthz` endpoints
-- **Tracing**: OpenTelemetry integration (optional)
-
-## Performance Targets
-
-| Metric | Target |
-|--------|--------|
-| List API latency (P95) | ≤300ms |
-| Create & process end-to-end | ≤120s |
-| AI processing internal | ≤90s |
-| Uptime | 99.9% monthly |
-
-## Workflow Examples
-
-### Example: Content Analysis Workflow
-
-```yaml
-name: "Content Analysis Pipeline"
-blocks:
-  - type: "AI_PROCESSING"
-    prompt: "Extract key topics from: {{description}}"
-    output: "topics"
-  
-  - type: "AI_PROCESSING" 
-    prompt: "Rate sentiment (1-10) for: {{description}}"
-    output: "sentiment"
-    
-  - type: "AI_PROCESSING"
-    prompt: "Generate 3 action items based on: {{topics}}"
-    output: "actions"
-```
-
-### Example: Data Enrichment Workflow
-
-```yaml
-name: "Customer Feedback Enrichment"
-blocks:
-  - type: "AI_PROCESSING"
-    prompt: "Categorize this feedback: {{content}}"
-    categories: ["bug", "feature", "complaint", "praise"]
-    
-  - type: "AI_PROCESSING"
-    prompt: "Extract product names mentioned in: {{content}}"
-    output: "products"
-```
-
 ## Configuration
 
 ### UI Labels Customization
@@ -532,10 +425,6 @@ For detailed configuration instructions, see [docs/configuring-ui-labels.md](doc
 4. Add tests
 5. Submit a pull request
 
-## License
-
-[Add appropriate license]
-
 ## Support
 
 For issues and questions:
@@ -546,7 +435,4 @@ For issues and questions:
 ## Roadmap
 
 - [ ] Additional workflow block types (web scraping, API calls)
-- [ ] Workflow marketplace for sharing
-- [ ] Support for more file formats (PDF, DOCX)
-- [ ] Workflow scheduling and automation
-- [ ] Multi-model support in single workflow
+- [ ] Support for more file export formats (PDF, DOCX)
