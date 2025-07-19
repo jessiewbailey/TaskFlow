@@ -1,5 +1,7 @@
 # TaskFlow - Local AI Workflow Execution System
 
+![image](screenshot0.png)
+
 Build complex AI workflows visually, create custom dashboards, and process batches of tasks - all with a 100% local setup. Upload your tasks via CSV or Excel, experiment with different workflow designs in the intuitive drag-and-drop interface, and discover what works best for your use case.
 
 **Perfect for**: Data enrichment, content analysis, bulk processing, research tasks, and any scenario where you need to experiment with AI transformations while keeping your data private. Easily deployable to Kubernetes for team collaboration.
