@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS custom_instructions (
     request_id BIGINT NOT NULL,
     workflow_block_id BIGINT NOT NULL, -- NULL means applies to entire workflow
     instruction_text TEXT NOT NULL,
-    created_by INT DEFAULT 1, -- User who created the instruction
+    created_by BIGINT DEFAULT 1, -- User who created the instruction
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE, -- Allow disabling without deleting
