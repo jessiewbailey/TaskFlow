@@ -106,6 +106,7 @@ async def list_workflows(
                     block_type=block.block_type.value,
                     output_schema=block.output_schema,
                     model_name=block.model_name,
+                    model_parameters=block.model_parameters,
                     inputs=inputs,
                     created_at=block.created_at,
                     updated_at=block.updated_at
@@ -173,6 +174,7 @@ async def get_default_workflow(db: AsyncSession = Depends(get_db)):
                 block_type=block.block_type.value,
                 output_schema=block.output_schema,
                 model_name=block.model_name,
+                model_parameters=block.model_parameters,
                 inputs=inputs,
                 created_at=block.created_at,
                 updated_at=block.updated_at
@@ -240,7 +242,8 @@ async def create_workflow(
             order=block_data.order,
             block_type=BlockType(block_data.block_type) if block_data.block_type else BlockType.CORE,
             output_schema=block_data.output_schema,
-            model_name=block_data.model_name
+            model_name=block_data.model_name,
+            model_parameters=block_data.model_parameters
         )
         db.add(db_block)
         await db.flush()  # Get the block ID
@@ -375,7 +378,8 @@ async def update_workflow(
                 order=block_data.order,
                 block_type=BlockType(block_data.block_type),
                 output_schema=output_schema,
-                model_name=block_data.model_name
+                model_name=block_data.model_name,
+                model_parameters=block_data.model_parameters
             )
             db.add(db_block)
             await db.flush()
@@ -524,6 +528,7 @@ async def _workflow_to_response(workflow: Workflow) -> WorkflowResponse:
                 block_type=block.block_type.value,
                 output_schema=block.output_schema,
                 model_name=block.model_name,
+                model_parameters=block.model_parameters,
                 inputs=inputs,
                 created_at=block.created_at,
                 updated_at=block.updated_at

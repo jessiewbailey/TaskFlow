@@ -198,6 +198,7 @@ class WorkflowBlockRequest(BaseModel):
     block_type: str = "CUSTOM"  # "CORE" or "CUSTOM"
     output_schema: Optional[Dict[str, Any]] = None
     model_name: Optional[str] = Field(None, max_length=128)
+    model_parameters: Optional[Dict[str, Any]] = None
     inputs: List[WorkflowBlockInputRequest] = []
 
 class CreateWorkflowRequest(BaseModel):
@@ -231,6 +232,7 @@ class WorkflowBlockResponse(BaseModel):
     block_type: str
     output_schema: Optional[Dict[str, Any]]
     model_name: Optional[str]
+    model_parameters: Optional[Dict[str, Any]]
     inputs: List[WorkflowBlockInputResponse]
     created_at: datetime
     updated_at: datetime

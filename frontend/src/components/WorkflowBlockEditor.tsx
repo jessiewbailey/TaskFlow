@@ -33,6 +33,8 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
   const [isExpanded, setIsExpanded] = useState(true)
   
   const [showSchemaEditor, setShowSchemaEditor] = useState(false)
+  const [showModelParameters, setShowModelParameters] = useState(false)
+  const [showOutputSchema, setShowOutputSchema] = useState(false)
   const [availableModels, setAvailableModels] = useState<OllamaModel[]>([])
   const [modelsLoading, setModelsLoading] = useState(false)
 
@@ -299,6 +301,216 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
             </p>
           </div>
 
+          {/* Model Parameters */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Model Parameters
+              </label>
+              <button
+                onClick={() => setShowModelParameters(!showModelParameters)}
+                className="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50"
+                type="button"
+              >
+                {showModelParameters ? (
+                  <ChevronUpIcon className="h-3 w-3" />
+                ) : (
+                  <ChevronDownIcon className="h-3 w-3" />
+                )}
+              </button>
+            </div>
+            {showModelParameters && (
+              <div className="space-y-3 p-3 bg-gray-50 rounded-md">
+              {/* Temperature */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Temperature
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={block.model_parameters?.temperature ?? 0.7}
+                  onChange={(e) => {
+                    const temperature = parseFloat(e.target.value)
+                    updateBlock({
+                      model_parameters: {
+                        ...block.model_parameters,
+                        temperature: isNaN(temperature) ? 0.7 : temperature
+                      }
+                    })
+                  }}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Controls randomness: 0 = focused, 2 = very creative
+                </p>
+              </div>
+
+              {/* Context Window */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Context Window (num_ctx)
+                </label>
+                <input
+                  type="number"
+                  min="128"
+                  max="32768"
+                  step="128"
+                  value={block.model_parameters?.num_ctx ?? 4096}
+                  onChange={(e) => {
+                    const num_ctx = parseInt(e.target.value)
+                    updateBlock({
+                      model_parameters: {
+                        ...block.model_parameters,
+                        num_ctx: isNaN(num_ctx) ? 4096 : num_ctx
+                      }
+                    })
+                  }}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Maximum context window size in tokens
+                </p>
+              </div>
+
+              {/* Max Tokens */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Max Tokens
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="4096"
+                  step="1"
+                  value={block.model_parameters?.max_tokens ?? 2048}
+                  onChange={(e) => {
+                    const max_tokens = parseInt(e.target.value)
+                    updateBlock({
+                      model_parameters: {
+                        ...block.model_parameters,
+                        max_tokens: isNaN(max_tokens) ? 2048 : max_tokens
+                      }
+                    })
+                  }}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Maximum tokens to generate in response
+                </p>
+              </div>
+
+              {/* Top P */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Top P
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={block.model_parameters?.top_p ?? 0.9}
+                  onChange={(e) => {
+                    const top_p = parseFloat(e.target.value)
+                    updateBlock({
+                      model_parameters: {
+                        ...block.model_parameters,
+                        top_p: isNaN(top_p) ? 0.9 : top_p
+                      }
+                    })
+                  }}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Nucleus sampling threshold (0-1)
+                </p>
+              </div>
+
+              {/* Top K */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Top K
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value={block.model_parameters?.top_k ?? 40}
+                  onChange={(e) => {
+                    const top_k = parseInt(e.target.value)
+                    updateBlock({
+                      model_parameters: {
+                        ...block.model_parameters,
+                        top_k: isNaN(top_k) ? 40 : top_k
+                      }
+                    })
+                  }}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Number of top tokens to consider
+                </p>
+              </div>
+
+              {/* Repeat Penalty */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600">
+                  Repeat Penalty
+                </label>
+                <input
+                      type="number"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={block.model_parameters?.repeat_penalty ?? 1.1}
+                      onChange={(e) => {
+                        const repeat_penalty = parseFloat(e.target.value)
+                        updateBlock({
+                          model_parameters: {
+                            ...block.model_parameters,
+                            repeat_penalty: isNaN(repeat_penalty) ? 1.1 : repeat_penalty
+                          }
+                        })
+                      }}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Penalty for repeated tokens (1.0 = no penalty)
+                    </p>
+                  </div>
+
+                  {/* Seed */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600">
+                      Seed (optional)
+                    </label>
+                    <input
+                      type="number"
+                      value={block.model_parameters?.seed ?? ''}
+                      onChange={(e) => {
+                        const seed = e.target.value ? parseInt(e.target.value) : undefined
+                        updateBlock({
+                          model_parameters: {
+                            ...block.model_parameters,
+                            seed
+                          }
+                        })
+                      }}
+                      placeholder="Random seed for reproducibility"
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Set for reproducible outputs
+                    </p>
+                  </div>
+              </div>
+            )}
+          </div>
+
           {/* Block Prompt */}
           <div>
             <label className="block text-sm font-medium text-gray-700">
@@ -327,28 +539,44 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
               <label className="block text-sm font-medium text-gray-700">
                 Output Schema
               </label>
-              {block.block_type === 'CORE' ? (
-                <span className="text-xs text-gray-500 italic">
-                  Core blocks have fixed schemas
-                </span>
-              ) : (
+              <div className="flex items-center space-x-2">
+                {block.block_type === 'CORE' ? (
+                  <span className="text-xs text-gray-500 italic">
+                    Core blocks have fixed schemas
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setShowSchemaEditor(true)}
+                    className="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    type="button"
+                  >
+                    {block.output_schema ? 'Edit Schema' : 'Add Schema'}
+                  </button>
+                )}
                 <button
-                  onClick={() => setShowSchemaEditor(true)}
+                  onClick={() => setShowOutputSchema(!showOutputSchema)}
                   className="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  type="button"
                 >
-                  {block.output_schema ? 'Edit Schema' : 'Add Schema'}
+                  {showOutputSchema ? (
+                    <ChevronUpIcon className="h-3 w-3" />
+                  ) : (
+                    <ChevronDownIcon className="h-3 w-3" />
+                  )}
                 </button>
-              )}
+              </div>
             </div>
             
-            {block.output_schema ? (
-              <div className="p-3 bg-gray-50 rounded-md">
-                <pre className="text-xs text-gray-700 overflow-x-auto">
-                  {JSON.stringify(block.output_schema, null, 2)}
-                </pre>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 italic">No output schema defined</p>
+            {showOutputSchema && (
+              block.output_schema ? (
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <pre className="text-xs text-gray-700 overflow-x-auto">
+                    {JSON.stringify(block.output_schema, null, 2)}
+                  </pre>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No output schema defined</p>
+              )
             )}
           </div>
         </div>

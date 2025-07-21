@@ -14,6 +14,7 @@ export interface WorkflowBlock {
   block_type: 'CORE' | 'CUSTOM'
   output_schema?: Record<string, any>
   model_name?: string
+  model_parameters?: Record<string, any>
   inputs: WorkflowBlockInput[]
   created_at: string
   updated_at: string
@@ -53,6 +54,7 @@ export interface CreateWorkflowBlockRequest {
   block_type?: 'CORE' | 'CUSTOM'
   output_schema?: Record<string, any>
   model_name?: string
+  model_parameters?: Record<string, any>
   inputs: CreateWorkflowBlockInputRequest[]
 }
 

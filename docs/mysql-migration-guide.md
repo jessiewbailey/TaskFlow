@@ -80,14 +80,11 @@ If you prefer to set up the schema manually or need to understand the exact stru
 # Extract the SQL from the Kubernetes job ConfigMap
 kubectl get configmap db-init-scripts -n llm -o yaml > db-init-scripts.yaml
 
-# Or use the individual files:
-# 1. Base schema (creates all tables with latest structure)
-mysql -h your-mysql-server -u taskflow_user -p taskflow_db < database/setup/schema.sql
+# Or use the initialization file directly:
+# 1. Base schema and initial data (creates all tables with latest structure)
+mysql -h your-mysql-server -u taskflow_user -p taskflow_db < database/init-complete-fixed.sql
 
-# 2. Initial workflows and data  
-mysql -h your-mysql-server -u taskflow_user -p taskflow_db < config/database-init/init-workflows.sql
-
-# 3. Apply remaining migrations (the job handles these automatically)
+# 2. Apply additional migrations if needed
 mysql -h your-mysql-server -u taskflow_user -p taskflow_db < database/migrations/migration_add_workflow_integration.sql
 mysql -h your-mysql-server -u taskflow_user -p taskflow_db < database/migrations/migration_add_model_to_workflow_blocks.sql
 mysql -h your-mysql-server -u taskflow_user -p taskflow_db < database/migrations/migration-custom-instructions.sql

@@ -58,6 +58,8 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
         order: block.order,
         block_type: block.block_type,
         output_schema: block.output_schema,
+        model_name: block.model_name,
+        model_parameters: block.model_parameters,
         inputs: block.inputs.map(input => ({
           input_type: input.input_type,
           source_block_id: input.source_block_id ? blockIdToIndex.get(input.source_block_id) : undefined,
@@ -93,6 +95,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
       order: blocks.length,
       block_type: 'CUSTOM',
       output_schema: undefined,
+      model_parameters: undefined,
       inputs: []
     }
     setBlocks([...blocks, newBlock])

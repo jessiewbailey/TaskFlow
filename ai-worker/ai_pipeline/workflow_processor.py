@@ -74,7 +74,7 @@ class WorkflowProcessor:
                                custom_instructions=block_custom_instructions)
                     
                     # Execute the block
-                    result = await self._execute_block(prompt, block_name, model_name, block.get('output_schema'), block_custom_instructions)
+                    result = await self._execute_block(prompt, block_name, model_name, block.get('output_schema'), block_custom_instructions, block.get('model_parameters'))
                     
                     # Store result in context for future blocks
                     context[block_name.lower().replace(' ', '_')] = result
@@ -143,7 +143,7 @@ class WorkflowProcessor:
             # Return template as-is if variable substitution fails
             return prompt_template
     
-    async def _execute_block(self, prompt: str, block_name: str, model_name: str, output_schema: Dict[str, Any] = None, custom_instructions: str = "") -> Dict[str, Any]:
+    async def _execute_block(self, prompt: str, block_name: str, model_name: str, output_schema: Dict[str, Any] = None, custom_instructions: str = "", model_parameters: Dict[str, Any] = None) -> Dict[str, Any]:
         """Execute a single workflow block"""
         # Enhance prompt with JSON format instructions and schema
         schema_instruction = ""
@@ -166,6 +166,37 @@ IMPORTANT: You must respond with valid JSON only containing actual data values (
         print(enhanced_prompt)
         print(f"=== END PROMPT FOR {block_name} ===")
 
+        # Prepare options with default values and override with model_parameters if provided
+        options = {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "stop": ["<|endoftext|>"]
+        }
+        
+        # Override with model_parameters if provided
+        if model_parameters:
+            # Map common parameter names to Ollama's expected names
+            param_mapping = {
+                'max_tokens': 'num_predict',
+                'context_window': 'num_ctx',
+                'num_ctx': 'num_ctx',
+                'temperature': 'temperature',
+                'top_p': 'top_p',
+                'top_k': 'top_k',
+                'repeat_penalty': 'repeat_penalty',
+                'seed': 'seed'
+            }
+            
+            for key, value in model_parameters.items():
+                if key in param_mapping:
+                    ollama_key = param_mapping[key]
+                    options[ollama_key] = value
+                elif key not in ['stop']:  # Don't override stop tokens
+                    # Pass through any other parameters as-is
+                    options[key] = value
+        
+        logger.info(f"Using model parameters for {block_name}: {options}")
+
         for attempt in range(settings.max_retries + 1):
             try:
                 response = await self.client.chat(
@@ -174,11 +205,7 @@ IMPORTANT: You must respond with valid JSON only containing actual data values (
                         {"role": "user", "content": enhanced_prompt}
                     ],
                     format='json',
-                    options={
-                        "temperature": 0.1,
-                        "top_p": 0.9,
-                        "stop": ["<|endoftext|>"]
-                    }
+                    options=options
                 )
                 
                 # Log the raw LLM response

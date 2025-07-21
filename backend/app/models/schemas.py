@@ -141,6 +141,7 @@ class WorkflowBlock(Base):
     block_type = Column(Enum(BlockType), default=BlockType.CUSTOM, nullable=False)
     output_schema = Column(JSON, nullable=True)  # Pydantic schema as JSON
     model_name = Column(String(128), nullable=True)  # AI model to use for this block
+    model_parameters = Column(JSON, nullable=True)  # Model-specific parameters (temperature, max_tokens, etc.)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
     

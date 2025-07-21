@@ -8,13 +8,8 @@ This directory contains all the configuration files needed to customize TaskFlow
 config/
 ├── README.md                 # This file
 ├── domain-config.yaml       # Main domain configuration
-├── ui-labels/
-│   └── labels.yaml          # UI text labels and terminology
-├── workflows/
-│   ├── default-workflow.sql # Default workflow with AI analysis
-│   └── simple-workflow.sql  # Simple workflow without AI
-└── database-init/
-    └── init-workflows.sql   # Database initialization script
+└── ui-labels/
+    └── labels.yaml          # UI text labels and terminology
 ```
 
 ## Configuration Files
@@ -52,33 +47,13 @@ This file defines the overall behavior and settings for your TaskFlow instance.
 - `security`: Security and privacy settings
 - `custom_fields`: Additional fields for requests
 
-### 3. Workflow SQL Files (`workflows/`)
+### 3. Creating Custom Workflows
 
-These files define the actual workflows that tasks will follow through your system.
+Workflows are defined in the database initialization file. To create custom workflows:
 
-**`default-workflow.sql`**: A comprehensive workflow with AI analysis steps
-- Metadata extraction
-- Topic classification
-- Content summarization
-- Sensitivity assessment
-- Redaction suggestions
-- Manual review
-- Final approval
-
-**`simple-workflow.sql`**: A basic workflow for simple task management
-- Initial review
-- Task processing
-- Completion
-
-**Creating custom workflows:**
-1. Copy one of the existing workflow files
-2. Modify the workflow name, description, and blocks
-3. Update the dashboard configuration as needed
-4. Add your new file to the `database-init/init-workflows.sql` script
-
-### 4. Database Initialization (`database-init/init-workflows.sql`)
-
-This script runs during system startup to initialize your workflows and create default users.
+1. Modify `database/init-complete-fixed.sql` before first deployment
+2. Or use the UI to create new workflows after deployment
+3. Custom workflows can include AI analysis steps or simple task management flows
 
 ## Quick Start Customization
 
@@ -99,14 +74,9 @@ To quickly adapt TaskFlow for your use case:
      description: "Description of your system"
    ```
 
-3. **Choose or customize a workflow** in `workflows/`:
-   - Use `default-workflow.sql` if you want AI analysis
-   - Use `simple-workflow.sql` for basic task management
-   - Create a custom workflow for specific needs
-
-4. **Update database initialization** in `database-init/init-workflows.sql`:
-   - Modify default users
-   - Add your custom workflow
+3. **Customize workflows** by modifying `database/init-complete-fixed.sql`:
+   - Default includes an example workflow with AI analysis
+   - Modify before first deployment or use UI after deployment
    - Remove sample data for production
 
 ## Example Use Cases
