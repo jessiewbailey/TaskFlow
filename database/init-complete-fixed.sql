@@ -103,6 +103,7 @@ CREATE TABLE workflow_blocks (
   block_type ENUM('CORE','CUSTOM') DEFAULT 'CUSTOM',
   output_schema JSON,
   model_name VARCHAR(128) DEFAULT 'gemma3:1b',
+  model_parameters JSON NULL COMMENT 'Model-specific parameters (temperature, max_tokens, etc.)',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
@@ -188,7 +189,7 @@ INSERT INTO workflow_blocks (workflow_id, name, prompt, order_index, block_type,
        }
      }
    }', 'gemma3:1b'),
-  (1, 'Extract Tag', 'Using the following summary extract a 1-3 word tag representing the summary.', 1, 'CUSTOM',
+  (1, 'Extract Tag', 'Using the following summary extract a 1-3 word tag representing the summary. {summary}', 1, 'CUSTOM',
    '{
      "type": "object",
      "required": ["tag"],
