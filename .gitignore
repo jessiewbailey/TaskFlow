@@ -220,6 +220,8 @@ web_modules/
 .next
 out
 
+Logo/
+
 # Vue.js build output
 dist/
 
