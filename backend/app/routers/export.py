@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, text
 from sqlalchemy.orm import selectinload
 from typing import Optional, Dict, Any, List
 import pandas as pd
@@ -9,7 +9,7 @@ import json
 import io
 from datetime import datetime
 from app.models.database import get_db
-from app.models.schemas import Request, User, AIOutput, RequestStatus, Workflow
+from app.models.schemas import Request, User, AIOutput, RequestStatus, Workflow, WorkflowBlock
 from app.models.pydantic_models import RequestResponse
 import structlog
 
@@ -59,6 +59,7 @@ async def get_export_stats(db: AsyncSession = Depends(get_db)):
 @router.get("/excel")
 async def export_to_excel(
     type: str = Query("completed", description="Export type: 'all' or 'completed'"),
+    includeGroundTruth: bool = Query(False, description="Include ground truth data"),
     db: AsyncSession = Depends(get_db)
 ):
     """Export tasks and AI analysis data to Excel format"""
@@ -83,6 +84,49 @@ async def export_to_excel(
         
         if not requests:
             raise HTTPException(status_code=404, detail="No data found for export")
+        
+        # Fetch ground truth data if requested
+        ground_truth_map = {}
+        if includeGroundTruth:
+            # Get all request IDs
+            request_ids = [req.id for req in requests]
+            
+            # Query ground truth data using the view
+            ground_truth_query = text("""
+                SELECT 
+                    request_id,
+                    workflow_block_id,
+                    block_name,
+                    field_path,
+                    ai_value,
+                    ground_truth_value,
+                    notes,
+                    created_by_name,
+                    updated_at
+                FROM ground_truth_with_context
+                WHERE request_id IN :request_ids
+            """)
+            
+            result = await db.execute(
+                ground_truth_query,
+                {"request_ids": tuple(request_ids) if request_ids else (0,)}
+            )
+            
+            # Organize ground truth data by request_id
+            for row in result:
+                request_id = row[0]
+                if request_id not in ground_truth_map:
+                    ground_truth_map[request_id] = []
+                ground_truth_map[request_id].append({
+                    "workflow_block_id": row[1],
+                    "block_name": row[2],
+                    "field_path": row[3],
+                    "ai_value": row[4],
+                    "ground_truth_value": row[5],
+                    "notes": row[6],
+                    "created_by": row[7],
+                    "updated_at": row[8]
+                })
         
         # Prepare data for Excel
         export_data = []
@@ -155,6 +199,26 @@ async def export_to_excel(
                     "Sensitivity Score": 0.0,
                     "AI_Summary": "No AI analysis available"
                 })
+            
+            # Add ground truth data if available
+            if includeGroundTruth and req.id in ground_truth_map:
+                for gt in ground_truth_map[req.id]:
+                    # Create column names for ground truth data
+                    field_key = f"GT_{gt['block_name']}_{gt['field_path']}"
+                    
+                    # Add ground truth value
+                    if isinstance(gt['ground_truth_value'], (dict, list)):
+                        row_data[f"{field_key}_Value"] = json.dumps(gt['ground_truth_value'])
+                    else:
+                        row_data[f"{field_key}_Value"] = gt['ground_truth_value']
+                    
+                    # Add notes if present
+                    if gt['notes']:
+                        row_data[f"{field_key}_Notes"] = gt['notes']
+                    
+                    # Add metadata
+                    row_data[f"{field_key}_UpdatedBy"] = gt['created_by']
+                    row_data[f"{field_key}_UpdatedAt"] = gt['updated_at'].strftime("%Y-%m-%d %H:%M:%S") if gt['updated_at'] else ""
             
             export_data.append(row_data)
         

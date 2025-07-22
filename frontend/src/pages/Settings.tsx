@@ -5,13 +5,15 @@ import {
   PlayIcon, 
   UserIcon, 
   BellIcon,
-  ArrowLeftIcon 
+  ArrowLeftIcon,
+  BeakerIcon 
 } from '@heroicons/react/24/outline'
 
 const settingsNavigation = [
   { name: 'Workflows', href: '/settings/workflows', icon: PlayIcon },
   { name: 'Users', href: '/settings/users', icon: UserIcon },
   { name: 'Notifications', href: '/settings/notifications', icon: BellIcon },
+  { name: 'Fine-Tuning', href: '/settings/fine-tuning', icon: BeakerIcon },
 ]
 
 interface SettingsProps {

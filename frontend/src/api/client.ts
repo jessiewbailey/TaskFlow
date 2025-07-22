@@ -12,7 +12,7 @@ import type {
 import type { OllamaModelsResponse } from '../types/models'
 
 // Use empty string as base URL to make requests relative to current origin
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL !== undefined 
+export const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL !== undefined 
   ? (import.meta as any).env.VITE_API_BASE_URL 
   : ''
 

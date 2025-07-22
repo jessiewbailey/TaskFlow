@@ -50,10 +50,12 @@ class User(Base):
     name = Column(String(128), nullable=False)
     email = Column(String(256), unique=True, nullable=False, index=True)
     role = Column(Enum(UserRole), nullable=False)
+    preferences = Column(JSON, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     
     # Relationships
     assigned_requests = relationship("Request", back_populates="assigned_analyst")
+    ground_truth_entries = relationship("GroundTruthData", back_populates="creator")
 
 class Request(Base):
     __tablename__ = "requests"
@@ -192,3 +194,22 @@ class CustomInstruction(Base):
     request = relationship("Request", back_populates="custom_instructions")
     workflow_block = relationship("WorkflowBlock")
     creator = relationship("User")
+
+class GroundTruthData(Base):
+    __tablename__ = "ground_truth_data"
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    request_id = Column(BigInteger, ForeignKey("requests.id"), nullable=False)
+    workflow_block_id = Column(BigInteger, ForeignKey("workflow_blocks.id"), nullable=False)
+    field_path = Column(String(255), nullable=False)
+    ai_value = Column(JSON, nullable=True)
+    ground_truth_value = Column(JSON, nullable=False)
+    created_by = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+    notes = Column(Text, nullable=True)
+    
+    # Relationships
+    request = relationship("Request")
+    workflow_block = relationship("WorkflowBlock")
+    creator = relationship("User", back_populates="ground_truth_entries")

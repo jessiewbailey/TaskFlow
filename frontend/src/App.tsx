@@ -6,6 +6,7 @@ import { Dashboard } from './pages/Dashboard'
 import { WorkflowSettings } from './pages/WorkflowSettings'
 import { Settings } from './pages/Settings'
 import { BatchJobsNew } from './pages/BatchJobsNew'
+import { FineTuningSettingsPage } from './pages/FineTuningSettings'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,7 @@ function App() {
           <Route path="/settings/workflows" element={<WorkflowSettings />} />
           <Route path="/settings/users" element={<Settings><div className="text-center py-8 text-gray-500">User management coming soon</div></Settings>} />
           <Route path="/settings/notifications" element={<Settings><div className="text-center py-8 text-gray-500">Notification settings coming soon</div></Settings>} />
+          <Route path="/settings/fine-tuning" element={<FineTuningSettingsPage />} />
         </Routes>
       </Router>
       <ReactQueryDevtools initialIsOpen={false} />

@@ -6,7 +6,7 @@ from prometheus_client import start_http_server
 import structlog
 import time
 from app.config import settings
-from app.routers import requests, jobs, internal, config, workflows, logs, custom_instructions, export
+from app.routers import requests, jobs, internal, config, workflows, logs, custom_instructions, export, ground_truth, user_preferences
 try:
     from app.routers import config_api
 except ImportError:
@@ -130,6 +130,8 @@ app.include_router(workflows.router)
 app.include_router(custom_instructions.router)
 app.include_router(logs.router)
 app.include_router(export.router)
+app.include_router(ground_truth.router)
+app.include_router(user_preferences.router)
 if config_api:
     app.include_router(config_api.router)
 

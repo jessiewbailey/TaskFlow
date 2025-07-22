@@ -1,12 +1,39 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { DashboardConfig } from '../types/workflow'
+import { GroundTruthControl } from './GroundTruthControl'
+import { groundTruthClient, UserPreferences } from '../api/groundTruthClient'
 
 interface DashboardRendererProps {
   config: DashboardConfig
   data: any // AI output data
+  requestId?: number
+  workflowBlocks?: Array<{ id: number; name: string }>
 }
 
-export const DashboardRenderer: React.FC<DashboardRendererProps> = ({ config, data }) => {
+export const DashboardRenderer: React.FC<DashboardRendererProps> = ({ config, data, requestId, workflowBlocks }) => {
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null)
+  const [loadingPrefs, setLoadingPrefs] = useState(true)
+
+  useEffect(() => {
+    loadPreferences()
+  }, [])
+
+  const loadPreferences = async () => {
+    try {
+      const prefs = await groundTruthClient.getUserPreferences()
+      setPreferences(prefs)
+    } catch (err) {
+      console.error('Failed to load preferences:', err)
+    } finally {
+      setLoadingPrefs(false)
+    }
+  }
+
+  const getWorkflowBlockId = (blockName: string): number | undefined => {
+    const block = workflowBlocks?.find(b => b.name === blockName)
+    return block?.id
+  }
+
   const getFieldValue = (blockName: string, fieldPath: string, data: any) => {
     // Direct access to transformed data structure
     if (!data || !data[blockName]) return null
@@ -47,11 +74,22 @@ export const DashboardRenderer: React.FC<DashboardRendererProps> = ({ config, da
     return null
   }
 
+  const getFieldType = (value: any): 'text' | 'number' | 'array' | 'object' | 'boolean' => {
+    if (value === null || value === undefined) return 'text'
+    if (typeof value === 'boolean') return 'boolean'
+    if (typeof value === 'number') return 'number'
+    if (Array.isArray(value)) return 'array'
+    if (typeof value === 'object') return 'object'
+    return 'text'
+  }
+
   const renderField = (field: any, value: any) => {
     if (!field.visible) return null
 
     const baseClassName = getWidthClass(field.width)
     const isEmpty = value === null || value === undefined
+    const showGroundTruth = preferences?.fine_tuning_mode && requestId && workflowBlocks
+    const workflowBlockId = getWorkflowBlockId(field.block_name)
     
     switch (field.display_type) {
       case 'progress_bar':
@@ -77,6 +115,16 @@ export const DashboardRenderer: React.FC<DashboardRendererProps> = ({ config, da
                   </span>
                 </div>
               )}
+              {showGroundTruth && workflowBlockId && (
+                <GroundTruthControl
+                  requestId={requestId}
+                  workflowBlockId={workflowBlockId}
+                  workflowBlockName={field.block_name}
+                  fieldPath={field.field_path}
+                  fieldType={getFieldType(value)}
+                  aiValue={value}
+                />
+              )}
             </div>
           </div>
         )
@@ -94,6 +142,16 @@ export const DashboardRenderer: React.FC<DashboardRendererProps> = ({ config, da
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                   {String(value)}
                 </span>
+              )}
+              {showGroundTruth && workflowBlockId && (
+                <GroundTruthControl
+                  requestId={requestId}
+                  workflowBlockId={workflowBlockId}
+                  workflowBlockName={field.block_name}
+                  fieldPath={field.field_path}
+                  fieldType={getFieldType(value)}
+                  aiValue={value}
+                />
               )}
             </div>
           </div>
@@ -117,6 +175,16 @@ export const DashboardRenderer: React.FC<DashboardRendererProps> = ({ config, da
               ) : (
                 <p className="text-sm text-gray-700">{String(value)}</p>
               )}
+              {showGroundTruth && workflowBlockId && (
+                <GroundTruthControl
+                  requestId={requestId}
+                  workflowBlockId={workflowBlockId}
+                  workflowBlockName={field.block_name}
+                  fieldPath={field.field_path}
+                  fieldType={getFieldType(value)}
+                  aiValue={value}
+                />
+              )}
             </div>
           </div>
         )
@@ -131,6 +199,16 @@ export const DashboardRenderer: React.FC<DashboardRendererProps> = ({ config, da
                   {isEmpty ? 'No content' : String(value)}
                 </p>
               </div>
+              {showGroundTruth && workflowBlockId && (
+                <GroundTruthControl
+                  requestId={requestId}
+                  workflowBlockId={workflowBlockId}
+                  workflowBlockName={field.block_name}
+                  fieldPath={field.field_path}
+                  fieldType={getFieldType(value)}
+                  aiValue={value}
+                />
+              )}
             </div>
           </div>
         )
@@ -143,6 +221,16 @@ export const DashboardRenderer: React.FC<DashboardRendererProps> = ({ config, da
               <pre className="text-xs text-gray-400 bg-gray-50 p-3 rounded-md overflow-x-auto">
                 {isEmpty ? '{}' : JSON.stringify(value, null, 2)}
               </pre>
+              {showGroundTruth && workflowBlockId && (
+                <GroundTruthControl
+                  requestId={requestId}
+                  workflowBlockId={workflowBlockId}
+                  workflowBlockName={field.block_name}
+                  fieldPath={field.field_path}
+                  fieldType={getFieldType(value)}
+                  aiValue={value}
+                />
+              )}
             </div>
           </div>
         )
@@ -160,6 +248,16 @@ export const DashboardRenderer: React.FC<DashboardRendererProps> = ({ config, da
                 </pre>
               ) : (
                 <p className="text-sm text-gray-700">{String(value)}</p>
+              )}
+              {showGroundTruth && workflowBlockId && (
+                <GroundTruthControl
+                  requestId={requestId}
+                  workflowBlockId={workflowBlockId}
+                  workflowBlockName={field.block_name}
+                  fieldPath={field.field_path}
+                  fieldType={getFieldType(value)}
+                  aiValue={value}
+                />
               )}
             </div>
           </div>

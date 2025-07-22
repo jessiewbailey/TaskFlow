@@ -312,3 +312,44 @@ class CustomInstructionResponse(BaseModel):
 class CustomInstructionUpdateRequest(BaseModel):
     instruction_text: Optional[str] = Field(None, min_length=1, max_length=5000)
     is_active: Optional[bool] = None
+
+# Ground Truth Models
+class CreateGroundTruthRequest(BaseModel):
+    request_id: int
+    workflow_block_id: int
+    field_path: str = Field(..., min_length=1, max_length=255)
+    ai_value: Any = None
+    ground_truth_value: Any
+    notes: Optional[str] = None
+
+class UpdateGroundTruthRequest(BaseModel):
+    ground_truth_value: Optional[Any] = None
+    notes: Optional[str] = None
+
+class GroundTruthResponse(BaseModel):
+    id: int
+    request_id: int
+    workflow_block_id: int
+    field_path: str
+    ai_value: Optional[Any]
+    ground_truth_value: Any
+    created_by: int
+    created_at: datetime
+    updated_at: datetime
+    notes: Optional[str]
+    
+    # Related data
+    workflow_block_name: Optional[str] = None
+    created_by_name: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+# User Preferences Models
+class UpdateUserPreferencesRequest(BaseModel):
+    fine_tuning_mode: Optional[bool] = None
+    # Add other preferences as needed
+
+class UserPreferencesResponse(BaseModel):
+    fine_tuning_mode: bool = False
+    # Add other preferences as needed

@@ -12,6 +12,7 @@ interface ExportStats {
 export const ExportData: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false)
   const [exportType, setExportType] = useState<'all' | 'completed'>('completed')
+  const [includeGroundTruth, setIncludeGroundTruth] = useState(false)
 
   // Fetch export statistics
   const { data: stats, isLoading: statsLoading } = useQuery<ExportStats>({
@@ -28,7 +29,11 @@ export const ExportData: React.FC = () => {
   const handleExport = async () => {
     setIsExporting(true)
     try {
-      const response = await fetch(`/api/export/excel?type=${exportType}`, {
+      const params = new URLSearchParams({
+        type: exportType,
+        includeGroundTruth: includeGroundTruth.toString()
+      })
+      const response = await fetch(`/api/export/excel?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -144,6 +149,26 @@ export const ExportData: React.FC = () => {
               </label>
             </div>
           </div>
+
+          <div className="border-t border-gray-200 pt-4">
+            <label className="text-sm font-medium text-gray-700">Additional Options</label>
+            <div className="mt-2">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={includeGroundTruth}
+                  onChange={(e) => setIncludeGroundTruth(e.target.checked)}
+                  className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                />
+                <span className="ml-2 text-sm text-gray-700">
+                  Include ground truth data (fine-tuning corrections)
+                </span>
+              </label>
+              <p className="ml-6 mt-1 text-xs text-gray-500">
+                Adds columns for user-provided corrections to AI-generated values
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -160,6 +185,9 @@ export const ExportData: React.FC = () => {
                 <li>Workflow assignment and processing status</li>
                 <li>Dynamic AI analysis columns based on each task's workflow output</li>
                 <li>Processing metadata (model used, tokens, duration)</li>
+                {includeGroundTruth && (
+                  <li>Ground truth corrections for each AI field (when available)</li>
+                )}
               </ul>
               <p className="mt-2 font-medium">
                 Note: Each task may have different columns based on its assigned workflow's output structure.

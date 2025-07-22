@@ -492,7 +492,9 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                 {dashboardConfig && dashboardConfig.fields.length > 0 ? (
                                   <DashboardRenderer 
                                     config={dashboardConfig} 
-                                    data={transformAIOutputData(request.latest_ai_output)} 
+                                    data={transformAIOutputData(request.latest_ai_output)}
+                                    requestId={request.id}
+                                    workflowBlocks={workflowData?.blocks}
                                   />
                                 ) : (
                                   <div className="space-y-4">
