@@ -1,6 +1,10 @@
 # TaskFlow - Local AI Workflow Execution System
 
-![image](screenshot0.png)
+## Each task executes a workflow and gets an AI Analysis Dashboard
+![image](assets/create_task.gif)
+
+## Easily create simple workflows and dashboards with structured outputs
+![image](assets/create_workflow.gif)
 
 Build complex AI workflows visually, create custom dashboards, and process batches of tasks - all with a 100% local setup. Upload your tasks via CSV or Excel, experiment with different workflow designs in the intuitive drag-and-drop interface, and discover what works best for your use case.
 
