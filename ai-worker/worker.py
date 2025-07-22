@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
+from contextlib import asynccontextmanager
 import structlog
 import asyncio
 import httpx
@@ -31,10 +32,19 @@ structlog.configure(
 
 logger = structlog.get_logger()
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Starting TaskFlow AI Worker service")
+    yield
+    # Shutdown
+    logger.info("Shutting down TaskFlow AI Worker service")
+
 app = FastAPI(
     title="TaskFlow AI Worker", 
     description="AI processing service for document requests",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 class ProcessRequest(BaseModel):
@@ -260,15 +270,6 @@ async def health_check():
         logger.error("Health check failed", error=str(e))
         raise HTTPException(status_code=503, detail="Service unhealthy")
 
-@app.on_event("startup")
-async def startup_event():
-    """Application startup"""
-    logger.info("Starting TaskFlow AI Worker service")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Application shutdown"""
-    logger.info("Shutting down TaskFlow AI Worker service")
 
 if __name__ == "__main__":
     import uvicorn

@@ -81,6 +81,7 @@ class AIOutputResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        protected_namespaces = ()
 
 class RequestResponse(BaseModel):
     id: int
@@ -200,6 +201,9 @@ class WorkflowBlockRequest(BaseModel):
     model_name: Optional[str] = Field(None, max_length=128)
     model_parameters: Optional[Dict[str, Any]] = None
     inputs: List[WorkflowBlockInputRequest] = []
+    
+    class Config:
+        protected_namespaces = ()
 
 class CreateWorkflowRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
@@ -239,6 +243,7 @@ class WorkflowBlockResponse(BaseModel):
     
     class Config:
         from_attributes = True
+        protected_namespaces = ()
 
 class WorkflowResponse(BaseModel):
     id: int

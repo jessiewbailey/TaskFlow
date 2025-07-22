@@ -3,8 +3,6 @@
 # SECURITY NOTE: This file uses environment variables with fallback defaults.
 # For production, create a .env file with proper credentials (see .env.example)
 # Do NOT use the default passwords in production!
-#
-version: '3.8'
 
 services:
   # MySQL Database

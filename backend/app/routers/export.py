@@ -207,10 +207,12 @@ async def export_to_excel(
                     field_key = f"GT_{gt['block_name']}_{gt['field_path']}"
                     
                     # Add ground truth value
-                    if isinstance(gt['ground_truth_value'], (dict, list)):
-                        row_data[f"{field_key}_Value"] = json.dumps(gt['ground_truth_value'])
-                    else:
-                        row_data[f"{field_key}_Value"] = gt['ground_truth_value']
+                    # Handle the value exactly like AI values for consistency
+                    ground_truth_val = gt['ground_truth_value']
+                    
+                    # Simply assign the value directly - pandas will handle the conversion
+                    # This matches how the flattened AI values are handled
+                    row_data[f"{field_key}_Value"] = ground_truth_val
                     
                     # Add notes if present
                     if gt['notes']:
