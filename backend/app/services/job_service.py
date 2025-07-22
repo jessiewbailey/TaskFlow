@@ -24,7 +24,7 @@ class JobService:
         workflow_id: Optional[int] = None
     ) -> str:
         """Create a new processing job"""
-        job_id = str(uuid.uuid4())
+        job_id = uuid.uuid4()
         
         job = ProcessingJob(
             id=job_id,
@@ -39,9 +39,9 @@ class JobService:
         await self.db.commit()  # Commit immediately to ensure job exists for background task
         
         # Trigger AI processing asynchronously after the job is committed
-        asyncio.create_task(self._process_job(job_id))
+        asyncio.create_task(self._process_job(str(job_id)))
         
-        return job_id
+        return str(job_id)
 
     async def get_job_status(self, job_id: str) -> Optional[JobProgressResponse]:
         """Get job status and progress"""

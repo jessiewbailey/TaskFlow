@@ -75,12 +75,14 @@ async def list_requests(
     request_ids = [req.id for req in requests]
     
     # Check for active jobs (PENDING or RUNNING) for all requests in one query
-    active_jobs_result = await db.execute(
-        select(ProcessingJob.request_id)
-        .where(ProcessingJob.request_id.in_(request_ids))
-        .where(ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
-    )
-    active_job_request_ids = set(active_jobs_result.scalars().all())
+    active_job_request_ids = set()
+    if request_ids:  # Only query if there are requests
+        active_jobs_result = await db.execute(
+            select(ProcessingJob.request_id)
+            .where(ProcessingJob.request_id.in_(request_ids))
+            .where(ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
+        )
+        active_job_request_ids = set(active_jobs_result.scalars().all())
     
     # Convert to response format
     request_responses = []

@@ -1,8 +1,10 @@
 from sqlalchemy import Column, BigInteger, String, Text, Date, Enum, TIMESTAMP, Integer, DECIMAL, JSON, ForeignKey, Boolean
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.models.database import Base
 import enum
+import uuid
 
 class UserRole(str, enum.Enum):
     ANALYST = "ANALYST"
@@ -49,7 +51,7 @@ class User(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     name = Column(String(128), nullable=False)
     email = Column(String(256), unique=True, nullable=False, index=True)
-    role = Column(Enum(UserRole), nullable=False)
+    role = Column(Enum(UserRole, name='user_role'), nullable=False)
     preferences = Column(JSON, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     
@@ -66,7 +68,7 @@ class Request(Base):
     date_received = Column(Date, server_default=func.current_date())
     assigned_analyst_id = Column(BigInteger, ForeignKey("users.id"), nullable=True)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=True)
-    status = Column(Enum(RequestStatus), default=RequestStatus.NEW)
+    status = Column(Enum(RequestStatus, name='request_status'), default=RequestStatus.NEW)
     due_date = Column(Date, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
@@ -100,11 +102,11 @@ class AIOutput(Base):
 class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
     
-    id = Column(String(36), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     request_id = Column(BigInteger, ForeignKey("requests.id"), nullable=False)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=True)
-    status = Column(Enum(JobStatus), default=JobStatus.PENDING)
-    job_type = Column(Enum(JobType), default=JobType.STANDARD)
+    status = Column(Enum(JobStatus, name='job_status'), default=JobStatus.PENDING)
+    job_type = Column(Enum(JobType, name='job_type'), default=JobType.STANDARD)
     custom_instructions = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     started_at = Column(TIMESTAMP, nullable=True)
@@ -121,7 +123,7 @@ class Workflow(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     name = Column(String(128), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(Enum(WorkflowStatus), default=WorkflowStatus.DRAFT)
+    status = Column(Enum(WorkflowStatus, name='workflow_status'), default=WorkflowStatus.DRAFT)
     is_default = Column(Boolean, default=False, nullable=False)
     created_by = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
@@ -140,7 +142,7 @@ class WorkflowBlock(Base):
     name = Column(String(128), nullable=False)
     prompt = Column(Text, nullable=False)
     order = Column('order_index', Integer, nullable=False)
-    block_type = Column(Enum(BlockType), default=BlockType.CUSTOM, nullable=False)
+    block_type = Column(Enum(BlockType, name='block_type'), default=BlockType.CUSTOM, nullable=False)
     output_schema = Column(JSON, nullable=True)  # Pydantic schema as JSON
     model_name = Column(String(128), nullable=True)  # AI model to use for this block
     model_parameters = Column(JSON, nullable=True)  # Model-specific parameters (temperature, max_tokens, etc.)
@@ -156,7 +158,7 @@ class WorkflowBlockInput(Base):
     
     id = Column(BigInteger, primary_key=True, index=True)
     block_id = Column(BigInteger, ForeignKey("workflow_blocks.id"), nullable=False)
-    input_type = Column(Enum(BlockInputType), nullable=False)
+    input_type = Column(Enum(BlockInputType, name='block_input_type'), nullable=False)
     source_block_id = Column(BigInteger, ForeignKey("workflow_blocks.id"), nullable=True)  # Only for BLOCK_OUTPUT type
     variable_name = Column(String(64), nullable=False)  # Name to use in prompt template
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
@@ -171,7 +173,7 @@ class WorkflowDashboardConfig(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=False)
     fields = Column(JSON, nullable=False)
-    layout = Column(Enum(DashboardLayout), default=DashboardLayout.grid)
+    layout = Column(Enum(DashboardLayout, name='dashboard_layout'), default=DashboardLayout.grid)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
     
