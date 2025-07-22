@@ -31,17 +31,15 @@ if [ ! -f .env ]; then
     echo "📝 Creating .env file with secure passwords..."
     
     # Generate random passwords
-    MYSQL_ROOT_PWD=$(generate_password)
-    MYSQL_USER_PWD=$(generate_password)
+    POSTGRES_PWD=$(generate_password)
     SECRET_KEY=$(generate_password)
     
     cat > .env << EOF
 # Database
-DATABASE_URL=mysql+aiomysql://taskflow_user:${MYSQL_USER_PWD}@mysql:3306/taskflow_db
-MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PWD}
-MYSQL_DATABASE=taskflow_db
-MYSQL_USER=taskflow_user
-MYSQL_PASSWORD=${MYSQL_USER_PWD}
+DATABASE_URL=postgresql+asyncpg://taskflow_user:${POSTGRES_PWD}@postgres:5432/taskflow_db
+POSTGRES_DB=taskflow_db
+POSTGRES_USER=taskflow_user
+POSTGRES_PASSWORD=${POSTGRES_PWD}
 
 # API
 SECRET_KEY=${SECRET_KEY}
@@ -59,8 +57,7 @@ EOF
     echo "✅ Created .env file with secure passwords"
     echo ""
     echo "⚠️  IMPORTANT: Save these credentials securely!"
-    echo "   • MySQL Root Password: ${MYSQL_ROOT_PWD}"
-    echo "   • MySQL User Password: ${MYSQL_USER_PWD}"
+    echo "   • PostgreSQL Password: ${POSTGRES_PWD}"
     echo "   • Secret Key: ${SECRET_KEY}"
     echo ""
 fi
@@ -80,10 +77,10 @@ docker-compose -f docker-compose.yml up -d --build
 
 echo "⏳ Waiting for services to start..."
 
-# Wait for MySQL
-echo "⏳ Waiting for MySQL..."
-timeout 60s bash -c 'until docker-compose exec -T mysql mysqladmin ping -h localhost --silent; do sleep 2; done'
-echo "✅ MySQL is ready"
+# Wait for PostgreSQL
+echo "⏳ Waiting for PostgreSQL..."
+timeout 60s bash -c 'until docker-compose exec -T postgres pg_isready -U taskflow_user; do sleep 2; done'
+echo "✅ PostgreSQL is ready"
 
 # Wait for Ollama and pull model
 echo "⏳ Waiting for Ollama and pulling model (this may take a few minutes)..."
@@ -126,7 +123,7 @@ echo "   • Restart services: docker-compose restart"
 echo "   • Check status: docker-compose ps"
 echo ""
 echo "🗄️  Database info:"
-echo "   • Host: localhost:3306"
+echo "   • Host: localhost:5432"
 echo "   • Database: taskflow_db"
 echo "   • User: taskflow_user"
 echo "   • Password: See .env file"

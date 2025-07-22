@@ -127,6 +127,7 @@ export const WorkflowSettings: React.FC = () => {
           block_type: block.block_type,
           output_schema: block.output_schema,
           model_name: block.model_name,
+          model_parameters: block.model_parameters,
           inputs: block.inputs.map(input => ({
             input_type: input.input_type,
             variable_name: input.variable_name,

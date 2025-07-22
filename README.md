@@ -27,7 +27,7 @@ Build complex AI workflows visually, create custom dashboards, and process batch
 - **Frontend**: React 18 + TypeScript + TailwindCSS
 - **Backend API**: FastAPI 0.111 + Python 3.12
 - **AI Worker**: Python microservice with Ollama (default: gemma3:1b)
-- **Database**: MySQL 8 for workflow and task storage
+- **Database**: PostgreSQL 15+ for workflow and task storage with JSONB support
 - **Deployment**: Docker Compose for local dev, Kubernetes for production
 
 ## Quick Start
@@ -232,7 +232,7 @@ Build your own dashboards to visualize workflow results and track performance:
 ### Environment Variables
 
 **Backend API:**
-- `DATABASE_URL`: MySQL connection string
+- `DATABASE_URL`: PostgreSQL connection string
 - `AI_WORKER_URL`: AI worker service URL
 - `SECRET_KEY`: JWT secret key
 - `DEBUG`: Enable debug mode
@@ -247,7 +247,7 @@ Build your own dashboards to visualize workflow results and track performance:
 
 ### Database Schema
 
-The application uses MySQL 8 with the following main tables:
+The application uses PostgreSQL 15+ with the following main tables:
 
 - `requests`: Uploaded tasks and their metadata
 - `workflows`: Saved workflow definitions
@@ -332,7 +332,7 @@ docker-compose ps
 
 # Execute commands in containers
 docker-compose exec taskflow-api bash
-docker-compose exec mysql mysql -u taskflow_user -p taskflow_db
+docker-compose exec postgres psql -U taskflow_user -d taskflow_db
 ```
 
 ### Troubleshooting
@@ -358,12 +358,12 @@ docker-compose logs ollama
 
 **Database issues:**
 ```bash
-# Check MySQL logs
-docker-compose logs mysql
+# Check PostgreSQL logs
+docker-compose logs postgres
 
 # Reset database
 docker-compose down -v
-docker-compose up -d mysql
+docker-compose up -d postgres
 ```
 
 ### Code Quality

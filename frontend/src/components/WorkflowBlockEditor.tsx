@@ -336,7 +336,7 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
                     const temperature = parseFloat(e.target.value)
                     updateBlock({
                       model_parameters: {
-                        ...block.model_parameters,
+                        ...(block.model_parameters || {}),
                         temperature: isNaN(temperature) ? 0.7 : temperature
                       }
                     })
@@ -363,7 +363,7 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
                     const num_ctx = parseInt(e.target.value)
                     updateBlock({
                       model_parameters: {
-                        ...block.model_parameters,
+                        ...(block.model_parameters || {}),
                         num_ctx: isNaN(num_ctx) ? 4096 : num_ctx
                       }
                     })
@@ -390,7 +390,7 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
                     const max_tokens = parseInt(e.target.value)
                     updateBlock({
                       model_parameters: {
-                        ...block.model_parameters,
+                        ...(block.model_parameters || {}),
                         max_tokens: isNaN(max_tokens) ? 2048 : max_tokens
                       }
                     })
@@ -417,7 +417,7 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
                     const top_p = parseFloat(e.target.value)
                     updateBlock({
                       model_parameters: {
-                        ...block.model_parameters,
+                        ...(block.model_parameters || {}),
                         top_p: isNaN(top_p) ? 0.9 : top_p
                       }
                     })
@@ -444,7 +444,7 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
                     const top_k = parseInt(e.target.value)
                     updateBlock({
                       model_parameters: {
-                        ...block.model_parameters,
+                        ...(block.model_parameters || {}),
                         top_k: isNaN(top_k) ? 40 : top_k
                       }
                     })
@@ -471,7 +471,7 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
                         const repeat_penalty = parseFloat(e.target.value)
                         updateBlock({
                           model_parameters: {
-                            ...block.model_parameters,
+                            ...(block.model_parameters || {}),
                             repeat_penalty: isNaN(repeat_penalty) ? 1.1 : repeat_penalty
                           }
                         })
@@ -495,7 +495,7 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
                         const seed = e.target.value ? parseInt(e.target.value) : undefined
                         updateBlock({
                           model_parameters: {
-                            ...block.model_parameters,
+                            ...(block.model_parameters || {}),
                             seed
                           }
                         })

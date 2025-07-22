@@ -55,7 +55,7 @@ Migration files are organized chronologically and should be applied in order. Ea
 Database initialization is handled automatically by Docker Compose:
 ```bash
 # Schema and migrations are applied on first run
-docker-compose up -d mysql
+docker-compose up -d postgres
 ```
 
 ### Kubernetes Deployment
@@ -68,11 +68,9 @@ kubectl apply -f k8s/db-init-job.yaml
 ### Manual Database Setup
 ```bash
 # Run schema
-mysql -u root -p < database/setup/schema.sql
+psql -U taskflow_user -d taskflow_db -f database/postgresql/init-complete.sql
 
-# Run migrations in order
-mysql -u root -p < database/migrations/migration_add_workflow_integration.sql
-mysql -u root -p < database/migrations/migration_add_model_to_workflow_blocks.sql
+# Note: PostgreSQL setup includes all migrations in a single file
 # ... continue with other migrations
 ```
 
@@ -96,14 +94,14 @@ mysql -u root -p < database/migrations/migration_add_model_to_workflow_blocks.sq
 ### Backup
 ```bash
 # Full backup
-mysqldump -u root -p taskflow_db > backup.sql
+pg_dump -U taskflow_user taskflow_db > backup.sql
 
 # Schema only
-mysqldump -u root -p --no-data taskflow_db > schema_backup.sql
+pg_dump -U taskflow_user --schema-only taskflow_db > schema_backup.sql
 ```
 
 ### Recovery
 ```bash
 # Restore from backup
-mysql -u root -p taskflow_db < backup.sql
+psql -U taskflow_user taskflow_db < backup.sql
 ```

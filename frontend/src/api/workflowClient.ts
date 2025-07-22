@@ -19,6 +19,9 @@ const api = axios.create({
 // Request interceptor for logging
 api.interceptors.request.use((config) => {
   console.log(`Workflow API Request: ${config.method?.toUpperCase()} ${config.url}`)
+  if (config.data) {
+    console.log('Request payload:', JSON.stringify(config.data, null, 2))
+  }
   return config
 })
 

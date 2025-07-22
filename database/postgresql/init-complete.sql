@@ -256,7 +256,7 @@ INSERT INTO workflows (name, description, status, is_default, created_by) VALUES
   ('Example Workflow', 'Example Basic Workflow', 'ACTIVE', TRUE, 1);
 
 -- Insert workflow blocks for Example Workflow
-INSERT INTO workflow_blocks (workflow_id, name, prompt, order_index, block_type, output_schema, model_name) VALUES
+INSERT INTO workflow_blocks (workflow_id, name, prompt, order_index, block_type, output_schema, model_name, model_parameters) VALUES
   (1, 'Summarize Text', 'Provide a 1-3 sentence summary of the text: {input_1}', 0, 'CUSTOM', 
    '{
      "type": "object",
@@ -267,7 +267,12 @@ INSERT INTO workflow_blocks (workflow_id, name, prompt, order_index, block_type,
          "description": "1-3 Sentence Summary"
        }
      }
-   }'::jsonb, 'gemma3:1b'),
+   }'::jsonb, 'gemma3:1b', 
+   '{
+     "temperature": 0.7,
+     "num_ctx": 4096,
+     "max_tokens": 2048
+   }'::jsonb),
   (1, 'Extract Tag', 'Using the following summary extract a 1-3 word tag representing the summary. {summary}', 1, 'CUSTOM',
    '{
      "type": "object",
@@ -278,7 +283,12 @@ INSERT INTO workflow_blocks (workflow_id, name, prompt, order_index, block_type,
          "description": "1-3 word tag"
        }
      }
-   }'::jsonb, 'gemma3:1b');
+   }'::jsonb, 'gemma3:1b',
+   '{
+     "temperature": 0.5,
+     "num_ctx": 2048,
+     "max_tokens": 256
+   }'::jsonb);
 
 -- Insert workflow block inputs
 INSERT INTO workflow_block_inputs (block_id, input_type, source_block_id, variable_name) VALUES

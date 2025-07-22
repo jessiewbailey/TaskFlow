@@ -95,7 +95,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
       order: blocks.length,
       block_type: 'CUSTOM',
       output_schema: undefined,
-      model_parameters: undefined,
+      model_parameters: {},
       inputs: []
     }
     setBlocks([...blocks, newBlock])
