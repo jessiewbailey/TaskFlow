@@ -6,7 +6,6 @@ This directory contains comprehensive documentation for the TaskFlow application
 
 ### Getting Started
 - **[QUICKSTART.md](./QUICKSTART.md)** - Quick setup guide for development and deployment
-- **[DEMO_INSTRUCTIONS.md](./DEMO_INSTRUCTIONS.md)** - Step-by-step demo walkthrough
 
 ### Technical Documentation
 - **[request-flow.md](./request-flow.md)** - How requests flow through the system
@@ -17,7 +16,7 @@ This directory contains comprehensive documentation for the TaskFlow application
 
 ### Deployment
 - **[../k8s/README.md](../k8s/README.md)** - Kubernetes deployment guide
-- **[../k8s/README-external-ollama.md](../k8s/README-external-ollama.md)** - Using external Ollama in production
+- **[../k8s/README-external-ollama.md](../k8s/README-external-ollama.md)** - Using external Ollama configuration
 
 ### Configuration
 - **[../config/README.md](../config/README.md)** - Configuration and customization guide

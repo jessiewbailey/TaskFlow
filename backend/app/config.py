@@ -4,7 +4,7 @@ import os
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = os.getenv("DATABASE_URL", "mysql+aiomysql://user:password@host:3306/database")
+    database_url: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@host:5432/database")
     
     # AI Worker
     ai_worker_url: str = os.getenv("AI_WORKER_URL", "http://taskflow-ai:8001")

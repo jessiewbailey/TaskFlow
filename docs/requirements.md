@@ -22,7 +22,7 @@
 Browser ──HTTPS──▶ Ingress (nginx)
                  │
                  ▼
-            FastAPI Pods  ⇄  MySQL 8
+            FastAPI Pods  ⇄  PostgreSQL 15+
                  │
  gRPC / HTTP     ▼
            AI Worker Pods (gemma3:27b via Ollama)

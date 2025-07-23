@@ -86,7 +86,7 @@ If you prefer to run setup manually:
 docker-compose logs -f [service-name]
 
 # Common issues:
-# - Port conflicts: Make sure ports 3000, 8000, 8001, 3306, 11434 are free
+# - Port conflicts: Make sure ports 3000, 8000, 8001, 5432, 11434 are free
 # - Memory: Ensure Docker has at least 4GB RAM allocated
 ```
 
@@ -101,12 +101,12 @@ docker-compose logs ollama
 
 ### Database connection issues
 ```bash
-# Check MySQL logs
-docker-compose logs mysql
+# Check PostgreSQL logs
+docker-compose logs postgres
 
 # Reset database
 docker-compose down -v
-docker-compose up -d mysql
+docker-compose up -d postgres
 ```
 
 ### Frontend build fails
@@ -141,7 +141,7 @@ docker-compose ps
 
 # Execute commands in containers
 docker-compose exec taskflow-api bash
-docker-compose exec mysql mysql -u taskflow_user -p taskflow_db
+docker-compose exec postgres psql -U taskflow_user -d taskflow_db
 ```
 
 ## Available Services
@@ -152,7 +152,7 @@ docker-compose exec mysql mysql -u taskflow_user -p taskflow_db
 | API | http://localhost:8000 | FastAPI backend |
 | API Docs | http://localhost:8000/docs | Interactive API documentation |
 | AI Worker | http://localhost:8001 | AI processing service |
-| MySQL | localhost:3306 | Database (taskflow_user/taskflow_password) |
+| PostgreSQL | localhost:5432 | Database (taskflow_user/taskflow_password) |
 | Ollama | http://localhost:11434 | AI model server |
 
 ## Default Test Data
