@@ -7,7 +7,7 @@ import pandas as pd
 import io
 from datetime import datetime
 from app.models.database import get_db
-from app.models.schemas import Request, User, AIOutput, RequestStatus, Workflow, JobType, CustomInstruction, ProcessingJob, JobStatus
+from app.models.schemas import Request, User, AIOutput, RequestStatus, Workflow, JobType, CustomInstruction, ProcessingJob, JobStatus, Exercise as ExerciseModel
 from app.models.pydantic_models import (
     CreateRequestRequest, CreateRequestResponse, UpdateRequestStatusRequest,
     UpdateRequestRequest, ProcessRequestRequest, ProcessJobResponse, RequestResponse, 
@@ -458,15 +458,65 @@ async def delete_request(
     
     return {"message": "Request deleted successfully"}
 
+@router.get("/test-exercise-assignment")
+async def test_exercise_assignment(db: AsyncSession = Depends(get_db)):
+    """Test endpoint to debug exercise assignment"""
+    # Get exercises
+    exercise_result = await db.execute(
+        select(ExerciseModel).where(Exercise.name == "FOIA")
+    )
+    exercise = exercise_result.scalar_one_or_none()
+    
+    if not exercise:
+        return {"error": "FOIA exercise not found"}
+    
+    # Create a test request with exercise
+    test_request = Request(
+        text="Test exercise assignment",
+        requester="test@example.com",
+        exercise_id=exercise.id,
+        status=RequestStatus.NEW
+    )
+    
+    db.add(test_request)
+    await db.flush()
+    
+    # Check if it persisted
+    check_result = await db.execute(
+        select(Request).where(Request.id == test_request.id)
+    )
+    saved_request = check_result.scalar_one()
+    
+    await db.rollback()  # Don't actually save
+    
+    return {
+        "exercise_id_before_save": exercise.id,
+        "request_exercise_id_after_add": test_request.exercise_id,
+        "saved_request_exercise_id": saved_request.exercise_id,
+        "exercise_name": exercise.name
+    }
+
 @router.post("/batch", response_model=BatchUploadResponse)
 async def batch_upload_requests(
     file: UploadFile = File(...),
+    exercise_id: Optional[int] = Query(None, description="Exercise ID to assign all uploaded requests to"),
     db: AsyncSession = Depends(get_db)
 ):
     """Batch upload requests from CSV or Excel file"""
     
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
+    
+    # Validate exercise_id if provided
+    if exercise_id:
+        logger.info(f"Batch upload with exercise_id: {exercise_id}")
+        exercise_result = await db.execute(
+            select(ExerciseModel).where(ExerciseModel.id == exercise_id)
+        )
+        exercise = exercise_result.scalar_one_or_none()
+        if not exercise:
+            raise HTTPException(status_code=404, detail=f"Exercise with ID {exercise_id} not found")
+        logger.info(f"Found exercise: {exercise.name} with ID {exercise.id}")
     
     # Validate file type
     file_extension = file.filename.lower().split('.')[-1]
@@ -485,6 +535,7 @@ async def batch_upload_requests(
             df = pd.read_csv(io.BytesIO(content))
         else:
             df = pd.read_excel(io.BytesIO(content))
+        
         
         # Validate required columns
         required_columns = ['text']
@@ -600,18 +651,27 @@ async def batch_upload_requests(
                         ))
                         continue
                 
+                # Use the exercise_id passed from the frontend (the selected exercise)
+                # The exercise_id parameter is already validated at the start of the function
+                
+                
                 # Create request
+                logger.info(f"Creating request with exercise_id: {exercise_id}")
+                
                 request = Request(
                     text=text,
                     requester=requester,
                     assigned_analyst_id=assigned_analyst_id,
                     workflow_id=workflow_id,
+                    exercise_id=exercise_id,
                     status=RequestStatus.NEW,
                     due_date=due_date
                 )
                 
+                
                 db.add(request)
                 await db.flush()  # Get the ID without committing
+                
                 
                 # Create processing job if workflow is assigned
                 if workflow_id:

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { ArrowDownTrayIcon, CloudArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline'
+import { useExercises } from '../hooks/useExercises'
 
 interface Workflow {
   id: number
@@ -26,6 +27,9 @@ export const BulkUpload: React.FC = () => {
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [isLoadingWorkflows, setIsLoadingWorkflows] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Get exercises
+  const { exercises, selectedExercise } = useExercises()
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -94,7 +98,6 @@ export const BulkUpload: React.FC = () => {
     const workflowNames = workflows.map(w => w.name)
     const defaultWorkflow = workflows.find(w => w.is_default)
     const exampleWorkflow = defaultWorkflow?.name || workflowNames[0] || 'Default Workflow'
-    
     const examples = [
       `"Request for quarterly financial reports","john.doe@company.com",,"${exampleWorkflow}","2025-12-31"`,
       `"Access to employee training records","jane.smith@company.com",,"${exampleWorkflow}",`,
@@ -124,7 +127,11 @@ export const BulkUpload: React.FC = () => {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch('/api/requests/batch', {
+      const url = selectedExercise 
+        ? `/api/requests/batch?exercise_id=${selectedExercise.id}`
+        : '/api/requests/batch'
+      
+      const response = await fetch(url, {
         method: 'POST',
         body: formData,
       })
@@ -303,6 +310,14 @@ export const BulkUpload: React.FC = () => {
 
       {/* Instructions */}
       <div className="border-t border-gray-200 pt-6">
+        {selectedExercise && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-800">
+              All uploaded tasks will be assigned to: <strong>{selectedExercise.name}</strong>
+            </p>
+          </div>
+        )}
+        
         <h3 className="text-md font-medium text-gray-900 mb-3">Required Columns</h3>
         <div className="text-sm text-gray-600 space-y-2">
           <p><strong>text</strong> (required): The task/request description</p>
