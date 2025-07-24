@@ -58,13 +58,13 @@ The terms "Submitter" and "Requester" can be customized in several places:
    ```bash
    kubectl create configmap taskflow-ui-labels \
      --from-file=labels.yaml=config/ui-labels/labels.yaml \
-     -n llm \
+     -n taskflow \
      --dry-run=client -o yaml | kubectl apply -f -
    ```
 
 2. Restart the API deployment:
    ```bash
-   kubectl rollout restart deployment/api -n llm
+   kubectl rollout restart deployment/api -n taskflow
    ```
 
 ## Environment-Specific Configuration

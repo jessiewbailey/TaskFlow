@@ -9,7 +9,7 @@ from app.models.pydantic_models import (
 )
 
 router = APIRouter(
-    prefix="/exercises",
+    prefix="/api/exercises",
     tags=["exercises"]
 )
 

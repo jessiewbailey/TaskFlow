@@ -9,7 +9,7 @@ import { ExerciseDropdown } from '../components/ExerciseDropdown'
 import { useRequests } from '../hooks/useRequests'
 import { useExercises } from '../hooks/useExercises'
 import type { RequestFilters, Task } from '../types'
-import { PlusIcon, CogIcon, DocumentTextIcon, Bars3Icon } from '@heroicons/react/24/outline'
+import { PlusIcon, CogIcon, DocumentTextIcon, Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { Logo } from '../components/Logo'
 
 export const Dashboard: React.FC = () => {
@@ -24,6 +24,7 @@ export const Dashboard: React.FC = () => {
   const [selectedRequest, setSelectedRequest] = useState<Task | null>(null)
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false)
   const [isLogViewerOpen, setIsLogViewerOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Update filters when selected exercise changes
   useEffect(() => {
@@ -37,6 +38,42 @@ export const Dashboard: React.FC = () => {
   }, [selectedExercise])
 
   const { data: requestsData, isLoading, error, refetch } = useRequests(filters)
+  
+  // Filter data based on search query
+  const filteredData = React.useMemo(() => {
+    if (!requestsData || !searchQuery.trim()) {
+      return requestsData
+    }
+    
+    const query = searchQuery.toLowerCase()
+    const filteredRequests = requestsData.requests.filter(request => {
+      // Search in ID
+      if (request.id.toString().includes(query)) return true
+      
+      // Search in requester
+      if (request.requester?.toLowerCase().includes(query)) return true
+      
+      // Search in status
+      if (request.status.toLowerCase().includes(query)) return true
+      
+      // Search in analyst name
+      if (request.assigned_analyst?.name.toLowerCase().includes(query)) return true
+      
+      // Search in task text (context)
+      if (request.text.toLowerCase().includes(query)) return true
+      
+      // Search in exercise name
+      if (request.exercise?.name.toLowerCase().includes(query)) return true
+      
+      return false
+    })
+    
+    return {
+      ...requestsData,
+      requests: filteredRequests,
+      total: filteredRequests.length
+    }
+  }, [requestsData, searchQuery])
   
   const handleRequestUpdated = () => {
     refetch()
@@ -64,6 +101,19 @@ export const Dashboard: React.FC = () => {
                   onSelectExercise={selectExercise}
                   loading={exercisesLoading}
                 />
+                <div className="h-6 w-px bg-gray-300" />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search tasks..."
+                    className="block w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
               </div>
               <div className="flex items-center space-x-4">
                 <button
@@ -112,7 +162,7 @@ export const Dashboard: React.FC = () => {
               </div>
             ) : (
               <RequestsTable
-                data={requestsData}
+                data={filteredData}
                 isLoading={isLoading}
                 filters={filters}
                 onFiltersChange={setFilters}

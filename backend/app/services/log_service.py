@@ -18,7 +18,7 @@ class LogStreamingService:
         self.is_kubernetes = os.path.exists('/var/run/secrets/kubernetes.io/serviceaccount')
         self.ollama_container_name = "taskflow-ollama"  # For Docker Compose
         self.ollama_pod_selector = "app=ollama"  # For Kubernetes
-        self.namespace = "llm"  # Kubernetes namespace
+        self.namespace = "taskflow"  # Kubernetes namespace
         
         # Initialize Kubernetes client if in cluster
         if self.is_kubernetes:
