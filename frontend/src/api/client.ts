@@ -43,6 +43,7 @@ export const taskflowApi = {
     
     if (filters.analyst !== undefined) params.append('analyst', filters.analyst.toString())
     if (filters.status) params.append('status', filters.status)
+    if (filters.exercise_id !== undefined) params.append('exercise_id', filters.exercise_id.toString())
     if (filters.sort_by) params.append('sort_by', filters.sort_by)
     if (filters.order) params.append('order', filters.order)
     if (filters.page) params.append('page', filters.page.toString())

@@ -1,16 +1,20 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { FiltersPanel } from '../components/FiltersPanel'
 import { RequestsTable } from '../components/RequestsTable'
 import { RequestDrawer } from '../components/RequestDrawer'
 import { NewRequestModal } from '../components/NewRequestModal'
 import { LogViewer } from '../components/LogViewer'
+import { ExerciseDropdown } from '../components/ExerciseDropdown'
 import { useRequests } from '../hooks/useRequests'
+import { useExercises } from '../hooks/useExercises'
 import type { RequestFilters, Task } from '../types'
 import { PlusIcon, CogIcon, DocumentTextIcon, Bars3Icon } from '@heroicons/react/24/outline'
 import { Logo } from '../components/Logo'
 
 export const Dashboard: React.FC = () => {
+  const { exercises, selectedExercise, selectExercise, loading: exercisesLoading } = useExercises()
+  
   const [filters, setFilters] = useState<RequestFilters>({
     page: 1,
     page_size: 20,
@@ -20,6 +24,17 @@ export const Dashboard: React.FC = () => {
   const [selectedRequest, setSelectedRequest] = useState<Task | null>(null)
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false)
   const [isLogViewerOpen, setIsLogViewerOpen] = useState(false)
+
+  // Update filters when selected exercise changes
+  useEffect(() => {
+    if (selectedExercise) {
+      setFilters(prev => ({
+        ...prev,
+        exercise_id: selectedExercise.id,
+        page: 1 // Reset to first page when exercise changes
+      }))
+    }
+  }, [selectedExercise])
 
   const { data: requestsData, isLoading, error, refetch } = useRequests(filters)
   
@@ -40,8 +55,15 @@ export const Dashboard: React.FC = () => {
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-4">
-              <div className="flex items-center">
+              <div className="flex items-center space-x-4">
                 <Logo className="h-8 w-auto" />
+                <div className="h-6 w-px bg-gray-300" />
+                <ExerciseDropdown
+                  exercises={exercises}
+                  selectedExercise={selectedExercise}
+                  onSelectExercise={selectExercise}
+                  loading={exercisesLoading}
+                />
               </div>
               <div className="flex items-center space-x-4">
                 <button
@@ -115,6 +137,7 @@ export const Dashboard: React.FC = () => {
       <NewRequestModal
         isOpen={isNewRequestModalOpen}
         onClose={() => setIsNewRequestModalOpen(false)}
+        selectedExercise={selectedExercise}
       />
 
       {/* Log Viewer */}

@@ -10,6 +10,28 @@ export interface User {
   created_at: string
 }
 
+export interface Exercise {
+  id: number
+  name: string
+  description?: string
+  is_active: boolean
+  created_by?: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ExerciseCreate {
+  name: string
+  description?: string
+  is_active?: boolean
+}
+
+export interface ExerciseUpdate {
+  name?: string
+  description?: string
+  is_active?: boolean
+}
+
 export interface AIOutput {
   id: number
   version: number
@@ -31,11 +53,13 @@ export interface Task {
   date_received: string
   assigned_analyst_id?: number
   workflow_id?: number
+  exercise_id?: number
   status: RequestStatus
   due_date?: string
   created_at: string
   updated_at: string
   assigned_analyst?: User
+  exercise?: Exercise
   latest_ai_output?: AIOutput
   has_active_jobs?: boolean
 }
@@ -55,6 +79,7 @@ export interface CreateRequestPayload {
   text: string
   requester?: string
   assigned_analyst_id?: number
+  exercise_id?: number
 }
 
 export interface CreateRequestResponse {
@@ -84,6 +109,7 @@ export interface JobProgress {
 export interface RequestFilters {
   analyst?: number
   status?: RequestStatus
+  exercise_id?: number
   sort_by?: string
   order?: 'asc' | 'desc'
   page?: number

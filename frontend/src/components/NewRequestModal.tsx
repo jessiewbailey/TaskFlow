@@ -4,13 +4,15 @@ import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useCreateRequest } from '../hooks/useRequests'
 import { useWorkflows } from '../hooks/useWorkflows'
 import { useUILabels } from '../hooks/useConfig'
+import { Exercise } from '../types'
 
 interface NewRequestModalProps {
   isOpen: boolean
   onClose: () => void
+  selectedExercise?: Exercise | null
 }
 
-export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose }) => {
+export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClose, selectedExercise }) => {
   const [formData, setFormData] = useState({
     text: '',
     requester: '',
@@ -32,7 +34,8 @@ export const NewRequestModal: React.FC<NewRequestModalProps> = ({ isOpen, onClos
       await createRequest.mutateAsync({
         text: formData.text.trim(),
         requester: formData.requester.trim() || undefined,
-        workflow_id: formData.workflow_id
+        workflow_id: formData.workflow_id,
+        exercise_id: selectedExercise?.id
       })
       
       // Reset form and close modal

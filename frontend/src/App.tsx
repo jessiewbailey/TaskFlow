@@ -7,6 +7,7 @@ import { WorkflowSettings } from './pages/WorkflowSettings'
 import { Settings } from './pages/Settings'
 import { BatchJobsNew } from './pages/BatchJobsNew'
 import { FineTuningSettingsPage } from './pages/FineTuningSettings'
+import { ExerciseSettings } from './pages/ExerciseSettings'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,6 +26,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/batch-jobs" element={<BatchJobsNew />} />
           <Route path="/settings" element={<Settings><div className="text-center py-8 text-gray-500">Select a settings category from the sidebar</div></Settings>} />
+          <Route path="/settings/exercises" element={<Settings><ExerciseSettings /></Settings>} />
           <Route path="/settings/workflows" element={<WorkflowSettings />} />
           <Route path="/settings/users" element={<Settings><div className="text-center py-8 text-gray-500">User management coming soon</div></Settings>} />
           <Route path="/settings/notifications" element={<Settings><div className="text-center py-8 text-gray-500">Notification settings coming soon</div></Settings>} />

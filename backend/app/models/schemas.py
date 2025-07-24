@@ -45,6 +45,34 @@ class DashboardLayout(str, enum.Enum):
     grid = "grid"
     list = "list"
 
+class Exercise(Base):
+    __tablename__ = "exercises"
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    name = Column(String(128), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_by = Column(BigInteger, ForeignKey("users.id"), nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+    
+    # Relationships
+    requests = relationship("Request", back_populates="exercise")
+    permissions = relationship("ExercisePermission", back_populates="exercise")
+
+class ExercisePermission(Base):
+    __tablename__ = "exercise_permissions"
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    exercise_id = Column(BigInteger, ForeignKey("exercises.id"), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    permission_level = Column(String(32), nullable=False, default="read")
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    
+    # Relationships
+    exercise = relationship("Exercise", back_populates="permissions")
+    user = relationship("User", back_populates="exercise_permissions")
+
 class User(Base):
     __tablename__ = "users"
     
@@ -58,6 +86,7 @@ class User(Base):
     # Relationships
     assigned_requests = relationship("Request", back_populates="assigned_analyst")
     ground_truth_entries = relationship("GroundTruthData", back_populates="creator")
+    exercise_permissions = relationship("ExercisePermission", back_populates="user")
 
 class Request(Base):
     __tablename__ = "requests"
@@ -68,6 +97,7 @@ class Request(Base):
     date_received = Column(Date, server_default=func.current_date())
     assigned_analyst_id = Column(BigInteger, ForeignKey("users.id"), nullable=True)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=True)
+    exercise_id = Column(BigInteger, ForeignKey("exercises.id"), nullable=True)
     status = Column(Enum(RequestStatus, name='request_status'), default=RequestStatus.NEW)
     due_date = Column(Date, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
@@ -76,6 +106,7 @@ class Request(Base):
     # Relationships
     assigned_analyst = relationship("User", back_populates="assigned_requests")
     workflow = relationship("Workflow")
+    exercise = relationship("Exercise", back_populates="requests")
     ai_outputs = relationship("AIOutput", back_populates="request", cascade="all, delete-orphan")
     processing_jobs = relationship("ProcessingJob", back_populates="request", cascade="all, delete-orphan")
     custom_instructions = relationship("CustomInstruction", back_populates="request", cascade="all, delete-orphan")

@@ -6,10 +6,12 @@ import {
   UserIcon, 
   BellIcon,
   ArrowLeftIcon,
-  BeakerIcon 
+  BeakerIcon,
+  FolderIcon 
 } from '@heroicons/react/24/outline'
 
 const settingsNavigation = [
+  { name: 'Exercises', href: '/settings/exercises', icon: FolderIcon },
   { name: 'Workflows', href: '/settings/workflows', icon: PlayIcon },
   { name: 'Users', href: '/settings/users', icon: UserIcon },
   { name: 'Notifications', href: '/settings/notifications', icon: BellIcon },

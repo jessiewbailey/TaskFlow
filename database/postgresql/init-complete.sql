@@ -246,6 +246,42 @@ JOIN requests r ON gt.request_id = r.id
 JOIN workflow_blocks wb ON gt.workflow_block_id = wb.id
 JOIN users u ON gt.created_by = u.id;
 
+-- Create exercises table
+CREATE TABLE exercises (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(128) NOT NULL UNIQUE,
+  description TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create index for active exercises sorted by name
+CREATE INDEX idx_exercises_active_name ON exercises(is_active, name);
+
+-- Add exercise_id to requests table
+ALTER TABLE requests ADD COLUMN exercise_id BIGINT REFERENCES exercises(id) ON DELETE SET NULL;
+CREATE INDEX idx_requests_exercise ON requests(exercise_id);
+
+-- Create exercise permissions table
+CREATE TABLE exercise_permissions (
+  id BIGSERIAL PRIMARY KEY,
+  exercise_id BIGINT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  permission_level VARCHAR(32) NOT NULL DEFAULT 'read',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(exercise_id, user_id)
+);
+
+-- Create indexes for exercise permissions
+CREATE INDEX idx_exercise_permissions_user ON exercise_permissions(user_id);
+CREATE INDEX idx_exercise_permissions_exercise ON exercise_permissions(exercise_id);
+
+-- Add trigger to update exercises.updated_at
+CREATE TRIGGER update_exercises_updated_at BEFORE UPDATE ON exercises
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Insert default users
 INSERT INTO users (name, email, role) VALUES
   ('System Admin', 'admin@system.local', 'ADMIN'),
@@ -323,3 +359,7 @@ INSERT INTO workflow_dashboard_configs (workflow_id, fields, layout) VALUES
 -- Grant permissions (adjust as needed for your setup)
 -- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO taskflow_user;
 -- GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO taskflow_user;
+
+-- Insert a default exercise
+INSERT INTO exercises (name, description, created_by) 
+VALUES ('Default Exercise', 'Default exercise for all tasks', 1);

@@ -21,6 +21,29 @@ class JobStatus(str, enum.Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
+# Exercise Models
+class ExerciseBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=128)
+    description: Optional[str] = None
+    is_active: bool = True
+
+class ExerciseCreate(ExerciseBase):
+    pass
+
+class ExerciseUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=128)
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class Exercise(ExerciseBase):
+    id: int
+    created_by: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
 # User Models
 class User(BaseModel):
     id: int
@@ -35,6 +58,7 @@ class CreateRequestRequest(BaseModel):
     requester: Optional[str] = Field(None, max_length=256)
     assigned_analyst_id: Optional[int] = None
     workflow_id: Optional[int] = None
+    exercise_id: Optional[int] = None
 
 class UpdateRequestStatusRequest(BaseModel):
     status: RequestStatus
@@ -46,6 +70,7 @@ class UpdateRequestRequest(BaseModel):
     status: Optional[RequestStatus] = None
     assigned_analyst_id: Optional[int] = None
     workflow_id: Optional[int] = None
+    exercise_id: Optional[int] = None
     due_date: Optional[str] = None  # ISO date string
 
 class ProcessRequestRequest(BaseModel):
@@ -90,11 +115,13 @@ class RequestResponse(BaseModel):
     date_received: date
     assigned_analyst_id: Optional[int]
     workflow_id: Optional[int] = None
+    exercise_id: Optional[int] = None
     status: RequestStatus
     due_date: Optional[date]
     created_at: datetime
     updated_at: datetime
     assigned_analyst: Optional[UserResponse]
+    exercise: Optional[Exercise] = None
     latest_ai_output: Optional[AIOutputResponse]
     has_active_jobs: Optional[bool] = False
 

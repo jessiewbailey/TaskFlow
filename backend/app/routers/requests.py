@@ -12,7 +12,8 @@ from app.models.pydantic_models import (
     CreateRequestRequest, CreateRequestResponse, UpdateRequestStatusRequest,
     UpdateRequestRequest, ProcessRequestRequest, ProcessJobResponse, RequestResponse, 
     RequestListResponse, UserResponse, AIOutputResponse, AssignWorkflowRequest,
-    BatchUploadResponse, BatchUploadError, BulkRerunRequest, BulkRerunResponse, BulkRerunError
+    BatchUploadResponse, BatchUploadError, BulkRerunRequest, BulkRerunResponse, BulkRerunError,
+    Exercise
 )
 from app.services.job_service import JobService
 import structlog
@@ -24,6 +25,7 @@ router = APIRouter(prefix="/api/requests", tags=["requests"])
 async def list_requests(
     analyst: Optional[int] = Query(None, description="Filter by analyst ID"),
     status: Optional[RequestStatus] = Query(None, description="Filter by status"),
+    exercise_id: Optional[int] = Query(None, description="Filter by exercise ID"),
     sort_by: str = Query("created_at", description="Sort field"),
     order: str = Query("desc", description="Sort order (asc/desc)"),
     page: int = Query(1, ge=1, description="Page number"),
@@ -35,7 +37,8 @@ async def list_requests(
     # Build query
     query = select(Request).options(
         selectinload(Request.assigned_analyst),
-        selectinload(Request.ai_outputs)
+        selectinload(Request.ai_outputs),
+        selectinload(Request.exercise)
     )
     
     # Apply filters
@@ -44,6 +47,8 @@ async def list_requests(
         conditions.append(Request.assigned_analyst_id == analyst)
     if status is not None:
         conditions.append(Request.status == status)
+    if exercise_id is not None:
+        conditions.append(Request.exercise_id == exercise_id)
     
     if conditions:
         query = query.where(and_(*conditions))
@@ -103,11 +108,13 @@ async def list_requests(
                 date_received=req.date_received,
                 assigned_analyst_id=req.assigned_analyst_id,
                 workflow_id=req.workflow_id,
+                exercise_id=req.exercise_id,
                 status=req.status,
                 due_date=req.due_date,
                 created_at=req.created_at,
                 updated_at=req.updated_at,
                 assigned_analyst=UserResponse.from_orm(req.assigned_analyst) if req.assigned_analyst else None,
+                exercise=Exercise.from_orm(req.exercise) if req.exercise else None,
                 latest_ai_output=AIOutputResponse.from_orm(latest_ai_output) if latest_ai_output else None,
                 has_active_jobs=has_active_jobs
             )
@@ -146,6 +153,7 @@ async def create_request(
         requester=request.requester,
         assigned_analyst_id=request.assigned_analyst_id,
         workflow_id=workflow_id,
+        exercise_id=request.exercise_id,
         status=RequestStatus.NEW
     )
     
@@ -182,7 +190,8 @@ async def get_request(
     
     query = select(Request).options(
         selectinload(Request.assigned_analyst),
-        selectinload(Request.ai_outputs)
+        selectinload(Request.ai_outputs),
+        selectinload(Request.exercise)
     ).where(Request.id == request_id)
     
     result = await db.execute(query)
@@ -204,6 +213,9 @@ async def get_request(
     )
     has_active_jobs = active_jobs_result.scalar() is not None
     
+    # Debug logging
+    logger.info(f"Request {request_id}: exercise_id={request.exercise_id}, exercise={request.exercise}")
+    
     return RequestResponse(
         id=request.id,
         text=request.text,
@@ -211,11 +223,13 @@ async def get_request(
         date_received=request.date_received,
         assigned_analyst_id=request.assigned_analyst_id,
         workflow_id=request.workflow_id,
+        exercise_id=request.exercise_id,
         status=request.status,
         due_date=request.due_date,
         created_at=request.created_at,
         updated_at=request.updated_at,
         assigned_analyst=UserResponse.from_orm(request.assigned_analyst) if request.assigned_analyst else None,
+        exercise=Exercise.from_orm(request.exercise) if request.exercise else None,
         latest_ai_output=AIOutputResponse.from_orm(latest_ai_output) if latest_ai_output else None,
         has_active_jobs=has_active_jobs
     )
@@ -381,6 +395,8 @@ async def update_request(
         request.status = update_data.status
     if update_data.assigned_analyst_id is not None:
         request.assigned_analyst_id = update_data.assigned_analyst_id
+    if update_data.exercise_id is not None:
+        request.exercise_id = update_data.exercise_id
     if update_data.due_date is not None:
         from datetime import datetime
         request.due_date = datetime.fromisoformat(update_data.due_date).date()
