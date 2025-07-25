@@ -26,6 +26,7 @@ class ExerciseBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
     description: Optional[str] = None
     is_active: bool = True
+    is_default: bool = False
 
 class ExerciseCreate(ExerciseBase):
     pass
@@ -34,6 +35,7 @@ class ExerciseUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=128)
     description: Optional[str] = None
     is_active: Optional[bool] = None
+    is_default: Optional[bool] = None
 
 class Exercise(ExerciseBase):
     id: int

@@ -252,6 +252,7 @@ CREATE TABLE exercises (
   name VARCHAR(128) NOT NULL UNIQUE,
   description TEXT,
   is_active BOOLEAN DEFAULT TRUE,
+  is_default BOOLEAN DEFAULT FALSE,
   created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -259,6 +260,9 @@ CREATE TABLE exercises (
 
 -- Create index for active exercises sorted by name
 CREATE INDEX idx_exercises_active_name ON exercises(is_active, name);
+
+-- Create unique partial index to ensure only one default exercise
+CREATE UNIQUE INDEX idx_exercises_default ON exercises(is_default) WHERE is_default = TRUE;
 
 -- Add exercise_id to requests table
 ALTER TABLE requests ADD COLUMN exercise_id BIGINT REFERENCES exercises(id) ON DELETE SET NULL;
@@ -361,5 +365,5 @@ INSERT INTO workflow_dashboard_configs (workflow_id, fields, layout) VALUES
 -- GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO taskflow_user;
 
 -- Insert a default exercise
-INSERT INTO exercises (name, description, created_by) 
-VALUES ('Default Exercise', 'Default exercise for all tasks', 1);
+INSERT INTO exercises (name, description, is_default, created_by) 
+VALUES ('Default Exercise', 'Default exercise for all tasks', TRUE, 1);

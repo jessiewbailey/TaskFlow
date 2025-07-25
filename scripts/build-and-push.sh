@@ -98,17 +98,21 @@ elif [[ "$REGISTRY" == *".amazonaws.com"* ]]; then
     echo "  aws ecr get-login-password --region REGION | docker login --username AWS --password-stdin $REGISTRY"
 fi
 
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
 # Build and push images
 echo -e "\n${GREEN}Starting build process...${NC}"
 
 # API
-build_and_push "taskflow-api" "../backend"
+build_and_push "taskflow-api" "$PROJECT_ROOT/backend"
 
 # AI Worker
-build_and_push "taskflow-ai" "../ai-worker"
+build_and_push "taskflow-ai" "$PROJECT_ROOT/ai-worker"
 
 # Frontend
-build_and_push "taskflow-web" "../frontend"
+build_and_push "taskflow-web" "$PROJECT_ROOT/frontend"
 
 echo -e "\n${GREEN}All images built and pushed successfully!${NC}"
 echo -e "\n${YELLOW}Next steps:${NC}"

@@ -52,6 +52,7 @@ class Exercise(Base):
     name = Column(String(128), nullable=False, unique=True)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+    is_default = Column(Boolean, default=False)
     created_by = Column(BigInteger, ForeignKey("users.id"), nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())

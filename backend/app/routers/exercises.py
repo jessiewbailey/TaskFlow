@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from typing import List, Optional
 from app.models.database import get_db
 from app.models.schemas import Exercise as ExerciseModel, Request as RequestModel
@@ -12,6 +12,15 @@ router = APIRouter(
     prefix="/api/exercises",
     tags=["exercises"]
 )
+
+async def _unset_default_exercise(db: AsyncSession):
+    """Helper function to unset the current default exercise"""
+    stmt = (
+        update(ExerciseModel)
+        .where(ExerciseModel.is_default == True)
+        .values(is_default=False)
+    )
+    await db.execute(stmt)
 
 @router.get("/", response_model=List[Exercise])
 async def list_exercises(
@@ -30,6 +39,16 @@ async def list_exercises(
     result = await db.execute(query)
     exercises = result.scalars().all()
     return exercises
+
+@router.get("/default", response_model=Optional[Exercise])
+async def get_default_exercise(
+    db: AsyncSession = Depends(get_db)
+):
+    """Get the current default exercise"""
+    query = select(ExerciseModel).filter(ExerciseModel.is_default == True)
+    result = await db.execute(query)
+    exercise = result.scalar_one_or_none()
+    return exercise
 
 @router.get("/{exercise_id}", response_model=Exercise)
 async def get_exercise(
@@ -63,6 +82,10 @@ async def create_exercise(
             status_code=400, 
             detail=f"Exercise with name '{exercise_data.name}' already exists"
         )
+    
+    # If this is set as default, unset any existing default
+    if exercise_data.is_default:
+        await _unset_default_exercise(db)
     
     exercise = ExerciseModel(
         **exercise_data.dict(),
@@ -103,6 +126,10 @@ async def update_exercise(
                 status_code=400,
                 detail=f"Exercise with name '{exercise_data.name}' already exists"
             )
+    
+    # If setting this as default, unset any existing default first
+    if exercise_data.is_default is True and not exercise.is_default:
+        await _unset_default_exercise(db)
     
     # Update fields
     update_data = exercise_data.dict(exclude_unset=True)
@@ -165,3 +192,29 @@ async def get_exercise_request_count(
     count = count_result.scalar()
     
     return {"exercise_id": exercise_id, "request_count": count}
+
+@router.post("/{exercise_id}/set-default", response_model=Exercise)
+async def set_default_exercise(
+    exercise_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Set an exercise as the default exercise"""
+    query = select(ExerciseModel).filter(ExerciseModel.id == exercise_id)
+    result = await db.execute(query)
+    exercise = result.scalar_one_or_none()
+    
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+    
+    if not exercise.is_active:
+        raise HTTPException(status_code=400, detail="Cannot set an inactive exercise as default")
+    
+    # Unset any existing default
+    await _unset_default_exercise(db)
+    
+    # Set this exercise as default
+    exercise.is_default = True
+    await db.commit()
+    await db.refresh(exercise)
+    
+    return exercise

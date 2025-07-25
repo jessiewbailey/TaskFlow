@@ -2,16 +2,18 @@ import React, { useState } from 'react'
 import { Exercise, ExerciseCreate, ExerciseUpdate } from '../types'
 import { useExercises } from '../hooks/useExercises'
 import { Dialog } from '@headlessui/react'
-import { PlusIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/outline'
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 
 export const ExerciseManager: React.FC = () => {
-  const { exercises, loading, createExercise, updateExercise, deleteExercise } = useExercises()
+  const { exercises, loading, createExercise, updateExercise, deleteExercise, setDefaultExercise } = useExercises()
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null)
   const [formData, setFormData] = useState<ExerciseCreate>({
     name: '',
     description: '',
     is_active: true,
+    is_default: false,
   })
 
   const resetForm = () => {
@@ -19,6 +21,7 @@ export const ExerciseManager: React.FC = () => {
       name: '',
       description: '',
       is_active: true,
+      is_default: false,
     })
     setEditingExercise(null)
   }
@@ -34,6 +37,7 @@ export const ExerciseManager: React.FC = () => {
       name: exercise.name,
       description: exercise.description || '',
       is_active: exercise.is_active,
+      is_default: exercise.is_default,
     })
     setIsCreateModalOpen(true)
   }
@@ -52,6 +56,7 @@ export const ExerciseManager: React.FC = () => {
         if (formData.name !== editingExercise.name) updateData.name = formData.name
         if (formData.description !== editingExercise.description) updateData.description = formData.description
         if (formData.is_active !== editingExercise.is_active) updateData.is_active = formData.is_active
+        if (formData.is_default !== editingExercise.is_default) updateData.is_default = formData.is_default
         
         await updateExercise(editingExercise.id, updateData)
       } else {
@@ -70,6 +75,14 @@ export const ExerciseManager: React.FC = () => {
       } catch (error) {
         // Error is handled in the hook
       }
+    }
+  }
+
+  const handleSetDefault = async (exercise: Exercise) => {
+    try {
+      await setDefaultExercise(exercise.id)
+    } catch (error) {
+      // Error is handled in the hook
     }
   }
 
@@ -105,6 +118,11 @@ export const ExerciseManager: React.FC = () => {
                     <h4 className={`font-medium ${exercise.is_active ? 'text-gray-900' : 'text-gray-500'}`}>
                       {exercise.name}
                     </h4>
+                    {exercise.is_default && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        Default
+                      </span>
+                    )}
                     {!exercise.is_active && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
                         Inactive
@@ -116,6 +134,18 @@ export const ExerciseManager: React.FC = () => {
                   )}
                 </div>
                 <div className="flex items-center space-x-2 ml-4">
+                  {exercise.is_active && !exercise.is_default && (
+                    <button
+                      onClick={() => handleSetDefault(exercise)}
+                      className="text-gray-400 hover:text-yellow-600"
+                      title="Set as default"
+                    >
+                      <StarIcon className="h-5 w-5" />
+                    </button>
+                  )}
+                  {exercise.is_default && (
+                    <StarIconSolid className="h-5 w-5 text-yellow-500" title="Default exercise" />
+                  )}
                   <button
                     onClick={() => openEditModal(exercise)}
                     className="text-gray-400 hover:text-gray-600"
@@ -176,17 +206,32 @@ export const ExerciseManager: React.FC = () => {
                     />
                   </div>
 
-                  <div className="flex items-center">
-                    <input
-                      id="is_active"
-                      type="checkbox"
-                      checked={formData.is_active}
-                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
-                      Active
-                    </label>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <input
+                        id="is_active"
+                        type="checkbox"
+                        checked={formData.is_active}
+                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
+                        Active
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        id="is_default"
+                        type="checkbox"
+                        checked={formData.is_default}
+                        onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        disabled={!formData.is_active}
+                      />
+                      <label htmlFor="is_default" className="ml-2 block text-sm text-gray-900">
+                        Set as default exercise
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>

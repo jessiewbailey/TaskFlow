@@ -45,4 +45,16 @@ export const exerciseClient = {
     const response = await api.get(`/api/exercises/${id}/requests/count`)
     return response.data
   },
+
+  // Get the default exercise
+  getDefault: async (): Promise<Exercise | null> => {
+    const response = await api.get('/api/exercises/default')
+    return response.data
+  },
+
+  // Set an exercise as default
+  setDefault: async (id: number): Promise<Exercise> => {
+    const response = await api.post(`/api/exercises/${id}/set-default`)
+    return response.data
+  },
 }

@@ -15,6 +15,7 @@ export interface Exercise {
   name: string
   description?: string
   is_active: boolean
+  is_default: boolean
   created_by?: number
   created_at: string
   updated_at: string
@@ -24,12 +25,14 @@ export interface ExerciseCreate {
   name: string
   description?: string
   is_active?: boolean
+  is_default?: boolean
 }
 
 export interface ExerciseUpdate {
   name?: string
   description?: string
   is_active?: boolean
+  is_default?: boolean
 }
 
 export interface AIOutput {

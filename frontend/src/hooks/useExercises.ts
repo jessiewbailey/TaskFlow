@@ -16,10 +16,7 @@ export const useExercises = (autoLoad: boolean = true) => {
       const data = await exerciseClient.list(isActive)
       setExercises(data)
       
-      // If no exercise is selected and we have exercises, select the first one
-      if (!selectedExercise && data.length > 0) {
-        setSelectedExercise(data[0])
-      }
+      // The selection logic is handled in the useEffect below
       
       return data
     } catch (error) {
@@ -119,6 +116,35 @@ export const useExercises = (autoLoad: boolean = true) => {
     }
   }, [])
 
+  const setDefaultExercise = useCallback(async (id: number) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const updatedExercise = await exerciseClient.setDefault(id)
+      toast.success('Default exercise updated successfully')
+      
+      // Update local state - unset previous default and set new one
+      setExercises(prev => prev.map(ex => ({
+        ...ex,
+        is_default: ex.id === id
+      })))
+      
+      // Update selected exercise if it's the one being updated
+      if (selectedExercise?.id === id) {
+        setSelectedExercise(updatedExercise)
+      }
+      
+      return updatedExercise
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to set default exercise'
+      setError(message)
+      toast.error(message)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedExercise])
+
   // Load exercises on mount if autoLoad is true
   useEffect(() => {
     if (autoLoad) {
@@ -126,16 +152,25 @@ export const useExercises = (autoLoad: boolean = true) => {
     }
   }, [autoLoad])
 
-  // Restore selected exercise from localStorage
+  // Restore selected exercise from localStorage or use default
   useEffect(() => {
-    const storedId = localStorage.getItem('selectedExerciseId')
-    if (storedId && exercises.length > 0) {
-      const exercise = exercises.find(ex => ex.id === Number(storedId))
-      if (exercise) {
-        setSelectedExercise(exercise)
+    if (exercises.length > 0 && !selectedExercise) {
+      const storedId = localStorage.getItem('selectedExerciseId')
+      if (storedId) {
+        const exercise = exercises.find(ex => ex.id === Number(storedId))
+        if (exercise) {
+          setSelectedExercise(exercise)
+          return
+        }
+      }
+      // If no stored exercise or it wasn't found, select the default
+      const defaultExercise = exercises.find(ex => ex.is_default)
+      if (defaultExercise) {
+        setSelectedExercise(defaultExercise)
+        localStorage.setItem('selectedExerciseId', String(defaultExercise.id))
       }
     }
-  }, [exercises])
+  }, [exercises, selectedExercise])
 
   return {
     exercises,
@@ -147,5 +182,6 @@ export const useExercises = (autoLoad: boolean = true) => {
     updateExercise,
     deleteExercise,
     selectExercise,
+    setDefaultExercise,
   }
 }
