@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { FiltersPanel } from '../components/FiltersPanel'
 import { RequestsTable } from '../components/RequestsTable'
 import { RequestDrawer } from '../components/RequestDrawer'
@@ -9,10 +9,12 @@ import { ExerciseDropdown } from '../components/ExerciseDropdown'
 import { useRequests } from '../hooks/useRequests'
 import { useExercises } from '../hooks/useExercises'
 import type { RequestFilters, Task } from '../types'
-import { PlusIcon, CogIcon, DocumentTextIcon, Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, CogIcon, DocumentTextIcon, Bars3Icon, MagnifyingGlassIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { Logo } from '../components/Logo'
+import { RAGSearchSidebar } from '../components/RAGSearchSidebar'
 
 export const Dashboard: React.FC = () => {
+  const [searchParams] = useSearchParams()
   const { exercises, selectedExercise, selectExercise, loading: exercisesLoading } = useExercises()
   
   const [filters, setFilters] = useState<RequestFilters>({
@@ -24,7 +26,9 @@ export const Dashboard: React.FC = () => {
   const [selectedRequest, setSelectedRequest] = useState<Task | null>(null)
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false)
   const [isLogViewerOpen, setIsLogViewerOpen] = useState(false)
+  const [isRAGSearchOpen, setIsRAGSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [ragSearchEnabled, setRagSearchEnabled] = useState(true)
 
   // Update filters when selected exercise changes
   useEffect(() => {
@@ -37,7 +41,45 @@ export const Dashboard: React.FC = () => {
     }
   }, [selectedExercise])
 
+  // Load RAG search enabled setting
+  useEffect(() => {
+    fetch('/api/settings/rag-search-enabled')
+      .then(response => response.json())
+      .then(data => {
+        setRagSearchEnabled(data.enabled)
+      })
+      .catch(error => {
+        console.error('Error loading RAG search setting:', error)
+      })
+  }, [])
+
   const { data: requestsData, isLoading, error, refetch } = useRequests(filters)
+
+  // Handle task parameter from URL
+  useEffect(() => {
+    const taskId = searchParams.get('task')
+    if (taskId) {
+      const taskIdNum = parseInt(taskId)
+      // First check if task is in current results
+      if (requestsData?.requests) {
+        const task = requestsData.requests.find(r => r.id === taskIdNum)
+        if (task) {
+          setSelectedRequest(task)
+          return
+        }
+      }
+      // If not found in current results, fetch it directly
+      import('../api/client').then(({ taskflowApi }) => {
+        taskflowApi.getRequest(taskIdNum)
+          .then(task => {
+            setSelectedRequest(task)
+          })
+          .catch(err => {
+            console.error('Failed to load task:', err)
+          })
+      })
+    }
+  }, [searchParams, requestsData])
   
   // Filter data based on search query
   const filteredData = React.useMemo(() => {
@@ -116,6 +158,16 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
+                {ragSearchEnabled && (
+                  <button
+                    onClick={() => setIsRAGSearchOpen(true)}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    title="RAG Search - Search using natural language"
+                  >
+                    <SparklesIcon className="h-4 w-4 mr-2" />
+                    RAG Search
+                  </button>
+                )}
                 <button
                   onClick={() => setIsLogViewerOpen(true)}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -194,6 +246,24 @@ export const Dashboard: React.FC = () => {
       <LogViewer
         isOpen={isLogViewerOpen}
         onClose={() => setIsLogViewerOpen(false)}
+      />
+
+      {/* RAG Search Sidebar */}
+      <RAGSearchSidebar
+        isOpen={isRAGSearchOpen}
+        onClose={() => setIsRAGSearchOpen(false)}
+        onSelectTask={(taskId) => {
+          // Fetch and select the task without closing the sidebar
+          import('../api/client').then(({ taskflowApi }) => {
+            taskflowApi.getRequest(taskId)
+              .then(task => {
+                setSelectedRequest(task)
+              })
+              .catch(err => {
+                console.error('Failed to load task:', err)
+              })
+          })
+        }}
       />
     </div>
   )

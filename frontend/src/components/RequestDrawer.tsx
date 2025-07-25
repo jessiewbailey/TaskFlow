@@ -1,6 +1,6 @@
 import React, { useState, Fragment, useEffect, useRef } from 'react'
 import { Dialog, Transition, Tab } from '@headlessui/react'
-import { XMarkIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { format } from 'date-fns'
 import type { Task, RequestStatus } from '../types'
@@ -32,6 +32,8 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   const [showUpdateConfirm, setShowUpdateConfirm] = useState(false)
   const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig | null>(null)
   const [workflowData, setWorkflowData] = useState<any>(null)
+  const [similarTasks, setSimilarTasks] = useState<any[]>([])
+  const [isSearchingSimilar, setIsSearchingSimilar] = useState(false)
   const [drawerWidth, setDrawerWidth] = useState(() => {
     // Default to 50% of window width, with fallback to 672px if window is not available
     return typeof window !== 'undefined' ? Math.max(400, window.innerWidth * 0.5) : 672
@@ -41,6 +43,53 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   
   const updateRequest = useUpdateRequest()
   const deleteRequest = useDeleteRequest()
+
+  // Search for similar tasks
+  const searchSimilarTasks = async () => {
+    if (!request) return
+    
+    setIsSearchingSimilar(true)
+    
+    try {
+      // Get settings from localStorage
+      const limit = parseInt(localStorage.getItem('similaritySearchLimit') || '5', 10)
+      const threshold = parseFloat(localStorage.getItem('similarityThreshold') || '0')
+      const restrictToExercise = localStorage.getItem('restrictToSameExercise') === 'true'
+      
+      const response = await fetch(`/api/requests/${request.id}/similar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          limit,
+          threshold,
+          restrict_to_exercise: restrictToExercise
+        })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setSimilarTasks(data.similar_tasks || [])
+      } else {
+        console.error('Failed to search similar tasks')
+        setSimilarTasks([])
+      }
+    } catch (error) {
+      console.error('Error searching similar tasks:', error)
+      setSimilarTasks([])
+    } finally {
+      setIsSearchingSimilar(false)
+    }
+  }
+
+  // Load similar tasks when request changes
+  useEffect(() => {
+    if (request) {
+      setSimilarTasks([])
+      searchSimilarTasks()
+    }
+  }, [request?.id])
 
   // Load dashboard configuration and workflow data when request changes
   useEffect(() => {
@@ -352,6 +401,18 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                             >
                               Custom Processing
                             </Tab>
+                            <Tab
+                              className={({ selected }) =>
+                                clsx(
+                                  'whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium',
+                                  selected
+                                    ? 'border-indigo-500 text-indigo-600'
+                                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                )
+                              }
+                            >
+                              Similar Tasks ({similarTasks.length})
+                            </Tab>
                           </Tab.List>
                         </div>
 
@@ -563,6 +624,90 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                               workflowBlocks={workflowData?.blocks || []}
                             />
                           </Tab.Panel>
+
+                          {/* Similar Tasks Tab */}
+                          <Tab.Panel className="p-6">
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <h3 className="text-lg font-medium text-gray-900">Similar Tasks</h3>
+                                  <button
+                                    type="button"
+                                    onClick={searchSimilarTasks}
+                                    disabled={isSearchingSimilar}
+                                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                                  >
+                                    {isSearchingSimilar ? 'Searching...' : 'Refresh'}
+                                  </button>
+                                </div>
+
+                                {isSearchingSimilar ? (
+                                  <div className="flex justify-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                  </div>
+                                ) : similarTasks.length > 0 ? (
+                                  <div className="space-y-3">
+                                    {similarTasks.map((task) => (
+                                      <div
+                                        key={task.task_id}
+                                        className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+                                      >
+                                        <div className="flex items-start justify-between">
+                                          <div className="flex-1">
+                                            <div className="flex items-center space-x-2">
+                                              <h4 className="text-sm font-medium text-gray-900">
+                                                Task #{task.task_id}
+                                              </h4>
+                                              <span className="text-xs text-gray-500">
+                                                {(task.score * 100).toFixed(1)}% similarity
+                                              </span>
+                                            </div>
+                                            <p className="mt-1 text-sm text-gray-600 line-clamp-3">
+                                              {task.description}
+                                            </p>
+                                            <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                                              <span>Status: {task.status}</span>
+                                              {task.priority && <span>Priority: {task.priority}</span>}
+                                              {task.created_at && (
+                                                <span>Created: {new Date(task.created_at).toLocaleDateString()}</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              // Close current drawer
+                                              onClose()
+                                              // Small delay to ensure drawer closes before navigating
+                                              setTimeout(() => {
+                                                // Navigate to the similar task
+                                                window.location.href = `/?task=${task.task_id}`
+                                              }, 100)
+                                            }}
+                                            className="ml-4 text-indigo-600 hover:text-indigo-500 text-sm font-medium"
+                                          >
+                                            View
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-8 text-gray-500">
+                                    No similar tasks found.
+                                  </div>
+                                )}
+
+                                <div className="mt-4 text-xs text-gray-500">
+                                  <p>
+                                    Showing top {similarTasks.length} similar tasks. 
+                                    You can adjust the number of results in{' '}
+                                    <a href="/settings/similarity-search" className="text-indigo-600 hover:text-indigo-500">
+                                      Settings → Similarity Search
+                                    </a>
+                                  </p>
+                                </div>
+                              </div>
+                            </Tab.Panel>
                         </Tab.Panels>
                       </Tab.Group>
                     </div>

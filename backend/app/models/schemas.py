@@ -247,3 +247,13 @@ class GroundTruthData(Base):
     request = relationship("Request")
     workflow_block = relationship("WorkflowBlock")
     creator = relationship("User", back_populates="ground_truth_entries")
+
+class SystemSettings(Base):
+    __tablename__ = "system_settings"
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    key = Column(String(128), nullable=False, unique=True)
+    value = Column(JSON, nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())

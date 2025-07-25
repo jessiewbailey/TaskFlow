@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import pandas as pd
 import io
 from datetime import datetime
@@ -15,11 +15,35 @@ from app.models.pydantic_models import (
     BatchUploadResponse, BatchUploadError, BulkRerunRequest, BulkRerunResponse, BulkRerunError,
     Exercise
 )
+from pydantic import BaseModel
 from app.services.job_service import JobService
+from app.services.embedding_service import embedding_service
 import structlog
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/requests", tags=["requests"])
+
+# Additional models for similarity search
+class SimilaritySearchRequest(BaseModel):
+    query: Optional[str] = None
+    limit: int = 5
+    threshold: float = 0.0
+    restrict_to_exercise: bool = False
+    filters: Optional[Dict[str, Any]] = None
+
+class SimilarTask(BaseModel):
+    score: float
+    task_id: int
+    title: str
+    description: str
+    priority: str
+    status: str
+    tags: List[str]
+    exercise_id: Optional[int]
+    created_at: str
+
+class SimilaritySearchResponse(BaseModel):
+    similar_tasks: List[SimilarTask]
 
 @router.get("", response_model=RequestListResponse)
 async def list_requests(
@@ -178,6 +202,26 @@ async def create_request(
     await db.commit()
     
     logger.info("Created TaskFlow request", request_id=taskflow_request.id, job_id=job_id)
+    
+    # Generate and store embedding for the new task (after commit)
+    try:
+        # Refresh the request to get all fields including created_at
+        await db.refresh(taskflow_request)
+        
+        task_data = {
+            "title": f"Request #{taskflow_request.id}",
+            "description": taskflow_request.text,
+            "priority": "normal",
+            "status": taskflow_request.status.value,
+            "tags": [],
+            "exercise_id": taskflow_request.exercise_id,
+            "created_at": taskflow_request.created_at.isoformat() if taskflow_request.created_at else ""
+        }
+        embedding_id = await embedding_service.store_task_embedding(taskflow_request.id, task_data)
+        logger.info("Stored embedding for request", request_id=taskflow_request.id, embedding_id=embedding_id)
+    except Exception as e:
+        logger.error("Failed to store embedding", request_id=taskflow_request.id, error=str(e))
+        # Don't fail the request creation if embedding fails
     
     return CreateRequestResponse(id=taskflow_request.id, job_id=job_id)
 
@@ -457,6 +501,103 @@ async def delete_request(
     logger.info("Deleted request", request_id=request_id)
     
     return {"message": "Request deleted successfully"}
+
+@router.post("/search/similar", response_model=SimilaritySearchResponse)
+async def search_similar_tasks_by_text(
+    search_request: SimilaritySearchRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Search for tasks similar to a given text query"""
+    
+    if not search_request.query:
+        raise HTTPException(status_code=400, detail="Query text is required")
+    
+    try:
+        # Search similar tasks
+        similar_tasks = await embedding_service.search_similar_tasks(
+            query_text=search_request.query,
+            limit=search_request.limit,
+            filters=search_request.filters
+        )
+        
+        # Convert to response format
+        response_tasks = []
+        for task in similar_tasks:
+            response_tasks.append(SimilarTask(
+                score=task["score"],
+                task_id=task["task_id"],
+                title=task["title"],
+                description=task["description"],
+                priority=task["priority"],
+                status=task["status"],
+                tags=task["tags"],
+                exercise_id=task["exercise_id"],
+                created_at=task["created_at"]
+            ))
+        
+        return SimilaritySearchResponse(similar_tasks=response_tasks)
+        
+    except Exception as e:
+        logger.error("Similarity search failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Similarity search failed: {str(e)}")
+
+@router.post("/{request_id}/similar", response_model=SimilaritySearchResponse)
+async def search_similar_tasks_by_id(
+    request_id: int,
+    search_request: SimilaritySearchRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Search for tasks similar to a specific request"""
+    
+    try:
+        # Verify request exists
+        result = await db.execute(
+            select(Request).where(Request.id == request_id)
+        )
+        request = result.scalar_one_or_none()
+        
+        if not request:
+            raise HTTPException(status_code=404, detail="Request not found")
+        
+        # Build filters if needed
+        filters = {}
+        if search_request.restrict_to_exercise and request.exercise_id:
+            filters['exercise_id'] = request.exercise_id
+        
+        # Search similar tasks
+        similar_tasks = await embedding_service.search_similar_by_task_id(
+            task_id=request_id,
+            limit=search_request.limit,
+            exclude_self=True,
+            filters=filters
+        )
+        
+        # Filter by threshold
+        filtered_tasks = [
+            task for task in similar_tasks 
+            if task['score'] >= search_request.threshold
+        ]
+        
+        # Convert to response format
+        response_tasks = []
+        for task in filtered_tasks:
+            response_tasks.append(SimilarTask(
+                score=task["score"],
+                task_id=task["task_id"],
+                title=task["title"],
+                description=task["description"],
+                priority=task["priority"],
+                status=task["status"],
+                tags=task["tags"],
+                exercise_id=task["exercise_id"],
+                created_at=task["created_at"]
+            ))
+        
+        return SimilaritySearchResponse(similar_tasks=response_tasks)
+        
+    except Exception as e:
+        logger.error("Similarity search failed", request_id=request_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Similarity search failed: {str(e)}")
 
 @router.get("/test-exercise-assignment")
 async def test_exercise_assignment(db: AsyncSession = Depends(get_db)):

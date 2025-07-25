@@ -72,8 +72,30 @@ services:
         sleep 10 &&
         echo 'Pulling gemma3:1b model...' &&
         ollama pull gemma3:1b &&
+        echo 'Pulling nomic-embed-text embedding model...' &&
+        ollama pull nomic-embed-text &&
         echo 'Model pull completed successfully!'
       "
+    networks:
+      - taskflow-network
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: taskflow-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    # Remove health check for now - Qdrant image doesn't have curl/wget
+    # healthcheck:
+    #   test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:6333/readyz || exit 1"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
     networks:
       - taskflow-network
 
@@ -91,12 +113,16 @@ services:
       - AI_WORKER_URL=http://taskflow-ai:8001
       - SECRET_KEY=${SECRET_KEY}
       - DEBUG=${DEBUG:-false}
+      - QDRANT_URL=http://qdrant:6333
+      - OLLAMA_HOST=http://ollama:11434
     volumes:
       - ./config:/app/config:ro
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
+      qdrant:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
       interval: 30s
@@ -160,6 +186,7 @@ services:
 volumes:
   postgres_data:
   ollama_data:
+  qdrant_data:
 
 networks:
   taskflow-network:

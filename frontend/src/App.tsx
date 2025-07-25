@@ -8,6 +8,7 @@ import { Settings } from './pages/Settings'
 import { BatchJobsNew } from './pages/BatchJobsNew'
 import { FineTuningSettingsPage } from './pages/FineTuningSettings'
 import { ExerciseSettings } from './pages/ExerciseSettings'
+import { SimilaritySearchSettings } from './pages/SimilaritySearchSettings'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,7 @@ function App() {
           <Route path="/settings/users" element={<Settings><div className="text-center py-8 text-gray-500">User management coming soon</div></Settings>} />
           <Route path="/settings/notifications" element={<Settings><div className="text-center py-8 text-gray-500">Notification settings coming soon</div></Settings>} />
           <Route path="/settings/fine-tuning" element={<FineTuningSettingsPage />} />
+          <Route path="/settings/similarity-search" element={<SimilaritySearchSettings />} />
         </Routes>
       </Router>
       <ReactQueryDevtools initialIsOpen={false} />

@@ -387,3 +387,41 @@ class UpdateUserPreferencesRequest(BaseModel):
 class UserPreferencesResponse(BaseModel):
     fine_tuning_mode: bool = False
     # Add other preferences as needed
+
+# System Settings Models
+class SystemSettingResponse(BaseModel):
+    id: int
+    key: str
+    value: Any
+    description: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class UpdateSystemSettingRequest(BaseModel):
+    value: Any
+
+# RAG Search Models
+class RAGSearchRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=1000)
+    limit: int = Field(default=5, ge=1, le=20)
+    filters: Optional[Dict[str, Any]] = None
+    temperature: float = Field(default=0.7, ge=0.0, le=1.0)
+    include_scores: bool = True
+
+class RAGSearchResult(BaseModel):
+    task_id: int
+    title: str
+    description: str
+    similarity_score: float
+    status: str
+    priority: Optional[str]
+    created_at: Optional[datetime]
+    exercise_id: Optional[int]
+
+class RAGSearchResponse(BaseModel):
+    results: List[RAGSearchResult]
+    query: str
+    total_results: int
