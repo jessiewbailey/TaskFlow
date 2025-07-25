@@ -286,6 +286,25 @@ CREATE INDEX idx_exercise_permissions_exercise ON exercise_permissions(exercise_
 CREATE TRIGGER update_exercises_updated_at BEFORE UPDATE ON exercises
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Create system settings table for global application settings
+CREATE TABLE IF NOT EXISTS system_settings (
+    id BIGSERIAL PRIMARY KEY,
+    key VARCHAR(128) NOT NULL UNIQUE,
+    value JSON NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default settings
+INSERT INTO system_settings (key, value, description) VALUES 
+    ('rag_search_enabled', '"true"', 'Enable/disable RAG search feature visibility')
+ON CONFLICT (key) DO NOTHING;
+
+-- Create trigger for system_settings updated_at
+CREATE TRIGGER update_system_settings_updated_at BEFORE UPDATE
+    ON system_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Insert default users
 INSERT INTO users (name, email, role) VALUES
   ('System Admin', 'admin@system.local', 'ADMIN'),

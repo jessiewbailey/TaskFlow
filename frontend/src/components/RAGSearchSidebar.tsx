@@ -113,7 +113,7 @@ export const RAGSearchSidebar: React.FC<RAGSearchSidebarProps> = ({ isOpen, onCl
                 leaveFrom="translate-x-0"
                 leaveTo="-translate-x-full"
               >
-                <Dialog.Panel className="pointer-events-auto relative w-screen max-w-md">
+                <Dialog.Panel className="pointer-events-auto relative w-screen max-w-md" onClick={(e) => e.stopPropagation()}>
                   <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
                     <div className="bg-indigo-700 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
@@ -273,7 +273,10 @@ export const RAGSearchSidebar: React.FC<RAGSearchSidebarProps> = ({ isOpen, onCl
                                 <div
                                   key={result.task_id}
                                   className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors cursor-pointer"
-                                  onClick={() => handleTaskClick(result.task_id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleTaskClick(result.task_id)
+                                  }}
                                 >
                                   <div className="flex items-start justify-between">
                                     <div className="flex-1">
