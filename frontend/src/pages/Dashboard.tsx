@@ -8,6 +8,7 @@ import { LogViewer } from '../components/LogViewer'
 import { ExerciseDropdown } from '../components/ExerciseDropdown'
 import { useRequests } from '../hooks/useRequests'
 import { useExercises } from '../hooks/useExercises'
+import { useUISettings } from '../hooks/useUISettings'
 import type { RequestFilters, Task } from '../types'
 import { PlusIcon, CogIcon, DocumentTextIcon, Bars3Icon, MagnifyingGlassIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { Logo } from '../components/Logo'
@@ -16,6 +17,7 @@ import { RAGSearchSidebar } from '../components/RAGSearchSidebar'
 export const Dashboard: React.FC = () => {
   const [searchParams] = useSearchParams()
   const { exercises, selectedExercise, selectExercise, loading: exercisesLoading } = useExercises()
+  const { showLogsButton, showSimilarityFeatures } = useUISettings()
   
   const [filters, setFilters] = useState<RequestFilters>({
     page: 1,
@@ -158,7 +160,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                {ragSearchEnabled && (
+                {ragSearchEnabled && showSimilarityFeatures && (
                   <button
                     onClick={() => setIsRAGSearchOpen(true)}
                     className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -168,13 +170,15 @@ export const Dashboard: React.FC = () => {
                     RAG Search
                   </button>
                 )}
-                <button
-                  onClick={() => setIsLogViewerOpen(true)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  <DocumentTextIcon className="h-4 w-4 mr-2" />
-                  Logs
-                </button>
+                {showLogsButton && (
+                  <button
+                    onClick={() => setIsLogViewerOpen(true)}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <DocumentTextIcon className="h-4 w-4 mr-2" />
+                    Logs
+                  </button>
+                )}
                 <Link
                   to="/batch-jobs"
                   className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"

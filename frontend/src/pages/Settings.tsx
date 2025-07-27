@@ -8,7 +8,8 @@ import {
   ArrowLeftIcon,
   BeakerIcon,
   FolderIcon,
-  MagnifyingGlassIcon 
+  MagnifyingGlassIcon,
+  EyeIcon 
 } from '@heroicons/react/24/outline'
 
 const settingsNavigation = [
@@ -18,6 +19,7 @@ const settingsNavigation = [
   { name: 'Notifications', href: '/settings/notifications', icon: BellIcon },
   { name: 'Fine-Tuning', href: '/settings/fine-tuning', icon: BeakerIcon },
   { name: 'Similarity Search', href: '/settings/similarity-search', icon: MagnifyingGlassIcon },
+  { name: 'User Interface', href: '/settings/ui', icon: EyeIcon },
 ]
 
 interface SettingsProps {

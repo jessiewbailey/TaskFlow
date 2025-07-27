@@ -8,6 +8,7 @@ import { DashboardConfig } from '../types/workflow'
 import { CustomInstructions } from './CustomInstructions'
 import { ConfirmationDialog } from './ConfirmationDialog'
 import { useUpdateRequest, useDeleteRequest } from '../hooks/useRequests'
+import { useUISettings } from '../hooks/useUISettings'
 import { dashboardClient } from '../api/dashboardClient'
 import { DashboardRenderer } from './DashboardRenderer'
 
@@ -43,6 +44,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   
   const updateRequest = useUpdateRequest()
   const deleteRequest = useDeleteRequest()
+  const { showSimilarityFeatures } = useUISettings()
 
   // Search for similar tasks
   const searchSimilarTasks = async () => {
@@ -401,18 +403,20 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                             >
                               Custom Processing
                             </Tab>
-                            <Tab
-                              className={({ selected }) =>
-                                clsx(
-                                  'whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium',
-                                  selected
-                                    ? 'border-indigo-500 text-indigo-600'
-                                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                                )
-                              }
-                            >
-                              Similar Tasks ({similarTasks.length})
-                            </Tab>
+                            {showSimilarityFeatures && (
+                              <Tab
+                                className={({ selected }) =>
+                                  clsx(
+                                    'whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium',
+                                    selected
+                                      ? 'border-indigo-500 text-indigo-600'
+                                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                  )
+                                }
+                              >
+                                Similar Tasks ({similarTasks.length})
+                              </Tab>
+                            )}
                           </Tab.List>
                         </div>
 
@@ -626,7 +630,8 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                           </Tab.Panel>
 
                           {/* Similar Tasks Tab */}
-                          <Tab.Panel className="p-6">
+                          {showSimilarityFeatures && (
+                            <Tab.Panel className="p-6">
                               <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                   <h3 className="text-lg font-medium text-gray-900">Similar Tasks</h3>
@@ -708,6 +713,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                 </div>
                               </div>
                             </Tab.Panel>
+                          )}
                         </Tab.Panels>
                       </Tab.Group>
                     </div>
