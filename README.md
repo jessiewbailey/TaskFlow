@@ -21,6 +21,9 @@ Build complex AI workflows visually, create custom dashboards, and process batch
 - ☸️ **Kubernetes Ready** - Production-ready K8s manifests for team deployments
 - 🔄 **Flexible AI Models** - Use any Ollama-compatible model
 - 📈 **Real-time Progress** - Track workflow execution with live updates
+- 🔍 **RAG Search** - Semantic search across tasks using vector embeddings
+- 💾 **Vector Database** - Integrated Qdrant for similarity search and retrieval
+- 🏷️ **Exercise Organization** - Group tasks into exercises for better organization
 
 ## Architecture
 
@@ -28,6 +31,8 @@ Build complex AI workflows visually, create custom dashboards, and process batch
 - **Backend API**: FastAPI 0.111 + Python 3.12
 - **AI Worker**: Python microservice with Ollama (default: gemma3:1b)
 - **Database**: PostgreSQL 15+ for workflow and task storage with JSONB support
+- **Vector Database**: Qdrant for semantic search and similarity matching
+- **Embeddings**: Nomic-embed-text model for generating vector representations
 - **Deployment**: Docker Compose for local dev, Kubernetes for production
 
 ## Quick Start
@@ -72,8 +77,9 @@ Build complex AI workflows visually, create custom dashboards, and process batch
    # OR start with GPU support (requires NVIDIA GPU)
    docker-compose -f docker-compose.gpu.yml up -d --build
    
-   # Download AI model (first time only)
+   # Download AI models (first time only)
    docker-compose exec ollama ollama pull gemma3:1b
+   docker-compose exec ollama ollama pull nomic-embed-text
    ```
    
    For GPU setup instructions, see [GPU Setup Guide](docs/GPU_SETUP.md).
@@ -212,6 +218,37 @@ Build your own dashboards to visualize workflow results and track performance:
 - **Share & Export**: Save dashboard configurations
 - **Custom Styling**: Match your organization's branding
 
+## RAG Search & Vector Database
+
+TaskFlow includes powerful semantic search capabilities powered by Qdrant vector database:
+
+### RAG Search Features
+- **Semantic Search**: Find similar tasks using natural language queries
+- **Vector Embeddings**: Automatic embedding generation for all tasks
+- **Similarity Scoring**: See how closely tasks match your search
+- **Advanced Filtering**: Combine semantic search with filters (exercise, priority, status)
+- **Real-time Results**: Instant search results as you type
+
+### How It Works
+1. **Automatic Indexing**: When tasks are created or updated, embeddings are generated
+2. **Vector Storage**: Embeddings are stored in Qdrant for fast similarity search
+3. **Query Processing**: Your search queries are converted to embeddings
+4. **Similarity Matching**: Qdrant finds the most similar tasks based on cosine similarity
+5. **Result Ranking**: Tasks are returned ranked by relevance
+
+### Use Cases
+- **Find Similar Tasks**: Discover related work that's already been done
+- **Knowledge Discovery**: Surface relevant information across exercises
+- **Duplicate Detection**: Identify similar or duplicate tasks
+- **Context Retrieval**: Find relevant context for new workflows
+
+### Exercise Organization
+Tasks can be organized into exercises for better management:
+- **Exercise Grouping**: Organize related tasks together
+- **Access Control**: Future support for exercise-based permissions
+- **Filtered Views**: View and search within specific exercises
+- **Bulk Operations**: Perform actions on all tasks in an exercise
+
 ### API Endpoints
 
 | Endpoint | Method | Description |
@@ -223,6 +260,10 @@ Build your own dashboards to visualize workflow results and track performance:
 | `/api/workflows/{id}/execute` | POST | Execute workflow on tasks |
 | `/api/jobs/{job_id}` | GET | Get job status |
 | `/api/jobs/{job_id}/stream` | GET | Stream job progress (SSE) |
+| `/api/rag-search/search` | POST | Perform semantic search across tasks |
+| `/api/rag-search/parameters` | GET | Get available search parameters |
+| `/api/exercises` | GET/POST | Manage exercises |
+| `/api/exercises/{id}` | GET/PUT/DELETE | Exercise operations |
 | `/api/export` | POST | Export results |
 | `/healthz` | GET | Health check |
 | `/metrics` | GET | Prometheus metrics |
@@ -236,6 +277,8 @@ Build your own dashboards to visualize workflow results and track performance:
 - `AI_WORKER_URL`: AI worker service URL
 - `SECRET_KEY`: JWT secret key
 - `DEBUG`: Enable debug mode
+- `QDRANT_URL`: Qdrant vector database URL (default: http://qdrant:6333)
+- `OLLAMA_HOST`: Ollama server URL for embeddings
 
 **AI Worker:**
 - `OLLAMA_HOST`: Ollama server URL
@@ -244,6 +287,9 @@ Build your own dashboards to visualize workflow results and track performance:
 
 **Frontend:**
 - `VITE_API_BASE_URL`: Backend API base URL
+
+**Qdrant:**
+- `QDRANT__SERVICE__GRPC_PORT`: gRPC port (default: 6334)
 
 ### Database Schema
 
@@ -255,6 +301,9 @@ The application uses PostgreSQL 15+ with the following main tables:
 - `ai_outputs`: AI processing results
 - `processing_jobs`: Async job tracking
 - `users`: System users for multi-user environments
+- `exercises`: Exercise definitions for task grouping
+- `exercise_permissions`: Exercise-based access control
+- `system_settings`: Application configuration and feature flags
 
 See `database/setup/schema.sql` for the complete schema.
 
@@ -440,5 +489,9 @@ For issues and questions:
 
 ## Roadmap
 
+- [x] Vector search and RAG capabilities with Qdrant
+- [x] Exercise-based task organization
 - [ ] Additional workflow block types (web scraping, API calls)
 - [ ] Support for more file export formats (PDF, DOCX)
+- [ ] Exercise-based access control and permissions
+- [ ] Advanced RAG features (hybrid search, re-ranking)
