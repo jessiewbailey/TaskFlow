@@ -494,6 +494,14 @@ async def delete_request(
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
     
+    # Delete embedding from Qdrant first
+    try:
+        await embedding_service.delete_task_embedding(request_id)
+        logger.info("Deleted embedding for request", request_id=request_id)
+    except Exception as e:
+        logger.error("Failed to delete embedding", request_id=request_id, error=str(e))
+        # Don't fail the request deletion if embedding deletion fails
+    
     # Delete request (cascade will handle AI outputs and jobs)
     await db.delete(request)
     await db.commit()

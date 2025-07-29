@@ -4,7 +4,7 @@ import { ArrowLeftIcon, DocumentPlusIcon, ArrowPathIcon, TrashIcon, ArrowDownTra
 import { Logo } from '../components/Logo'
 import { BulkUpload } from '../components/BulkUpload'
 import { RerunTasks } from '../components/RerunTasks'
-import { PurgeJobs } from '../components/PurgeJobs'
+import { PurgeTasks } from '../components/PurgeTasks'
 import { ExportData } from '../components/ExportData'
 
 type TabType = 'upload' | 'rerun' | 'purge' | 'export'
@@ -29,7 +29,7 @@ export const BatchJobsNew: React.FC = () => {
       id: 'purge' as const,
       name: 'Purge',
       icon: TrashIcon,
-      description: 'Delete all processing jobs from the system'
+      description: 'Delete all tasks from the system'
     },
     {
       id: 'export' as const,
@@ -106,7 +106,7 @@ export const BatchJobsNew: React.FC = () => {
           <div className="p-6">
             {activeTab === 'upload' && <BulkUpload />}
             {activeTab === 'rerun' && <RerunTasks />}
-            {activeTab === 'purge' && <PurgeJobs />}
+            {activeTab === 'purge' && <PurgeTasks />}
             {activeTab === 'export' && <ExportData />}
           </div>
         </div>
