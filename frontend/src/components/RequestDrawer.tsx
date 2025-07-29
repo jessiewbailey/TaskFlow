@@ -1,6 +1,6 @@
 import React, { useState, Fragment, useEffect, useRef } from 'react'
 import { Dialog, Transition, Tab } from '@headlessui/react'
-import { XMarkIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { format } from 'date-fns'
 import type { Task, RequestStatus } from '../types'
@@ -11,6 +11,7 @@ import { useUpdateRequest, useDeleteRequest } from '../hooks/useRequests'
 import { useUISettings } from '../hooks/useUISettings'
 import { dashboardClient } from '../api/dashboardClient'
 import { DashboardRenderer } from './DashboardRenderer'
+import { taskflowApi } from '../api/client'
 
 interface RequestDrawerProps {
   request: Task | null
@@ -35,6 +36,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   const [workflowData, setWorkflowData] = useState<any>(null)
   const [similarTasks, setSimilarTasks] = useState<any[]>([])
   const [isSearchingSimilar, setIsSearchingSimilar] = useState(false)
+  const [isReprocessing, setIsReprocessing] = useState(false)
   const [drawerWidth, setDrawerWidth] = useState(() => {
     // Default to 50% of window width, with fallback to 672px if window is not available
     return typeof window !== 'undefined' ? Math.max(400, window.innerWidth * 0.5) : 672
@@ -175,6 +177,33 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   }
   
   if (!request) return null
+  
+  const handleReprocess = async () => {
+    if (!request.workflow_id) {
+      alert('No workflow assigned to this request')
+      return
+    }
+    
+    setIsReprocessing(true)
+    try {
+      const response = await taskflowApi.processRequest(request.id, {
+        instructions: ''
+      })
+      
+      // Trigger refresh
+      if (onRequestUpdated) {
+        onRequestUpdated()
+      }
+      
+      // Show success message
+      alert('Reprocessing started successfully')
+    } catch (error) {
+      console.error('Failed to reprocess request:', error)
+      alert('Failed to start reprocessing')
+    } finally {
+      setIsReprocessing(false)
+    }
+  }
   
   const handleEdit = () => {
     setIsEditing(true)
@@ -542,7 +571,47 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
 
                           {/* AI Analysis Tab */}
                           <Tab.Panel className="p-6">
-                            {request.latest_ai_output ? (
+                            {request.latest_failed_job ? (
+                              <div className="space-y-4">
+                                <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                                  <div className="flex">
+                                    <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
+                                    <div className="ml-3">
+                                      <h3 className="text-sm font-medium text-red-800">
+                                        Processing Failed
+                                      </h3>
+                                      <div className="mt-2 text-sm text-red-700">
+                                        <p className="font-medium">
+                                          Failed at: {format(new Date(request.latest_failed_job.created_at), 'MMM d, yyyy h:mm a')}
+                                        </p>
+                                        {request.latest_failed_job.error_message && (
+                                          <div className="mt-2">
+                                            <p className="font-medium">Error Details:</p>
+                                            <p className="mt-1 whitespace-pre-wrap font-mono text-xs bg-red-100 p-2 rounded">
+                                              {request.latest_failed_job.error_message}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="mt-3">
+                                        <button
+                                          onClick={handleReprocess}
+                                          disabled={isReprocessing}
+                                          className="text-sm font-medium text-red-800 hover:text-red-700 disabled:opacity-50"
+                                        >
+                                          {isReprocessing ? 'Reprocessing...' : 'Retry Processing'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                {request.latest_ai_output && (
+                                  <div className="text-sm text-gray-500">
+                                    Note: Showing last successful analysis from {format(new Date(request.latest_ai_output.created_at), 'MMM d, yyyy h:mm a')}
+                                  </div>
+                                )}
+                              </div>
+                            ) : request.latest_ai_output ? (
                               <div className="space-y-6">
                                 <div>
                                   <h3 className="text-lg font-medium text-gray-900">

@@ -110,6 +110,15 @@ class AIOutputResponse(BaseModel):
         from_attributes = True
         protected_namespaces = ()
 
+class JobProgressResponse(BaseModel):
+    job_id: str
+    request_id: int
+    status: JobStatus
+    error_message: Optional[str]
+    started_at: Optional[datetime]
+    completed_at: Optional[datetime]
+    created_at: datetime
+
 class RequestResponse(BaseModel):
     id: int
     text: str
@@ -126,6 +135,7 @@ class RequestResponse(BaseModel):
     exercise: Optional[Exercise] = None
     latest_ai_output: Optional[AIOutputResponse]
     has_active_jobs: Optional[bool] = False
+    latest_failed_job: Optional[JobProgressResponse] = None
 
     class Config:
         from_attributes = True
@@ -140,15 +150,6 @@ class RequestListResponse(BaseModel):
 class CreateRequestResponse(BaseModel):
     id: int
     job_id: str
-
-class JobProgressResponse(BaseModel):
-    job_id: str
-    request_id: int
-    status: JobStatus
-    error_message: Optional[str]
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    created_at: datetime
 
 class ProcessJobResponse(BaseModel):
     job_id: str

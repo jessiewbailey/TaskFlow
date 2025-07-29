@@ -65,6 +65,7 @@ export interface Task {
   exercise?: Exercise
   latest_ai_output?: AIOutput
   has_active_jobs?: boolean
+  latest_failed_job?: JobProgress
 }
 
 export interface TaskList {

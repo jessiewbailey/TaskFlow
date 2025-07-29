@@ -109,7 +109,7 @@ class JobService:
             return None
             
         return JobProgressResponse(
-            job_id=job.id,
+            job_id=str(job.id),
             request_id=job.request_id,
             status=job.status,
             error_message=job.error_message,

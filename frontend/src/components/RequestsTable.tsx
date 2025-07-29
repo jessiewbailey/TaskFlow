@@ -114,6 +114,10 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({
                     <span className="text-blue-600">
                       Processing...
                     </span>
+                  ) : request.latest_failed_job ? (
+                    <span className="text-red-600" title={request.latest_failed_job.error_message || 'Processing failed'}>
+                      Failed
+                    </span>
                   ) : request.latest_ai_output ? (
                     <span className="text-green-600">
                       v{request.latest_ai_output.version} completed

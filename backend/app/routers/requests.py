@@ -13,7 +13,7 @@ from app.models.pydantic_models import (
     UpdateRequestRequest, ProcessRequestRequest, ProcessJobResponse, RequestResponse, 
     RequestListResponse, UserResponse, AIOutputResponse, AssignWorkflowRequest,
     BatchUploadResponse, BatchUploadError, BulkRerunRequest, BulkRerunResponse, BulkRerunError,
-    Exercise
+    Exercise, JobProgressResponse
 )
 from pydantic import BaseModel
 from app.services.job_service import JobService
@@ -100,7 +100,7 @@ async def list_requests(
     result = await db.execute(query)
     requests = result.scalars().all()
     
-    # Get all request IDs to check for active jobs
+    # Get all request IDs to check for active jobs and failed jobs
     request_ids = [req.id for req in requests]
     
     # Check for active jobs (PENDING or RUNNING) for all requests in one query
@@ -113,6 +113,24 @@ async def list_requests(
         )
         active_job_request_ids = set(active_jobs_result.scalars().all())
     
+    # Get latest failed jobs for all requests
+    failed_jobs_dict = {}
+    if request_ids:
+        # Subquery to get the latest job per request
+        from sqlalchemy.sql import text
+        failed_jobs_result = await db.execute(
+            select(ProcessingJob)
+            .where(ProcessingJob.request_id.in_(request_ids))
+            .where(ProcessingJob.status == JobStatus.FAILED)
+            .order_by(ProcessingJob.created_at.desc())
+        )
+        failed_jobs = failed_jobs_result.scalars().all()
+        
+        # Group by request_id and keep only the latest
+        for job in failed_jobs:
+            if job.request_id not in failed_jobs_dict or job.created_at > failed_jobs_dict[job.request_id].created_at:
+                failed_jobs_dict[job.request_id] = job
+    
     # Convert to response format
     request_responses = []
     for req in requests:
@@ -123,6 +141,20 @@ async def list_requests(
         
         # Check if this request has active jobs
         has_active_jobs = req.id in active_job_request_ids
+        
+        # Get latest failed job if any
+        latest_failed_job = None
+        if req.id in failed_jobs_dict:
+            failed_job = failed_jobs_dict[req.id]
+            latest_failed_job = JobProgressResponse(
+                job_id=str(failed_job.id),
+                request_id=failed_job.request_id,
+                status=failed_job.status,
+                error_message=failed_job.error_message,
+                started_at=failed_job.started_at,
+                completed_at=failed_job.completed_at,
+                created_at=failed_job.created_at
+            )
         
         request_responses.append(
             RequestResponse(
@@ -140,7 +172,8 @@ async def list_requests(
                 assigned_analyst=UserResponse.from_orm(req.assigned_analyst) if req.assigned_analyst else None,
                 exercise=Exercise.from_orm(req.exercise) if req.exercise else None,
                 latest_ai_output=AIOutputResponse.from_orm(latest_ai_output) if latest_ai_output else None,
-                has_active_jobs=has_active_jobs
+                has_active_jobs=has_active_jobs,
+                latest_failed_job=latest_failed_job
             )
         )
     
@@ -257,6 +290,28 @@ async def get_request(
     )
     has_active_jobs = active_jobs_result.scalar() is not None
     
+    # Get latest failed job
+    failed_job_result = await db.execute(
+        select(ProcessingJob)
+        .where(ProcessingJob.request_id == request_id)
+        .where(ProcessingJob.status == JobStatus.FAILED)
+        .order_by(ProcessingJob.created_at.desc())
+        .limit(1)
+    )
+    failed_job = failed_job_result.scalar_one_or_none()
+    
+    latest_failed_job = None
+    if failed_job:
+        latest_failed_job = JobProgressResponse(
+            job_id=str(failed_job.id),
+            request_id=failed_job.request_id,
+            status=failed_job.status,
+            error_message=failed_job.error_message,
+            started_at=failed_job.started_at,
+            completed_at=failed_job.completed_at,
+            created_at=failed_job.created_at
+        )
+    
     # Debug logging
     logger.info(f"Request {request_id}: exercise_id={request.exercise_id}, exercise={request.exercise}")
     
@@ -275,7 +330,8 @@ async def get_request(
         assigned_analyst=UserResponse.from_orm(request.assigned_analyst) if request.assigned_analyst else None,
         exercise=Exercise.from_orm(request.exercise) if request.exercise else None,
         latest_ai_output=AIOutputResponse.from_orm(latest_ai_output) if latest_ai_output else None,
-        has_active_jobs=has_active_jobs
+        has_active_jobs=has_active_jobs,
+        latest_failed_job=latest_failed_job
     )
 
 @router.post("/{request_id}/process", response_model=ProcessJobResponse)

@@ -54,9 +54,21 @@ class AIProcessor:
                     raise Exception(f"Failed to get valid JSON after {settings.max_retries + 1} attempts")
                     
             except Exception as e:
-                logger.error("Ollama API call failed", attempt=attempt, error=str(e))
+                error_detail = str(e)
+                # Try to extract more detailed error information
+                if hasattr(e, 'response'):
+                    try:
+                        error_detail = f"{str(e)} - Response: {e.response.text if hasattr(e.response, 'text') else str(e.response)}"
+                    except:
+                        pass
+                
+                logger.error("Ollama API call failed", attempt=attempt, error=error_detail)
                 if attempt == settings.max_retries:
-                    raise
+                    # Provide a more informative error message
+                    error_msg = f"Failed to get response from Ollama after {settings.max_retries+1} attempts. "
+                    error_msg += f"Model: {self.model}, Host: {settings.ollama_host}. "
+                    error_msg += f"Error: {error_detail}"
+                    raise Exception(error_msg)
                 await asyncio.sleep(2 ** attempt)  # Exponential backoff
     
     async def extract_basic_metadata(self, request_text: str) -> Dict[str, Any]:
