@@ -112,12 +112,6 @@ docker build -t registry.local/taskflow-web:latest frontend/
   - Connect multiple AI processing blocks
   - See data flow in real-time
   - Test workflows on sample data before full execution
-  
-- **Custom AI Dashboards**:
-  - Design your own analytics dashboards
-  - Visualize workflow results with charts and graphs
-  - Track performance metrics across runs
-  - Export dashboard configurations
 
 - **Workflow Blocks**: 
   - AI Processing blocks with customizable prompts
@@ -129,13 +123,7 @@ docker build -t registry.local/taskflow-web:latest frontend/
   - Upload tasks via CSV or Excel
   - Execute workflows on hundreds of items
   - Real-time progress tracking
-  - Export results in multiple formats
-  
-- **Experimentation Features**:
-  - A/B test different prompts
-  - Compare workflow variations
-  - Track which approaches work best
-  - Iterate quickly on your designs
+  - Export results
 
 ## Getting Started
 
@@ -157,30 +145,12 @@ docker build -t registry.local/taskflow-web:latest frontend/
 5. Test your workflow on a sample task
 6. Save your workflow for reuse
 
-### 3. Build Custom Dashboards
-
-1. Go to **Dashboard Builder**
-2. Add visualization widgets (charts, tables, metrics)
-3. Connect widgets to your workflow outputs
-4. Customize the layout and styling
-5. Save and share your dashboard configuration
-
-### 4. Execute and Explore
-
-1. Select your uploaded tasks
-2. Choose a saved workflow
-3. Click "Execute Workflow"
-4. Watch real-time progress in your custom dashboard
-5. Explore results and iterate on your workflow
-6. Export results as CSV, Excel, or JSON
-
 ### Example Use Cases
 
 - **Content Processing**: Build visual pipelines to summarize, categorize, and extract insights
-- **Data Enrichment**: Create workflows that add classifications, sentiment, and entities
-- **Research Analysis**: Design custom dashboards to explore patterns and generate reports
+- **Data Enrichment**: Create workflows that add classifications, summaries, sentiment
 - **Quality Assurance**: Develop workflows to check compliance and accuracy at scale
-- **Experimentation**: Rapidly test different AI approaches to find what works best
+- **Experimentation**: Rapidly test different workflows and models to find what works best
 
 ## Visual Workflow Builder
 
@@ -188,35 +158,7 @@ The drag-and-drop workflow builder makes it easy to create complex AI pipelines 
 
 ### Features
 - **Visual Canvas**: See your entire workflow at a glance
-- **Block Library**: Pre-built AI processing blocks ready to use
-- **Live Preview**: Test workflows on sample data before running
-- **Connection Validation**: Ensures data flows correctly between blocks
-- **Workflow Templates**: Start from pre-built templates or create your own
-
-### Workflow Block Types
-- **AI Processing**: Configure custom prompts with variable substitution
-- **Data Transformation**: Reshape and filter data between steps
-- **Conditional Logic**: Branch workflows based on AI outputs
-- **Aggregation**: Combine results from multiple branches
-- **Export Blocks**: Format output for different use cases
-
-## Custom AI Dashboards
-
-Build your own dashboards to visualize workflow results and track performance:
-
-### Dashboard Components
-- **Metrics Cards**: Display KPIs and summary statistics
-- **Charts & Graphs**: Visualize trends and distributions
-- **Data Tables**: Browse and filter detailed results
-- **Progress Trackers**: Monitor batch processing in real-time
-- **Export Widgets**: One-click data export options
-
-### Dashboard Features
-- **Drag-and-Drop Builder**: Arrange components visually
-- **Auto-Refresh**: Live updates as workflows process
-- **Responsive Design**: Works on desktop and mobile
-- **Share & Export**: Save dashboard configurations
-- **Custom Styling**: Match your organization's branding
+- **Live Preview**: See analysis dashboard preview as you build it
 
 ## RAG Search & Vector Database
 
@@ -227,7 +169,6 @@ TaskFlow includes powerful semantic search capabilities powered by Qdrant vector
 - **Vector Embeddings**: Automatic embedding generation for all tasks
 - **Similarity Scoring**: See how closely tasks match your search
 - **Advanced Filtering**: Combine semantic search with filters (exercise, priority, status)
-- **Real-time Results**: Instant search results as you type
 
 ### How It Works
 1. **Automatic Indexing**: When tasks are created or updated, embeddings are generated
