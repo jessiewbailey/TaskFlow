@@ -1,6 +1,6 @@
 import uuid
 import asyncio
-from typing import Optional
+from typing import Optional, Set
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -11,6 +11,58 @@ from app.config import settings
 import structlog
 
 logger = structlog.get_logger()
+
+# Global job queue manager
+class JobQueueManager:
+    def __init__(self, max_concurrent_jobs: int = 4):
+        self.max_concurrent_jobs = max_concurrent_jobs
+        self.running_jobs: Set[str] = set()
+        self.job_queue: asyncio.Queue = asyncio.Queue()
+        self.queue_processor_task: Optional[asyncio.Task] = None
+        
+    async def start(self):
+        """Start the queue processor if not already running"""
+        if self.queue_processor_task is None or self.queue_processor_task.done():
+            self.queue_processor_task = asyncio.create_task(self._process_queue())
+            logger.info("Started job queue processor")
+    
+    async def add_job(self, job_id: str, job_coro):
+        """Add a job to the queue"""
+        await self.job_queue.put((job_id, job_coro))
+        logger.info(f"Added job {job_id} to queue. Queue size: {self.job_queue.qsize()}")
+        
+    async def _process_queue(self):
+        """Process jobs from the queue with concurrency control"""
+        while True:
+            try:
+                # Wait if we're at max capacity
+                while len(self.running_jobs) >= self.max_concurrent_jobs:
+                    await asyncio.sleep(0.5)
+                
+                # Get next job from queue
+                job_id, job_coro = await self.job_queue.get()
+                
+                # Start the job
+                self.running_jobs.add(job_id)
+                logger.info(f"Starting job {job_id}. Running jobs: {len(self.running_jobs)}")
+                
+                # Run job and remove from running set when done
+                task = asyncio.create_task(self._run_job(job_id, job_coro))
+                
+            except Exception as e:
+                logger.error(f"Error in queue processor: {str(e)}")
+                await asyncio.sleep(1)  # Prevent tight loop on error
+    
+    async def _run_job(self, job_id: str, job_coro):
+        """Run a job and clean up when done"""
+        try:
+            await job_coro
+        finally:
+            self.running_jobs.discard(job_id)
+            logger.info(f"Completed job {job_id}. Running jobs: {len(self.running_jobs)}")
+
+# Initialize global job queue manager
+job_queue_manager = JobQueueManager(max_concurrent_jobs=4)
 
 class JobService:
     def __init__(self, db: AsyncSession):
@@ -38,8 +90,11 @@ class JobService:
         self.db.add(job)
         await self.db.commit()  # Commit immediately to ensure job exists for background task
         
-        # Trigger AI processing asynchronously after the job is committed
-        asyncio.create_task(self._process_job(str(job_id)))
+        # Ensure queue processor is running
+        await job_queue_manager.start()
+        
+        # Add job to queue instead of starting immediately
+        await job_queue_manager.add_job(str(job_id), self._process_job(str(job_id)))
         
         return str(job_id)
 

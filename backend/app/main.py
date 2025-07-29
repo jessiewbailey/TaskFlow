@@ -5,6 +5,8 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, His
 from prometheus_client import start_http_server
 import structlog
 import time
+import asyncio
+from contextlib import asynccontextmanager
 from app.config import settings
 from app.routers import requests, jobs, internal, config, workflows, logs, custom_instructions, export, ground_truth, user_preferences, exercises, rag_search
 from app.routers import settings as settings_router
@@ -38,12 +40,73 @@ logger = structlog.get_logger()
 REQUEST_COUNT = Counter('api_requests_total', 'Total API requests', ['method', 'endpoint', 'status'])
 REQUEST_DURATION = Histogram('api_request_duration_seconds', 'API request duration')
 
+# Background task for checking stuck jobs
+async def check_stuck_jobs():
+    """Periodically check for stuck PENDING jobs and retry them"""
+    from app.models.database import get_db_session
+    from app.services.job_service import job_queue_manager, JobService
+    from sqlalchemy import select
+    from app.models.schemas import ProcessingJob, JobStatus
+    from datetime import datetime, timedelta
+    
+    while True:
+        try:
+            await asyncio.sleep(30)  # Check every 30 seconds
+            
+            async with get_db_session() as db:
+                # Find jobs that have been PENDING for more than 2 minutes
+                cutoff_time = datetime.utcnow() - timedelta(minutes=2)
+                result = await db.execute(
+                    select(ProcessingJob)
+                    .where(ProcessingJob.status == JobStatus.PENDING)
+                    .where(ProcessingJob.created_at < cutoff_time)
+                )
+                stuck_jobs = result.scalars().all()
+                
+                if stuck_jobs:
+                    logger.info(f"Found {len(stuck_jobs)} stuck PENDING jobs")
+                    job_service = JobService(db)
+                    
+                    for job in stuck_jobs:
+                        # Re-queue the job
+                        logger.info(f"Re-queuing stuck job {job.id}")
+                        await job_queue_manager.add_job(
+                            str(job.id), 
+                            job_service._process_job(str(job.id))
+                        )
+                        
+        except Exception as e:
+            logger.error(f"Error checking stuck jobs: {str(e)}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Starting TaskFlow API")
+    
+    # Start the job queue manager
+    from app.services.job_service import job_queue_manager
+    await job_queue_manager.start()
+    
+    # Start background task for checking stuck jobs
+    stuck_job_checker = asyncio.create_task(check_stuck_jobs())
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down TaskFlow API")
+    stuck_job_checker.cancel()
+    try:
+        await stuck_job_checker
+    except asyncio.CancelledError:
+        pass
+
 app = FastAPI(
     title="TaskFlow Processing API",
     description="Internal API for task processing with AI analysis",
     version="1.0.0",
     docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None
+    redoc_url="/redoc" if settings.debug else None,
+    lifespan=lifespan
 )
 
 # CORS middleware
