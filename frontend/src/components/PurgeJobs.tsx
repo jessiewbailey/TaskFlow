@@ -20,9 +20,10 @@ export const PurgeJobs: React.FC = () => {
       return response.data
     },
     onSuccess: (data) => {
-      // Invalidate any job-related queries
-      queryClient.invalidateQueries({ queryKey: ['jobs'] })
-      queryClient.invalidateQueries({ queryKey: ['processing-jobs'] })
+      // Invalidate requests query to refresh task list and job statuses
+      queryClient.invalidateQueries({ queryKey: ['requests'] })
+      // Also invalidate individual job queries
+      queryClient.invalidateQueries({ queryKey: ['job'] })
       setShowConfirmation(false)
       setConfirmText('')
     },
