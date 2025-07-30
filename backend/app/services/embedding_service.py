@@ -6,6 +6,8 @@ from ollama import Client as OllamaClient
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
 import uuid
+import asyncio
+from asyncio import Semaphore
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,14 @@ class EmbeddingService:
         self.collection_name = "tasks"
         self.vector_size = 768  # nomic-embed-text dimension
         
+        # Concurrency control - limit to 2 simultaneous embedding requests
+        self._embedding_semaphore = Semaphore(2)
+        
+        # Create a session for connection pooling
+        import requests
+        self.session = requests.Session()
+        self.session.mount('http://', requests.adapters.HTTPAdapter(max_retries=3))
+        
         logger.info(f"Initializing EmbeddingService with Ollama at {self.ollama_host} and Qdrant at {self.qdrant_url}")
         
         try:
@@ -25,11 +35,14 @@ class EmbeddingService:
             
             # Test Ollama connection
             logger.info("Testing Ollama connection...")
-            # Don't use the client's list method as it might be buggy
-            import requests
-            response = requests.get(f"{self.ollama_host}/api/tags", timeout=5)
+            response = self.session.get(f"{self.ollama_host}/api/tags", timeout=10)
             response.raise_for_status()
-            logger.info(f"Ollama connection successful. Available models: {[m['name'] for m in response.json().get('models', [])]}")
+            models = [m['name'] for m in response.json().get('models', [])]
+            logger.info(f"Ollama connection successful. Available models: {models}")
+            
+            if self.embedding_model not in models:
+                logger.error(f"Required embedding model '{self.embedding_model}' not found in Ollama!")
+                logger.error(f"Available models: {models}")
             
             self._ensure_collection()
         except Exception as e:
@@ -62,52 +75,59 @@ class EmbeddingService:
             raise
     
     async def generate_embedding(self, text: str, max_retries: int = 3) -> List[float]:
-        """Generate embedding for the given text using Ollama with retry logic."""
+        """Generate embedding for the given text using Ollama with retry logic and concurrency control."""
         import asyncio
         
-        for attempt in range(max_retries):
-            try:
-                logger.info(f"Generating embedding using Ollama at {self.ollama_host} with model {self.embedding_model} (attempt {attempt + 1})")
-                logger.debug(f"Text to embed (first 100 chars): {text[:100]}...")
-                
-                # Use requests directly instead of the Ollama client which might have issues
-                import requests
-                import json
-                
-                payload = {
-                    "model": self.embedding_model,
-                    "prompt": text
-                }
-                
-                logger.debug(f"Sending embedding request to {self.ollama_host}/api/embeddings")
-                
-                response = requests.post(
-                    f"{self.ollama_host}/api/embeddings",
-                    json=payload,
-                    timeout=30  # 30 second timeout
-                )
-                response.raise_for_status()
-                
-                result = response.json()
-                embedding = result.get("embedding", [])
-                
-                if not embedding:
-                    raise ValueError("No embedding returned from Ollama")
-                
-                logger.info(f"Successfully generated embedding with {len(embedding)} dimensions")
-                return embedding
-                
-            except Exception as e:
-                logger.warning(f"Embedding generation attempt {attempt + 1} failed: {str(e)}")
-                
-                if attempt < max_retries - 1:
-                    # Wait with exponential backoff before retry
-                    wait_time = (2 ** attempt) + 1  # 2, 5, 9 seconds
-                    logger.info(f"Retrying in {wait_time} seconds...")
-                    await asyncio.sleep(wait_time)  # Use async sleep
-                else:
-                    logger.error(f"All {max_retries} embedding generation attempts failed from Ollama at {self.ollama_host}: {str(e)}")
-                    raise
+        # Use semaphore to limit concurrent requests
+        async with self._embedding_semaphore:
+            logger.info(f"Acquired embedding semaphore, generating embedding for text: '{text[:50]}...'")
+            
+            for attempt in range(max_retries):
+                try:
+                    logger.info(f"Generating embedding using Ollama at {self.ollama_host} with model {self.embedding_model} (attempt {attempt + 1})")
+                    
+                    payload = {
+                        "model": self.embedding_model,
+                        "prompt": text
+                    }
+                    
+                    # Run the synchronous request in a thread pool to avoid blocking
+                    loop = asyncio.get_event_loop()
+                    
+                    # Increase timeout to 60 seconds for embedding generation
+                    response = await loop.run_in_executor(
+                        None,
+                        lambda: self.session.post(
+                            f"{self.ollama_host}/api/embeddings",
+                            json=payload,
+                            timeout=60  # Increased from 30 to 60 seconds
+                        )
+                    )
+                    
+                    response.raise_for_status()
+                    
+                    result = response.json()
+                    embedding = result.get("embedding", [])
+                    
+                    if not embedding:
+                        raise ValueError("No embedding returned from Ollama")
+                    
+                    logger.info(f"Successfully generated embedding with {len(embedding)} dimensions")
+                    return embedding
+                    
+                except Exception as e:
+                    logger.warning(f"Embedding generation attempt {attempt + 1} failed: {str(e)}")
+                    
+                    if attempt < max_retries - 1:
+                        # Wait with exponential backoff before retry
+                        wait_time = min((2 ** attempt) + 1, 10)  # Cap at 10 seconds
+                        logger.info(f"Retrying in {wait_time} seconds...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        logger.error(f"All {max_retries} embedding generation attempts failed from Ollama at {self.ollama_host}: {str(e)}")
+                        # Return a zero vector as fallback to prevent crashes
+                        logger.warning(f"Returning zero vector as fallback for failed embedding")
+                        return [0.0] * self.vector_size
     
     async def store_task_embedding(self, task_id: int, task_data: Dict[str, Any]) -> str:
         """Store task embedding in Qdrant."""

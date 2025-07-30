@@ -45,35 +45,53 @@ async def check_stuck_jobs():
     """Periodically check for stuck PENDING jobs and retry them"""
     from app.models.database import get_db_session
     from app.services.job_service import job_queue_manager, JobService
-    from sqlalchemy import select
+    from sqlalchemy import select, and_, or_
     from app.models.schemas import ProcessingJob, JobStatus
     from datetime import datetime, timedelta
     
     while True:
         try:
-            await asyncio.sleep(30)  # Check every 30 seconds
+            await asyncio.sleep(60)  # Check every 60 seconds instead of 30
             
             async with get_db_session() as db:
-                # Find jobs that have been PENDING for more than 2 minutes
-                cutoff_time = datetime.utcnow() - timedelta(minutes=2)
+                # Find jobs that have been PENDING for more than 5 minutes (increased from 2)
+                cutoff_time = datetime.utcnow() - timedelta(minutes=5)
+                
+                # Also check that job is not already being processed (started_at is null)
+                # and that it hasn't already completed or failed
                 result = await db.execute(
                     select(ProcessingJob)
-                    .where(ProcessingJob.status == JobStatus.PENDING)
-                    .where(ProcessingJob.created_at < cutoff_time)
+                    .where(
+                        and_(
+                            ProcessingJob.status == JobStatus.PENDING,
+                            ProcessingJob.created_at < cutoff_time,
+                            ProcessingJob.started_at.is_(None),  # Never started
+                            ProcessingJob.completed_at.is_(None)  # Never completed
+                        )
+                    )
                 )
                 stuck_jobs = result.scalars().all()
                 
                 if stuck_jobs:
-                    logger.info(f"Found {len(stuck_jobs)} stuck PENDING jobs")
+                    logger.info(f"Found {len(stuck_jobs)} genuinely stuck PENDING jobs")
                     job_service = JobService(db)
                     
                     for job in stuck_jobs:
-                        # Re-queue the job
-                        logger.info(f"Re-queuing stuck job {job.id}")
-                        await job_queue_manager.add_job(
-                            str(job.id), 
-                            job_service._process_job(str(job.id))
+                        # Double-check the job is still PENDING (avoid race conditions)
+                        current_job_result = await db.execute(
+                            select(ProcessingJob).where(ProcessingJob.id == job.id)
                         )
+                        current_job = current_job_result.scalar_one_or_none()
+                        
+                        if current_job and current_job.status == JobStatus.PENDING:
+                            # Re-queue the job
+                            logger.info(f"Re-queuing stuck job {job.id} (created {job.created_at}, never started)")
+                            await job_queue_manager.add_job(
+                                str(job.id), 
+                                job_service._process_job(str(job.id))
+                            )
+                        else:
+                            logger.info(f"Job {job.id} status changed to {current_job.status if current_job else 'deleted'}, skipping re-queue")
                         
         except Exception as e:
             logger.error(f"Error checking stuck jobs: {str(e)}")
