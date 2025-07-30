@@ -1,17 +1,18 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
 
 class Settings(BaseSettings):
     # Ollama Configuration
-    ollama_host: str = "http://localhost:11434"
-    model_name: str = "gemma3:27b"
+    ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    model_name: str = os.getenv("MODEL_NAME", "gemma3:27b")
     
     # API Configuration
-    api_host: str = "0.0.0.0"
-    api_port: int = 8001
+    api_host: str = os.getenv("API_HOST", "0.0.0.0")
+    api_port: int = int(os.getenv("API_PORT", "8001"))
     
     # Backend API
-    backend_api_url: str = "http://taskflow-api:8000"
+    backend_api_url: str = os.getenv("BACKEND_API_URL", "http://taskflow-api:8000")
     
     # Processing Configuration
     timeout_seconds: int = 60

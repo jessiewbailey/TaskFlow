@@ -12,7 +12,6 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 NAMESPACE="taskflow"
-QDRANT_NAMESPACE="qdrant"
 
 echo -e "${GREEN}=== TaskFlow Port Forwarding ===${NC}"
 echo ""
@@ -87,18 +86,18 @@ else
 fi
 
 # Qdrant
-if check_service "qdrant" "$QDRANT_NAMESPACE"; then
+if check_service "qdrant" "$NAMESPACE"; then
     echo "Forwarding Qdrant Vector Database (6333)..."
-    kubectl port-forward -n $QDRANT_NAMESPACE svc/qdrant 6333:6333 &
+    kubectl port-forward -n $NAMESPACE svc/qdrant 6333:6333 &
     PID_QDRANT=$!
 else
     echo -e "${RED}✗${NC} Qdrant service not found"
 fi
 
 # Ollama (if internal deployment)
-if check_service "taskflow-ollama" "$NAMESPACE"; then
+if check_service "ollama-service" "$NAMESPACE"; then
     echo "Forwarding Ollama (11434)..."
-    kubectl port-forward -n $NAMESPACE svc/taskflow-ollama 11434:11434 &
+    kubectl port-forward -n $NAMESPACE svc/ollama-service 11434:11434 &
     PID_OLLAMA=$!
 else
     echo -e "${YELLOW}!${NC} Ollama service not found (might be using external Ollama)"
@@ -122,7 +121,7 @@ echo "    - Database: taskflow_db"
 echo "    - Username: taskflow_user"
 echo "    - Password: (check your secrets.yaml)"
 echo ""
-if check_service "taskflow-ollama" "$NAMESPACE"; then
+if check_service "ollama-service" "$NAMESPACE"; then
     echo "  • Ollama API: ${GREEN}http://localhost:11434${NC}"
     echo ""
 fi

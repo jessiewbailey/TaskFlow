@@ -19,9 +19,11 @@ router = APIRouter(prefix="/api/workflows", tags=["workflows"])
 @router.get("/ollama/models")
 async def get_available_models():
     """Get available models from Ollama"""
+    import os
     try:
+        ollama_host = os.getenv("OLLAMA_HOST", "http://ollama-service:11434")
         async with httpx.AsyncClient() as client:
-            response = await client.get("http://taskflow-ollama:11434/api/tags")
+            response = await client.get(f"{ollama_host}/api/tags")
             if response.status_code == 200:
                 data = response.json()
                 models = []

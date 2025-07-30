@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class EmbeddingService:
     def __init__(self):
-        self.ollama_host = os.getenv("OLLAMA_HOST", "http://ollama:11434")
+        self.ollama_host = os.getenv("OLLAMA_HOST", "http://ollama-service:11434")
         self.qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
         self.embedding_model = "nomic-embed-text"
         self.collection_name = "tasks"
@@ -27,10 +27,14 @@ class EmbeddingService:
     def _ensure_collection(self):
         """Ensure the Qdrant collection exists with proper configuration."""
         try:
+            logger.info(f"Checking for collection '{self.collection_name}' in Qdrant at {self.qdrant_url}")
+            
             collections = self.qdrant_client.get_collections().collections
             collection_names = [col.name for col in collections]
             
             if self.collection_name not in collection_names:
+                logger.info(f"Creating new collection '{self.collection_name}' in Qdrant at {self.qdrant_url}")
+                
                 self.qdrant_client.create_collection(
                     collection_name=self.collection_name,
                     vectors_config=VectorParams(
@@ -38,23 +42,28 @@ class EmbeddingService:
                         distance=Distance.COSINE
                     )
                 )
-                logger.info(f"Created Qdrant collection: {self.collection_name}")
+                logger.info(f"Successfully created Qdrant collection '{self.collection_name}' with vector size {self.vector_size}")
             else:
-                logger.info(f"Qdrant collection already exists: {self.collection_name}")
+                logger.info(f"Qdrant collection '{self.collection_name}' already exists at {self.qdrant_url}")
         except Exception as e:
-            logger.error(f"Error ensuring collection: {str(e)}")
+            logger.error(f"Error ensuring collection at Qdrant {self.qdrant_url}: {str(e)}")
             raise
     
     async def generate_embedding(self, text: str) -> List[float]:
         """Generate embedding for the given text using Ollama."""
         try:
+            logger.info(f"Generating embedding using Ollama at {self.ollama_host} with model {self.embedding_model}")
+            logger.debug(f"Text to embed (first 100 chars): {text[:100]}...")
+            
             response = self.ollama_client.embeddings(
                 model=self.embedding_model,
                 prompt=text
             )
+            
+            logger.info(f"Successfully generated embedding with {len(response['embedding'])} dimensions")
             return response["embedding"]
         except Exception as e:
-            logger.error(f"Error generating embedding: {str(e)}")
+            logger.error(f"Error generating embedding from Ollama at {self.ollama_host}: {str(e)}")
             raise
     
     async def store_task_embedding(self, task_id: int, task_data: Dict[str, Any]) -> str:
@@ -82,6 +91,8 @@ class EmbeddingService:
             point_id = str(uuid.uuid4())
             
             # Store in Qdrant
+            logger.info(f"Storing embedding in Qdrant at {self.qdrant_url}, collection: {self.collection_name}, point_id: {point_id}")
+            
             self.qdrant_client.upsert(
                 collection_name=self.collection_name,
                 points=[
@@ -102,7 +113,7 @@ class EmbeddingService:
                 ]
             )
             
-            logger.info(f"Stored embedding for task {task_id}")
+            logger.info(f"Successfully stored embedding for task {task_id} in Qdrant")
             return point_id
             
         except Exception as e:
@@ -112,6 +123,8 @@ class EmbeddingService:
     async def search_similar_tasks(self, query_text: str, limit: int = 5, filters: Optional[Dict] = None) -> List[Dict[str, Any]]:
         """Search for similar tasks based on query text."""
         try:
+            logger.info(f"Searching for similar tasks using query: '{query_text}' (limit: {limit})")
+            
             # Generate embedding for query
             query_embedding = await self.generate_embedding(query_text)
             
@@ -145,12 +158,17 @@ class EmbeddingService:
                     qdrant_filter = Filter(must=conditions)
             
             # Search in Qdrant
+            logger.info(f"Performing vector search in Qdrant at {self.qdrant_url}, collection: {self.collection_name}")
+            logger.debug(f"Search filters: {filters if filters else 'None'}")
+            
             search_result = self.qdrant_client.search(
                 collection_name=self.collection_name,
                 query_vector=query_embedding,
                 limit=limit,
                 query_filter=qdrant_filter
             )
+            
+            logger.info(f"Qdrant search returned {len(search_result)} results")
             
             # Format results
             results = []

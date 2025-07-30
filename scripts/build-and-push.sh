@@ -51,6 +51,7 @@ IMAGES=(
     "taskflow-api"
     "taskflow-ai"
     "taskflow-web"
+    "taskflow-ollama"
 )
 
 # Build and push function
@@ -114,6 +115,9 @@ build_and_push "taskflow-ai" "$PROJECT_ROOT/ai-worker"
 # Frontend
 build_and_push "taskflow-web" "$PROJECT_ROOT/frontend"
 
+# Ollama
+build_and_push "taskflow-ollama" "$PROJECT_ROOT/ollama"
+
 echo -e "\n${GREEN}All images built and pushed successfully!${NC}"
 echo -e "\n${YELLOW}Next steps:${NC}"
 echo "1. Update your Kubernetes configuration to use these images:"
@@ -130,4 +134,7 @@ echo "       newName: ${REGISTRY}/taskflow-ai"
 echo "       newTag: ${TAG}"
 echo "     - name: taskflow/taskflow-web"
 echo "       newName: ${REGISTRY}/taskflow-web"
+echo "       newTag: ${TAG}"
+echo "     - name: taskflow/taskflow-ollama"
+echo "       newName: ${REGISTRY}/taskflow-ollama"
 echo "       newTag: ${TAG}"

@@ -32,6 +32,7 @@ Build complex AI workflows visually, create custom dashboards, and process batch
 - **AI Worker**: Python microservice with Ollama (default: gemma3:1b)
 - **Database**: PostgreSQL 15+ for workflow and task storage with JSONB support
 - **Vector Database**: Qdrant for semantic search and similarity matching
+- **LLM Server**: Ollama (deployed separately) with models like gemma3:27b
 - **Embeddings**: Nomic-embed-text model for generating vector representations
 - **Deployment**: Docker Compose for local dev, Kubernetes for production
 
@@ -215,16 +216,16 @@ Tasks can be organized into exercises for better management:
 
 **Backend API:**
 - `DATABASE_URL`: PostgreSQL connection string
-- `AI_WORKER_URL`: AI worker service URL
+- `AI_WORKER_URL`: AI worker service URL (default: http://taskflow-ai:8001)
 - `SECRET_KEY`: JWT secret key
 - `DEBUG`: Enable debug mode
 - `QDRANT_URL`: Qdrant vector database URL (default: http://qdrant:6333)
-- `OLLAMA_HOST`: Ollama server URL for embeddings
+- `OLLAMA_HOST`: Ollama server URL for embeddings (default: http://ollama-service.llm:11434)
 
 **AI Worker:**
-- `OLLAMA_HOST`: Ollama server URL
-- `MODEL_NAME`: AI model name (default: gemma3:1b)
-- `BACKEND_API_URL`: Backend API URL
+- `OLLAMA_HOST`: Ollama server URL (default: http://ollama-service.llm:11434)
+- `MODEL_NAME`: AI model name (default: gemma3:27b)
+- `BACKEND_API_URL`: Backend API URL (default: http://taskflow-api:8000)
 
 **Frontend:**
 - `VITE_API_BASE_URL`: Backend API base URL
