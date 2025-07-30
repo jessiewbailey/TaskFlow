@@ -49,22 +49,34 @@ class EmbeddingService:
             logger.error(f"Error ensuring collection at Qdrant {self.qdrant_url}: {str(e)}")
             raise
     
-    async def generate_embedding(self, text: str) -> List[float]:
-        """Generate embedding for the given text using Ollama."""
-        try:
-            logger.info(f"Generating embedding using Ollama at {self.ollama_host} with model {self.embedding_model}")
-            logger.debug(f"Text to embed (first 100 chars): {text[:100]}...")
-            
-            response = self.ollama_client.embeddings(
-                model=self.embedding_model,
-                prompt=text
-            )
-            
-            logger.info(f"Successfully generated embedding with {len(response['embedding'])} dimensions")
-            return response["embedding"]
-        except Exception as e:
-            logger.error(f"Error generating embedding from Ollama at {self.ollama_host}: {str(e)}")
-            raise
+    async def generate_embedding(self, text: str, max_retries: int = 3) -> List[float]:
+        """Generate embedding for the given text using Ollama with retry logic."""
+        import asyncio
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Generating embedding using Ollama at {self.ollama_host} with model {self.embedding_model} (attempt {attempt + 1})")
+                logger.debug(f"Text to embed (first 100 chars): {text[:100]}...")
+                
+                response = self.ollama_client.embeddings(
+                    model=self.embedding_model,
+                    prompt=text
+                )
+                
+                logger.info(f"Successfully generated embedding with {len(response['embedding'])} dimensions")
+                return response["embedding"]
+                
+            except Exception as e:
+                logger.warning(f"Embedding generation attempt {attempt + 1} failed: {str(e)}")
+                
+                if attempt < max_retries - 1:
+                    # Wait with exponential backoff before retry
+                    wait_time = (2 ** attempt) + 1  # 2, 5, 9 seconds
+                    logger.info(f"Retrying in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)  # Use async sleep
+                else:
+                    logger.error(f"All {max_retries} embedding generation attempts failed from Ollama at {self.ollama_host}: {str(e)}")
+                    raise
     
     async def store_task_embedding(self, task_id: int, task_data: Dict[str, Any]) -> str:
         """Store task embedding in Qdrant."""

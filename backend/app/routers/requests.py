@@ -898,12 +898,67 @@ async def batch_upload_requests(
         # Commit all successful requests
         await db.commit()
         
+        # Generate embeddings for all successfully created requests (after commit)
+        # We need to query all requests created in this batch
+        # Using exercise_id to filter if provided, otherwise use recent time window
+        import asyncio
+        from datetime import timedelta
+        
+        # Get all requests created in this batch
+        if exercise_id:
+            # If exercise_id was provided, use it to find our batch
+            batch_requests_result = await db.execute(
+                select(Request)
+                .where(Request.exercise_id == exercise_id)
+                .where(Request.created_at >= datetime.utcnow() - timedelta(minutes=5))
+                .order_by(Request.created_at.desc())
+                .limit(success_count)
+            )
+        else:
+            # Otherwise use time window
+            batch_requests_result = await db.execute(
+                select(Request)
+                .order_by(Request.created_at.desc())
+                .limit(success_count)
+            )
+        
+        batch_requests = batch_requests_result.scalars().all()
+        
+        # Generate embeddings for successful requests
+        embedding_errors = []
+        for i, request in enumerate(batch_requests):
+            try:
+                # Add small delay between requests to prevent overwhelming Ollama
+                if i > 0:  # Skip delay for first request
+                    await asyncio.sleep(0.5)  # 500ms delay between embedding requests
+                
+                # Generate embedding
+                task_data = {
+                    "title": f"Request #{request.id}",
+                    "description": request.text,
+                    "priority": "normal",
+                    "status": request.status.value,
+                    "tags": [],
+                    "exercise_id": request.exercise_id,
+                    "created_at": request.created_at.isoformat() if request.created_at else ""
+                }
+                embedding_id = await embedding_service.store_task_embedding(request.id, task_data)
+                logger.info("Generated embedding for bulk uploaded request", request_id=request.id, embedding_id=embedding_id)
+                
+            except Exception as e:
+                logger.warning(f"Failed to generate embedding for request {request.id}: {str(e)}")
+                embedding_errors.append(f"Request {request.id}: Failed to generate embedding - {str(e)}")
+        
+        if embedding_errors:
+            logger.warning(f"Embedding generation failed for {len(embedding_errors)} requests: {', '.join(embedding_errors)}")
+        
         success = len(errors) == 0
         
         logger.info("Batch upload completed", 
                    total_rows=total_rows, 
                    success_count=success_count, 
-                   error_count=len(errors))
+                   error_count=len(errors),
+                   embedding_errors=len(embedding_errors))
         
         return BatchUploadResponse(
             success=success,
