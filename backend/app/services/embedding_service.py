@@ -19,10 +19,22 @@ class EmbeddingService:
         
         logger.info(f"Initializing EmbeddingService with Ollama at {self.ollama_host} and Qdrant at {self.qdrant_url}")
         
-        self.ollama_client = OllamaClient(host=self.ollama_host)
-        self.qdrant_client = QdrantClient(url=self.qdrant_url)
-        
-        self._ensure_collection()
+        try:
+            self.ollama_client = OllamaClient(host=self.ollama_host)
+            self.qdrant_client = QdrantClient(url=self.qdrant_url)
+            
+            # Test Ollama connection
+            logger.info("Testing Ollama connection...")
+            # Don't use the client's list method as it might be buggy
+            import requests
+            response = requests.get(f"{self.ollama_host}/api/tags", timeout=5)
+            response.raise_for_status()
+            logger.info(f"Ollama connection successful. Available models: {[m['name'] for m in response.json().get('models', [])]}")
+            
+            self._ensure_collection()
+        except Exception as e:
+            logger.error(f"Failed to initialize EmbeddingService: {str(e)}")
+            raise
     
     def _ensure_collection(self):
         """Ensure the Qdrant collection exists with proper configuration."""
@@ -58,13 +70,32 @@ class EmbeddingService:
                 logger.info(f"Generating embedding using Ollama at {self.ollama_host} with model {self.embedding_model} (attempt {attempt + 1})")
                 logger.debug(f"Text to embed (first 100 chars): {text[:100]}...")
                 
-                response = self.ollama_client.embeddings(
-                    model=self.embedding_model,
-                    prompt=text
-                )
+                # Use requests directly instead of the Ollama client which might have issues
+                import requests
+                import json
                 
-                logger.info(f"Successfully generated embedding with {len(response['embedding'])} dimensions")
-                return response["embedding"]
+                payload = {
+                    "model": self.embedding_model,
+                    "prompt": text
+                }
+                
+                logger.debug(f"Sending embedding request to {self.ollama_host}/api/embeddings")
+                
+                response = requests.post(
+                    f"{self.ollama_host}/api/embeddings",
+                    json=payload,
+                    timeout=30  # 30 second timeout
+                )
+                response.raise_for_status()
+                
+                result = response.json()
+                embedding = result.get("embedding", [])
+                
+                if not embedding:
+                    raise ValueError("No embedding returned from Ollama")
+                
+                logger.info(f"Successfully generated embedding with {len(embedding)} dimensions")
+                return embedding
                 
             except Exception as e:
                 logger.warning(f"Embedding generation attempt {attempt + 1} failed: {str(e)}")

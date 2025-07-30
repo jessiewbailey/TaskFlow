@@ -24,6 +24,8 @@ async def perform_rag_search(
     This endpoint allows users to search for similar tasks using natural language queries.
     The search is performed using vector embeddings and returns the most similar tasks.
     """
+    logger.info(f"RAG search request received - Query: '{request.query}', Limit: {request.limit}, Filters: {request.filters}")
+    
     try:
         # Check if user has specified exercise filter
         filters = request.filters or {}
@@ -31,12 +33,16 @@ async def perform_rag_search(
         # Add exercise filter based on user permissions if needed
         # For now, we'll search across all exercises the user has access to
         
+        logger.info("About to call embedding_service.search_similar_tasks...")
+        
         # Perform the similarity search
         similar_tasks = await embedding_service.search_similar_tasks(
             query_text=request.query,
             limit=request.limit,
             filters=filters
         )
+        
+        logger.info(f"Search completed successfully, found {len(similar_tasks)} results")
         
         # Convert to response format
         results = []
