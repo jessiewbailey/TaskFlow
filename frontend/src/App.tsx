@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
@@ -10,6 +10,7 @@ import { FineTuningSettingsPage } from './pages/FineTuningSettings'
 import { ExerciseSettings } from './pages/ExerciseSettings'
 import { SimilaritySearchSettings } from './pages/SimilaritySearchSettings'
 import { UISettings } from './pages/UISettings'
+import { useUILabels } from './hooks/useConfig'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,9 +21,23 @@ const queryClient = new QueryClient({
   },
 })
 
+// Component to set document title from UI labels
+function DocumentTitle() {
+  const { data: labels } = useUILabels()
+  
+  useEffect(() => {
+    if (labels?.app?.name) {
+      document.title = `${labels.app.name} - ${labels.app.title || 'Workflow Automation Platform'}`
+    }
+  }, [labels])
+  
+  return null
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <DocumentTitle />
       <Router>
         <Routes>
           <Route path="/" element={<Dashboard />} />
