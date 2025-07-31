@@ -150,7 +150,7 @@ class JobService:
                            job_type=job.job_type.value, workflow_id=job.workflow_id)
                 
                 # Call AI worker
-                async with httpx.AsyncClient(timeout=120.0) as client:
+                async with httpx.AsyncClient(timeout=600.0) as client:  # 10 minutes timeout for long-running jobs
                     payload = {
                         "request_id": job.request_id,
                         "job_type": job.job_type.value,

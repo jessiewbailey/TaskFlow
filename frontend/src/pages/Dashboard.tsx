@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { FiltersPanel } from '../components/FiltersPanel'
 import { RequestsTable } from '../components/RequestsTable'
 import { RequestDrawer } from '../components/RequestDrawer'
@@ -15,7 +15,8 @@ import { Logo } from '../components/Logo'
 import { RAGSearchSidebar } from '../components/RAGSearchSidebar'
 
 export const Dashboard: React.FC = () => {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const { exercises, selectedExercise, selectExercise, loading: exercisesLoading } = useExercises()
   const { showLogsButton, showSimilarityFeatures } = useUISettings()
   
@@ -125,6 +126,10 @@ export const Dashboard: React.FC = () => {
   
   const handleRequestDeleted = () => {
     setSelectedRequest(null)
+    // Remove task parameter from URL when deleted
+    const newSearchParams = new URLSearchParams(searchParams)
+    newSearchParams.delete('task')
+    setSearchParams(newSearchParams, { replace: true })
     refetch()
   }
 
@@ -232,7 +237,13 @@ export const Dashboard: React.FC = () => {
           <RequestDrawer
             request={selectedRequest}
             isOpen={!!selectedRequest}
-            onClose={() => setSelectedRequest(null)}
+            onClose={() => {
+              setSelectedRequest(null)
+              // Remove task parameter from URL
+              const newSearchParams = new URLSearchParams(searchParams)
+              newSearchParams.delete('task')
+              setSearchParams(newSearchParams, { replace: true })
+            }}
             onRequestUpdated={handleRequestUpdated}
             onRequestDeleted={handleRequestDeleted}
           />
