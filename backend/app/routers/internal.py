@@ -15,11 +15,7 @@ router = APIRouter(prefix="/api/internal", tags=["internal"])
 class CreateAIOutputRequest(BaseModel):
     request_id: int
     version: int
-    summary: Optional[str]
-    topic: Optional[str]
-    sensitivity_score: Optional[float]
-    redactions_json: Optional[list]
-    custom_instructions: Optional[str]
+    summary: Optional[str]  # JSON string containing all workflow outputs
     model_name: Optional[str]
     tokens_used: Optional[int]
     duration_ms: Optional[int]
@@ -45,10 +41,6 @@ async def create_ai_output(
         request_id=ai_output.request_id,
         version=ai_output.version,
         summary=ai_output.summary,
-        topic=ai_output.topic,
-        sensitivity_score=ai_output.sensitivity_score,
-        redactions_json=ai_output.redactions_json,
-        custom_instructions=ai_output.custom_instructions,
         model_name=ai_output.model_name,
         tokens_used=ai_output.tokens_used,
         duration_ms=ai_output.duration_ms

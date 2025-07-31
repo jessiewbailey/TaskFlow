@@ -7,26 +7,35 @@ This directory contains all database-related files for TaskFlow.
 ```
 database/
 ├── README.md                    # This file
-├── setup/
-│   └── schema.sql              # Main database schema
+├── postgresql/
+│   └── init-complete.sql       # Complete PostgreSQL initialization script
 └── migrations/
     ├── add_block_type.sql      # Add block type enumeration
     ├── add_dashboard_config.sql # Add dashboard configuration
+    ├── add_default_exercise.sql # Add default exercise
+    ├── add_exercises.sql       # Add exercises table
     ├── add_is_default.sql      # Add default workflow flag
+    ├── add_system_settings.sql # Add system settings
+    ├── add_ui_visibility_settings.sql # Add UI visibility settings
     ├── final_schemas.sql       # Final schema updates
     ├── insert_workflow_blocks.sql # Insert workflow block data
     ├── migration-custom-instructions.sql # Custom instructions table
     ├── migration_add_model_to_workflow_blocks.sql # Add model field
     ├── migration_add_workflow_integration.sql # Workflow integration
+    ├── remove_deprecated_ai_output_columns.sql # Remove deprecated columns
     ├── update_schemas_by_id.sql # Schema updates by ID
     ├── update_schemas_simple.sql # Simple schema updates
     └── update_workflow_schemas.sql # Workflow schema updates
 ```
 
-## Setup Files
+## Primary Database File
 
-### schema.sql
-The main database schema defining all tables, indexes, and constraints. This should be run first when setting up a new database.
+### postgresql/init-complete.sql
+The complete PostgreSQL initialization script that includes:
+- All table definitions
+- Indexes and constraints
+- Initial data inserts
+- All migrations consolidated
 
 **Main tables:**
 - `users` - System users with roles
@@ -37,17 +46,12 @@ The main database schema defining all tables, indexes, and constraints. This sho
 - `processing_jobs` - Async job tracking
 - `custom_instructions` - Block-specific instructions
 - `dashboard_configs` - Dashboard layout configurations
+- `exercises` - Exercise definitions
+- `system_settings` - System-wide settings
 
 ## Migration Files
 
-Migration files are organized chronologically and should be applied in order. Each migration is idempotent and can be safely re-run.
-
-### Key Migrations
-1. **workflow_integration** - Links requests to workflows
-2. **model_to_workflow_blocks** - Adds AI model selection per block
-3. **custom_instructions** - Enables block-specific prompts
-4. **dashboard_config** - Adds dashboard customization
-5. **block_type** - Adds workflow block type enumeration
+The `migrations/` directory contains individual migration files for reference and documentation. These migrations are already included in `init-complete.sql` and do not need to be run separately for new deployments.
 
 ## Usage
 
@@ -59,49 +63,161 @@ docker-compose up -d postgres
 ```
 
 ### Kubernetes Deployment
-Database initialization is handled by the `db-init-job`:
+Database initialization is handled automatically via Kustomize:
 ```bash
-# Schema and migrations are embedded in ConfigMaps
+# The ConfigMap is generated automatically from k8s/base/01-init-complete.sql
+# Make sure the file is up to date:
+cp database/postgresql/init-complete.sql k8s/base/01-init-complete.sql
+
+# Apply all resources including the generated ConfigMap
+kubectl apply -k k8s/base/
+
+# For database initialization job (if needed)
 kubectl apply -f k8s/db-init-job.yaml
 ```
 
 ### Manual Database Setup
 ```bash
-# Run schema
+# Run the complete initialization script
 psql -U taskflow_user -d taskflow_db -f database/postgresql/init-complete.sql
-
-# Note: PostgreSQL setup includes all migrations in a single file
-# ... continue with other migrations
 ```
 
-## Development
+## Modifying the Database Schema
 
-### Adding New Migrations
-1. Create a new SQL file in `migrations/` with descriptive name
-2. Include IF NOT EXISTS clauses for safety
-3. Add appropriate comments explaining the change
-4. Test on a copy of production data
-5. Update Kubernetes ConfigMaps if needed
+### Important: Procedure for Changing the Init Script
 
-### Schema Changes
-- Always use migrations for schema changes
-- Never modify `schema.sql` directly in production
-- Test migrations on development environment first
-- Document breaking changes in migration comments
+When you need to modify the database schema, follow these steps:
+
+1. **Create a Migration File**
+   ```bash
+   # Create a new migration file in the migrations directory
+   touch database/migrations/YYYY-MM-DD-description.sql
+   ```
+
+2. **Write the Migration**
+   - Include IF NOT EXISTS clauses for safety
+   - Add comments explaining the change
+   - Test on a local database first
+
+3. **Apply to Existing Deployments**
+   ```bash
+   # For local development
+   docker-compose exec postgres psql -U taskflow_user -d taskflow_db -f /path/to/migration.sql
+   
+   # For Kubernetes
+   kubectl exec -n taskflow postgres-0 -- psql -U taskflow_user -d taskflow_db < migration.sql
+   ```
+
+4. **Update init-complete.sql**
+   ```bash
+   # Add the migration to the end of init-complete.sql
+   cat database/migrations/your-migration.sql >> database/postgresql/init-complete.sql
+   ```
+
+5. **Update Kubernetes ConfigMap**
+   ```bash
+   # Copy the updated init script to k8s directory (required for Kustomize)
+   cp database/postgresql/init-complete.sql k8s/base/01-init-complete.sql
+   
+   # The ConfigMap is now automatically generated by Kustomize
+   # To verify the ConfigMap generation:
+   cd k8s/base && kubectl kustomize .
+   
+   # Apply the changes to your cluster
+   kubectl apply -k k8s/base/
+   ```
+
+6. **Test Fresh Deployment**
+   ```bash
+   # Test with a fresh database to ensure init script works
+   docker-compose down -v
+   docker-compose up -d postgres
+   ```
+
+### Best Practices
+
+- **Never modify init-complete.sql directly** - Always create a migration first
+- **Test migrations thoroughly** before applying to production
+- **Keep migrations idempotent** - They should be safe to run multiple times
+- **Document breaking changes** in migration comments
+- **Version control** all migration files
+- **Backup production data** before applying migrations
+
+### Migration Template
+
+```sql
+-- Migration: Brief description
+-- Date: YYYY-MM-DD
+-- Author: Your name
+-- Purpose: Detailed explanation of what this migration does
+
+-- Add your SQL statements here
+-- Use IF NOT EXISTS, IF EXISTS, etc. for safety
+
+-- Example:
+-- ALTER TABLE requests ADD COLUMN IF NOT EXISTS new_field VARCHAR(255);
+-- CREATE INDEX IF NOT EXISTS idx_new_field ON requests(new_field);
+```
 
 ## Backup and Recovery
 
 ### Backup
 ```bash
 # Full backup
-pg_dump -U taskflow_user taskflow_db > backup.sql
+pg_dump -U taskflow_user taskflow_db > backup-$(date +%Y%m%d-%H%M%S).sql
 
 # Schema only
 pg_dump -U taskflow_user --schema-only taskflow_db > schema_backup.sql
+
+# Data only
+pg_dump -U taskflow_user --data-only taskflow_db > data_backup.sql
 ```
 
 ### Recovery
 ```bash
 # Restore from backup
 psql -U taskflow_user taskflow_db < backup.sql
+
+# For Kubernetes
+kubectl cp backup.sql taskflow/postgres-0:/tmp/
+kubectl exec -n taskflow postgres-0 -- psql -U taskflow_user taskflow_db < /tmp/backup.sql
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Migration Already Applied**
+   - Migrations are designed to be idempotent
+   - Safe to re-run if you see "already exists" messages
+
+2. **Permission Errors**
+   - Ensure taskflow_user has appropriate permissions
+   - Check PostgreSQL logs for details
+
+3. **Connection Issues**
+   - Verify PostgreSQL is running
+   - Check connection parameters in environment variables
+   - Ensure network connectivity in Kubernetes
+
+### Useful Commands
+
+```bash
+# Check database status
+docker-compose exec postgres pg_isready
+
+# View PostgreSQL logs
+docker-compose logs postgres
+
+# Connect to database
+docker-compose exec postgres psql -U taskflow_user -d taskflow_db
+
+# List all tables
+\dt
+
+# Describe a table
+\d table_name
+
+# Check current schema version
+SELECT * FROM schema_migrations ORDER BY version DESC LIMIT 1;
 ```

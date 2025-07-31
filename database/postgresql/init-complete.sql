@@ -73,11 +73,7 @@ CREATE TABLE ai_outputs (
   id BIGSERIAL PRIMARY KEY,
   request_id BIGINT NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
   version INT NOT NULL DEFAULT 1,
-  summary TEXT,
-  topic VARCHAR(128),
-  sensitivity_score DECIMAL(3,2),
-  redactions_json JSONB,
-  custom_instructions TEXT,
+  summary TEXT, -- JSON string containing all workflow outputs
   model_name VARCHAR(64),
   tokens_used INT,
   duration_ms INT,
@@ -95,7 +91,6 @@ CREATE TABLE processing_jobs (
   workflow_id BIGINT REFERENCES workflows(id) ON DELETE SET NULL,
   job_type job_type DEFAULT 'WORKFLOW',
   status job_status DEFAULT 'PENDING',
-  custom_instructions TEXT,
   error_message TEXT,
   started_at TIMESTAMP WITH TIME ZONE NULL,
   completed_at TIMESTAMP WITH TIME ZONE NULL,
@@ -323,3 +318,26 @@ INSERT INTO system_settings (key, value, description) VALUES
     ('ui_show_logs_button', '"true"', 'Show/hide the logs button in the dashboard'),
     ('ui_show_similarity_features', '"true"', 'Show/hide similarity features (RAG search sidebar and Similar Tasks tab)')
 ON CONFLICT (key) DO NOTHING;
+-- Migration: Remove deprecated columns from ai_outputs table
+-- Date: 2024-01-31
+-- Description: Remove legacy columns that were used for hardcoded workflows
+
+-- Drop the deprecated columns
+ALTER TABLE ai_outputs 
+DROP COLUMN IF EXISTS topic,
+DROP COLUMN IF EXISTS sensitivity_score,
+DROP COLUMN IF EXISTS redactions_json,
+DROP COLUMN IF EXISTS custom_instructions;
+
+-- Add comment to explain the summary column is now the primary data store
+COMMENT ON COLUMN ai_outputs.summary IS 'JSON string containing all workflow outputs. Keys are block names, values are block outputs.';-- Migration: Add custom_instructions column to processing_jobs
+-- Date: 2025-07-31
+-- Author: System
+-- Purpose: Add missing custom_instructions column that the API expects
+
+-- Add the custom_instructions column to processing_jobs table
+ALTER TABLE processing_jobs 
+ADD COLUMN IF NOT EXISTS custom_instructions TEXT;
+
+-- Add comment to explain the column's purpose
+COMMENT ON COLUMN processing_jobs.custom_instructions IS 'Optional custom instructions for this specific job execution';

@@ -96,11 +96,7 @@ class UserResponse(BaseModel):
 class AIOutputResponse(BaseModel):
     id: int
     version: int
-    summary: Optional[str]
-    topic: Optional[str]
-    sensitivity_score: Optional[Decimal]
-    redactions_json: Optional[Any]
-    custom_instructions: Optional[str]
+    summary: Optional[str]  # JSON string containing all workflow outputs
     model_name: Optional[str]
     tokens_used: Optional[int]
     duration_ms: Optional[int]

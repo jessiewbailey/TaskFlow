@@ -7,8 +7,6 @@ import asyncio
 import httpx
 import json
 from config import settings
-from domain_config.domain_config import get_domain_config
-from ai_pipeline.processor import AIProcessor
 from ai_pipeline.workflow_processor import WorkflowProcessor
 
 # Configure logging
@@ -49,9 +47,7 @@ app = FastAPI(
 
 class ProcessRequest(BaseModel):
     request_id: int
-    job_type: str  # "STANDARD", "CUSTOM", or "WORKFLOW"
-    custom_instructions: Optional[str] = None
-    workflow_id: Optional[int] = None
+    workflow_id: int
 
 @app.post("/process")
 async def process_request(request: ProcessRequest):
@@ -59,7 +55,7 @@ async def process_request(request: ProcessRequest):
     
     logger.info("Received processing request", 
                 request_id=request.request_id, 
-                job_type=request.job_type)
+                workflow_id=request.workflow_id)
     
     try:
         # Get request text from backend API
@@ -75,42 +71,22 @@ async def process_request(request: ProcessRequest):
                    request_id=request.request_id, 
                    text_length=len(request_text))
         
-        # Initialize AI processor
-        processor = AIProcessor()
-        
-        # Process based on job type
-        if request.job_type == "STANDARD":
-            result = await processor.process_standard_pipeline(request_text)
-            version = 1
-        elif request.job_type == "CUSTOM":
-            result = await processor.process_custom_pipeline(
-                request_text, 
-                request.custom_instructions or ""
-            )
-            # Get current version and increment
-            version = await get_next_version(request.request_id)
-        elif request.job_type == "WORKFLOW":
-            if not request.workflow_id:
-                raise ValueError("workflow_id is required for WORKFLOW job type")
-            
-            # Initialize workflow processor
-            workflow_processor = WorkflowProcessor()
-            result = await workflow_processor.execute_workflow(
-                request.workflow_id, 
-                request_text,
-                request.request_id
-            )
-            # Get current version and increment
-            version = await get_next_version(request.request_id)
-        else:
-            raise ValueError(f"Invalid job type: {request.job_type}")
+        # Initialize workflow processor
+        workflow_processor = WorkflowProcessor()
+        result = await workflow_processor.execute_workflow(
+            request.workflow_id, 
+            request_text,
+            request.request_id
+        )
+        # Get current version and increment
+        version = await get_next_version(request.request_id)
         
         # Save AI output to database
         await save_ai_output(request.request_id, result, version)
         
         logger.info("Processing completed successfully", 
                    request_id=request.request_id,
-                   job_type=request.job_type,
+                   workflow_id=request.workflow_id,
                    version=version)
         
         return {"status": "completed", "version": version}
@@ -146,7 +122,6 @@ async def save_ai_output(request_id: int, result: dict, version: int):
     """Save AI processing result to database"""
     
     # Extract metadata
-    metadata = {}
     total_tokens = 0
     total_duration = 0
     
@@ -158,60 +133,18 @@ async def save_ai_output(request_id: int, result: dict, version: int):
             # Remove metadata from result before saving
             del step_result['_metadata']
     
-    # Detect if this is workflow output vs legacy output
-    is_workflow_output = not any(key in result for key in ["basic_metadata", "topic_classification", "summary", "sensitivity_assessment"])
-    
-    if is_workflow_output:
-        # New workflow-based output - store all block results in summary field
-        # Extract common fields for database compatibility
-        topic = None
-        sensitivity_score = 0.0
-        redactions = []
-        
-        # Try to extract topic from various block results
-        for block_name, block_result in result.items():
-            if isinstance(block_result, dict):
-                if 'primary_topic' in block_result:
-                    topic = block_result['primary_topic']
-                elif 'topic' in block_result:
-                    topic = block_result['topic']
-                
-                if 'score' in block_result and isinstance(block_result['score'], (int, float)):
-                    sensitivity_score = float(block_result['score'])
-                elif 'sensitivity_score' in block_result:
-                    sensitivity_score = float(block_result['sensitivity_score'])
-                
-                if 'redaction_suggestions' in block_result:
-                    redactions = block_result['redaction_suggestions']
-                elif 'redactions' in block_result:
-                    redactions = block_result['redactions']
-        
-        ai_output_data = {
-            "request_id": request_id,
-            "version": version,
-            "summary": json.dumps(result),  # Store all workflow results
-            "topic": topic,
-            "sensitivity_score": sensitivity_score,
-            "redactions_json": redactions,
-            "custom_instructions": result.get("custom_instructions"),
-            "model_name": settings.model_name,
-            "tokens_used": total_tokens,
-            "duration_ms": total_duration
-        }
-    else:
-        # Legacy hardcoded pipeline output
-        ai_output_data = {
-            "request_id": request_id,
-            "version": version,
-            "summary": json.dumps(result.get("summary", {})),
-            "topic": result.get("topic_classification", {}).get("primary_topic"),
-            "sensitivity_score": float(result.get("sensitivity_assessment", {}).get("score", 0.0)),
-            "redactions_json": result.get("redaction_suggestions", []),
-            "custom_instructions": result.get("custom_instructions"),
-            "model_name": settings.model_name,
-            "tokens_used": total_tokens,
-            "duration_ms": total_duration
-        }
+    ai_output_data = {
+        "request_id": request_id,
+        "version": version,
+        "summary": json.dumps(result),  # Store all workflow results
+        "topic": None,  # Deprecated field
+        "sensitivity_score": None,  # Deprecated field
+        "redactions_json": None,  # Deprecated field
+        "custom_instructions": None,  # Deprecated field - now handled per-block
+        "model_name": settings.model_name,
+        "tokens_used": total_tokens,
+        "duration_ms": total_duration
+    }
     
     # Save to database via backend API
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -227,43 +160,14 @@ async def save_ai_output(request_id: int, result: dict, version: int):
                tokens_used=total_tokens,
                duration_ms=total_duration)
 
-# Configuration endpoints
-@app.get("/config/domain")
-async def get_domain_config_endpoint() -> Dict[str, Any]:
-    """Get current domain configuration."""
-    domain_config = get_domain_config()
-    return domain_config.get_config()
-
-@app.put("/config/domain") 
-async def update_domain_config_endpoint(config: Dict[str, Any]) -> Dict[str, str]:
-    """Update domain configuration."""
-    domain_config = get_domain_config()
-    domain_config.update_config(config)
-    return {"message": "Configuration updated successfully"}
-
-@app.get("/config/prompts/{prompt_type}")
-async def get_prompt_template_endpoint(prompt_type: str) -> Dict[str, str]:
-    """Get a specific prompt template."""
-    domain_config = get_domain_config()
-    try:
-        template = domain_config.get_prompt_template(prompt_type)
-        return {"prompt_type": prompt_type, "template": template}
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-@app.get("/config/terminology")
-async def get_terminology_endpoint() -> Dict[str, str]:
-    """Get current domain terminology."""
-    domain_config = get_domain_config()
-    return domain_config.get_terminology()
-
 @app.get("/healthz")
 async def health_check():
     """Health check endpoint"""
     try:
         # Test Ollama connection
-        processor = AIProcessor()
-        await processor.client.list()
+        import ollama
+        client = ollama.AsyncClient(host=settings.ollama_host)
+        await client.list()
         
         return {"status": "healthy", "service": "taskflow-ai", "ollama": "connected"}
     except Exception as e:

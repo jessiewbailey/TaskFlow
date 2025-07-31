@@ -13,13 +13,15 @@ NC='\033[0m' # No Color
 
 # Configuration
 NAMESPACE="taskflow"
-LLM_NAMESPACE="llm"
-REGISTRY="${REGISTRY:-localhost:5000}"
+REGISTRY="${REGISTRY:-docker.io/jessiewbailey}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 echo -e "${GREEN}=== TaskFlow Fresh Deployment Script ===${NC}"
 echo -e "${YELLOW}This will perform a complete deployment from scratch${NC}"
 echo -e "${YELLOW}WARNING: This will delete existing deployments and volumes!${NC}"
+echo ""
+echo "Using registry: $REGISTRY"
+echo "Using image tag: $IMAGE_TAG"
 echo ""
 read -p "Are you sure you want to continue? (yes/no): " -r
 echo
@@ -66,19 +68,12 @@ if namespace_exists "$NAMESPACE"; then
     kubectl delete namespace $NAMESPACE --wait=true || true
 fi
 
-
-if namespace_exists "$LLM_NAMESPACE"; then
-    echo "Deleting LLM namespace..."
-    kubectl delete namespace $LLM_NAMESPACE --wait=true || true
-fi
-
 # Wait a bit for cleanup
 echo "Waiting for cleanup to complete..."
 sleep 10
 
-echo -e "${GREEN}Step 2: Create namespaces${NC}"
+echo -e "${GREEN}Step 2: Create namespace${NC}"
 kubectl create namespace $NAMESPACE
-kubectl create namespace $LLM_NAMESPACE
 
 echo -e "${GREEN}Step 3: Verify required files${NC}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -86,9 +81,8 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Check if init SQL is up to date
 if [ -f "$PROJECT_ROOT/database/postgresql/init-complete.sql" ]; then
-    echo "Regenerating PostgreSQL init ConfigMap..."
-    cd "$PROJECT_ROOT"
-    ./scripts/generate-postgres-init-configmap.sh
+    echo "Copying PostgreSQL init script for Kustomize..."
+    cp "$PROJECT_ROOT/database/postgresql/init-complete.sql" "$PROJECT_ROOT/k8s/base/01-init-complete.sql"
 else
     echo -e "${RED}Error: init-complete.sql not found${NC}"
     exit 1
@@ -99,61 +93,82 @@ echo "Building images with tag: $REGISTRY/taskflow-*:$IMAGE_TAG"
 
 # Build images
 cd "$PROJECT_ROOT"
-docker build -t $REGISTRY/taskflow-api:$IMAGE_TAG backend/
-docker build -t $REGISTRY/taskflow-ai:$IMAGE_TAG ai-worker/
-docker build -t $REGISTRY/taskflow-web:$IMAGE_TAG frontend/
 
-# Push images
-docker push $REGISTRY/taskflow-api:$IMAGE_TAG
-docker push $REGISTRY/taskflow-ai:$IMAGE_TAG
-docker push $REGISTRY/taskflow-web:$IMAGE_TAG
+# Only build and push if not using pre-built images
+if [[ "$REGISTRY" != "docker.io/jessiewbailey" ]] || [[ "$IMAGE_TAG" != "latest" ]]; then
+    docker build -t $REGISTRY/taskflow-api:$IMAGE_TAG backend/
+    docker build -t $REGISTRY/taskflow-ai:$IMAGE_TAG ai-worker/
+    docker build -t $REGISTRY/taskflow-web:$IMAGE_TAG frontend/
+    
+    # Build Ollama image if exists
+    if [ -d "ollama" ]; then
+        docker build -t $REGISTRY/taskflow-ollama:$IMAGE_TAG ollama/
+    fi
+    
+    # Push images
+    docker push $REGISTRY/taskflow-api:$IMAGE_TAG
+    docker push $REGISTRY/taskflow-ai:$IMAGE_TAG
+    docker push $REGISTRY/taskflow-web:$IMAGE_TAG
+    
+    if [ -d "ollama" ]; then
+        docker push $REGISTRY/taskflow-ollama:$IMAGE_TAG
+    fi
+else
+    echo "Using pre-built images from Docker Hub"
+fi
 
 echo -e "${GREEN}Step 5: Apply Kubernetes configurations${NC}"
 
-# Check which overlay to use
-if [ -n "$K8S_OVERLAY" ]; then
-    OVERLAY_PATH="$PROJECT_ROOT/k8s/overlays/$K8S_OVERLAY"
-    if [ -d "$OVERLAY_PATH" ]; then
-        echo "Using overlay: $K8S_OVERLAY"
-        kubectl apply -k "$OVERLAY_PATH"
-    else
-        echo -e "${RED}Error: Overlay $K8S_OVERLAY not found${NC}"
-        exit 1
-    fi
-else
-    # Default to internal-ollama overlay with local registry
-    echo "Using default overlay: internal-ollama with local-registry"
-    cd "$PROJECT_ROOT/k8s/overlays/internal-ollama"
-    
-    # Create temporary kustomization that includes local-registry
-    cat > kustomization-temp.yaml << EOF
+# Create temporary kustomization file with correct image references
+cd "$PROJECT_ROOT/k8s/base"
+cat > kustomization-deploy.yaml << EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Include base configuration
 resources:
-  - ../../base
-  - deployment-config-patch.yaml
-  - ollama-deployment.yaml
-  - ollama-model-init.yaml
+$(cat kustomization.yaml | sed -n '/^resources:/,/^[^[:space:]#]/p' | sed '1d;$d')
 
+# ConfigMap generators
+configMapGenerator:
+$(cat kustomization.yaml | sed -n '/^configMapGenerator:/,/^[^[:space:]]/p' | sed '1d;$d')
+
+# Image transformations
 images:
-  - name: registry2.omb.gov/library/bailey/taskflow-api
+  - name: docker.io/jessiewbailey/taskflow-api
     newName: $REGISTRY/taskflow-api
     newTag: $IMAGE_TAG
-  - name: registry2.omb.gov/library/bailey/taskflow-ai
+  - name: docker.io/jessiewbailey/taskflow-ai
     newName: $REGISTRY/taskflow-ai
     newTag: $IMAGE_TAG
-  - name: registry2.omb.gov/library/bailey/taskflow-web
+  - name: docker.io/jessiewbailey/taskflow-web
     newName: $REGISTRY/taskflow-web
     newTag: $IMAGE_TAG
+  - name: docker.io/jessiewbailey/taskflow-ollama
+    newName: $REGISTRY/taskflow-ollama
+    newTag: $IMAGE_TAG
 
-patchesStrategicMerge:
-  - deployment-config-patch.yaml
+# Labels
+labels:
+$(cat kustomization.yaml | sed -n '/^labels:/,/^[^[:space:]]/p' | sed '1d;$d')
+
+# Namespace
+namespace: $NAMESPACE
 EOF
 
-    kubectl apply -k .
-    rm -f kustomization-temp.yaml
-fi
+# Apply the configuration by temporarily replacing the kustomization file
+mv kustomization.yaml kustomization.original.yaml
+mv kustomization-deploy.yaml kustomization.yaml
+
+# Apply using kustomize
+kubectl apply -k .
+
+# Restore original kustomization file
+mv kustomization.yaml kustomization-deploy.yaml
+mv kustomization.original.yaml kustomization.yaml
+
+# Clean up temporary file
+rm -f kustomization-deploy.yaml
 
 echo -e "${GREEN}Step 6: Wait for core services${NC}"
 
@@ -172,14 +187,14 @@ echo -e "${GREEN}Step 7: Database initialization${NC}"
 echo "PostgreSQL will automatically initialize the database on first startup..."
 sleep 10
 
-echo -e "${GREEN}Step 8: Wait for Ollama (if internal)${NC}"
-if kubectl get deployment ollama -n $LLM_NAMESPACE &> /dev/null; then
-    wait_for_deployment "ollama" "$LLM_NAMESPACE"
+echo -e "${GREEN}Step 8: Wait for Ollama${NC}"
+if kubectl get deployment ollama -n $NAMESPACE &> /dev/null; then
+    wait_for_deployment "ollama" "$NAMESPACE"
     
     # Wait for model initialization
-    if kubectl get job ollama-model-puller -n $LLM_NAMESPACE &> /dev/null; then
+    if kubectl get job ollama-model-puller -n $NAMESPACE &> /dev/null; then
         echo "Waiting for Ollama models to be pulled..."
-        wait_for_job "ollama-model-puller" "$LLM_NAMESPACE"
+        wait_for_job "ollama-model-puller" "$NAMESPACE"
     fi
 fi
 
@@ -198,12 +213,10 @@ echo -e "${GREEN}Step 10: Verify deployment${NC}"
 
 echo "Checking pod status..."
 kubectl get pods -n $NAMESPACE
-kubectl get pods -n $LLM_NAMESPACE
 
 echo ""
 echo "Checking services..."
 kubectl get svc -n $NAMESPACE
-kubectl get svc -n $LLM_NAMESPACE
 
 echo ""
 echo "Checking ingress..."
@@ -227,4 +240,4 @@ echo "kubectl logs -n $NAMESPACE -l app=taskflow-api"
 echo "kubectl logs -n $NAMESPACE -l app=taskflow-ai"
 echo "kubectl logs -n $NAMESPACE -l app=taskflow-web"
 echo "kubectl logs -n $NAMESPACE -l app=qdrant"
-echo "kubectl logs -n $LLM_NAMESPACE -l app=ollama"
+echo "kubectl logs -n $NAMESPACE -l app=ollama"

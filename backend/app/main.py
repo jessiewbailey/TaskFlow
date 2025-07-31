@@ -8,7 +8,7 @@ import time
 import asyncio
 from contextlib import asynccontextmanager
 from app.config import settings
-from app.routers import requests, jobs, internal, config, workflows, logs, custom_instructions, export, ground_truth, user_preferences, exercises, rag_search
+from app.routers import requests, jobs, internal, workflows, logs, custom_instructions, export, ground_truth, user_preferences, exercises, rag_search
 from app.routers import settings as settings_router
 try:
     from app.routers import config_api
@@ -209,7 +209,6 @@ async def get_available_models():
 app.include_router(requests.router)
 app.include_router(jobs.router)
 app.include_router(internal.router)
-app.include_router(config.router)
 app.include_router(workflows.router)
 app.include_router(exercises.router)
 app.include_router(custom_instructions.router)

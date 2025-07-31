@@ -639,32 +639,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                       </p>
                                     </div>
                                     
-                                    {/* Fallback to basic display */}
-                                    {request.latest_ai_output.topic && (
-                                      <div>
-                                        <h4 className="text-sm font-medium text-gray-900 mb-2">Topic</h4>
-                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                                          {request.latest_ai_output.topic}
-                                        </span>
-                                      </div>
-                                    )}
-
-                                    {request.latest_ai_output.sensitivity_score !== undefined && (
-                                      <div>
-                                        <h4 className="text-sm font-medium text-gray-900 mb-2">Sensitivity Score</h4>
-                                        <div className="flex items-center">
-                                          <div className="flex-1 bg-gray-200 rounded-full h-2 mr-4">
-                                            <div
-                                              className="bg-red-600 h-2 rounded-full"
-                                              style={{ width: `${request.latest_ai_output.sensitivity_score * 100}%` }}
-                                            />
-                                          </div>
-                                          <span className="text-sm font-medium text-gray-900">
-                                            {(request.latest_ai_output.sensitivity_score * 100).toFixed(0)}%
-                                          </span>
-                                        </div>
-                                      </div>
-                                    )}
+                                    {/* All workflow outputs are displayed dynamically above */}
 
                                     {request.latest_ai_output.summary && (
                                       <div>

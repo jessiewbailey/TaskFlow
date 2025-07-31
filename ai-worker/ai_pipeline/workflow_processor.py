@@ -80,23 +80,6 @@ class WorkflowProcessor:
                     context[block_name.lower().replace(' ', '_')] = result
                     results[block_name] = result
                     
-                    # Also add common aliases for backward compatibility
-                    if 'metadata' in block_name.lower():
-                        context['basic_metadata'] = result
-                    elif 'topic' in block_name.lower():
-                        context['topic_classification'] = result
-                        context['topic_info'] = json.dumps(result, indent=2)
-                        if 'primary_topic' in result:
-                            context['topic'] = result['primary_topic']
-                    elif 'summary' in block_name.lower() or 'summarize' in block_name.lower():
-                        context['summary'] = json.dumps(result, indent=2)
-                    elif 'sensitivity' in block_name.lower():
-                        context['sensitivity_assessment'] = result
-                        if 'score' in result:
-                            context['sensitivity_score'] = result['score']
-                    elif 'action' in block_name.lower() or 'suggest' in block_name.lower():
-                        context['redaction_suggestions'] = result.get('redaction_suggestions', [])
-                    
                     logger.info("Block completed successfully", 
                                block_name=block_name,
                                result_keys=list(result.keys()) if isinstance(result, dict) else 'non-dict')

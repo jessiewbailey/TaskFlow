@@ -118,11 +118,7 @@ class AIOutput(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     request_id = Column(BigInteger, ForeignKey("requests.id"), nullable=False)
     version = Column(Integer, nullable=False, default=1)
-    summary = Column(Text, nullable=True)
-    topic = Column(String(128), nullable=True)
-    sensitivity_score = Column(DECIMAL(3, 2), nullable=True)
-    redactions_json = Column(JSON, nullable=True)
-    custom_instructions = Column(Text, nullable=True)
+    summary = Column(Text, nullable=True)  # JSON string containing all workflow outputs
     model_name = Column(String(64), nullable=True)
     tokens_used = Column(Integer, nullable=True)
     duration_ms = Column(Integer, nullable=True)

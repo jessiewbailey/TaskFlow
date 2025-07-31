@@ -59,10 +59,6 @@ export interface UILabels {
   };
 }
 
-export interface Terminology {
-  [key: string]: string;
-}
-
 export interface DashboardConfig {
   refresh_interval?: number;
   max_recent_items?: number;
@@ -115,19 +111,6 @@ export const useUILabels = () => {
     queryKey: ['config', 'ui-labels'],
     queryFn: async () => {
       const response = await api.get('/config/ui-labels');
-      return response.data;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-  });
-};
-
-// Hook to get terminology
-export const useTerminology = () => {
-  return useQuery<Terminology>({
-    queryKey: ['config', 'terminology'],
-    queryFn: async () => {
-      const response = await api.get('/config/terminology');
       return response.data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

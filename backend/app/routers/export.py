@@ -158,11 +158,9 @@ async def export_to_excel(
                     "Tokens Used": latest_ai_output.tokens_used or 0,
                     "Processing Duration (ms)": latest_ai_output.duration_ms or 0,
                     "Processing Date": latest_ai_output.created_at.strftime("%Y-%m-%d %H:%M:%S") if latest_ai_output.created_at else "",
-                    "Custom Instructions": latest_ai_output.custom_instructions or "",
-                    "Sensitivity Score": float(latest_ai_output.sensitivity_score) if latest_ai_output.sensitivity_score else 0.0,
                 })
                 
-                # Parse and add dynamic AI analysis fields
+                # Parse and add dynamic AI analysis fields from workflow output
                 if latest_ai_output.summary:
                     try:
                         summary_data = json.loads(latest_ai_output.summary)
@@ -172,21 +170,6 @@ async def export_to_excel(
                     except (json.JSONDecodeError, TypeError):
                         # If it's not JSON, treat as plain text
                         row_data["AI_Summary"] = latest_ai_output.summary
-                
-                # Add redactions data
-                if latest_ai_output.redactions_json:
-                    try:
-                        if isinstance(latest_ai_output.redactions_json, list):
-                            redactions_count = len(latest_ai_output.redactions_json)
-                            row_data["Redactions_Count"] = redactions_count
-                            
-                            # Add details about redactions
-                            for i, redaction in enumerate(latest_ai_output.redactions_json[:5]):  # Limit to first 5
-                                if isinstance(redaction, dict):
-                                    row_data[f"Redaction_{i+1}_Reason"] = redaction.get("reason", "")
-                                    row_data[f"Redaction_{i+1}_Text"] = redaction.get("text_span", "")
-                    except Exception:
-                        row_data["Redactions_Count"] = 0
             else:
                 # No AI output available
                 row_data.update({

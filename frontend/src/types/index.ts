@@ -38,11 +38,11 @@ export interface ExerciseUpdate {
 export interface AIOutput {
   id: number
   version: number
-  summary?: string
-  topic?: string
-  sensitivity_score?: number
-  redactions_json?: any[]
-  custom_instructions?: string
+  summary?: string  // JSON string containing all workflow outputs
+  topic?: string  // Deprecated - kept for backward compatibility
+  sensitivity_score?: number  // Deprecated - kept for backward compatibility
+  redactions_json?: any[]  // Deprecated - kept for backward compatibility
+  custom_instructions?: string  // Deprecated - kept for backward compatibility
   model_name?: string
   tokens_used?: number
   duration_ms?: number

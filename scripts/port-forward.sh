@@ -5,15 +5,24 @@
 
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Check if colors are supported
+if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1 && [ "$(tput colors)" -ge 8 ]; then
+    # Colors for output
+    RED=$(tput setaf 1)
+    GREEN=$(tput setaf 2)
+    YELLOW=$(tput setaf 3)
+    NC=$(tput sgr0) # No Color
+else
+    # No color support
+    RED=""
+    GREEN=""
+    YELLOW=""
+    NC=""
+fi
 
 NAMESPACE="taskflow"
 
-echo -e "${GREEN}=== TaskFlow Port Forwarding ===${NC}"
+echo "${GREEN}=== TaskFlow Port Forwarding ===${NC}"
 echo ""
 echo "This script will forward the following ports:"
 echo "  - 3000 → TaskFlow Web UI"
@@ -23,7 +32,7 @@ echo "  - 5432 → PostgreSQL Database"
 echo "  - 6333 → Qdrant Vector Database"
 echo "  - 11434 → Ollama (if using internal deployment)"
 echo ""
-echo -e "${YELLOW}Press Ctrl+C to stop all port forwards${NC}"
+echo "${YELLOW}Press Ctrl+C to stop all port forwards${NC}"
 echo ""
 
 # Function to check if service exists
@@ -36,10 +45,10 @@ check_service() {
 # Create a cleanup function
 cleanup() {
     echo ""
-    echo -e "${YELLOW}Stopping all port forwards...${NC}"
+    echo "${YELLOW}Stopping all port forwards...${NC}"
     jobs -p | xargs -r kill 2>/dev/null || true
     wait
-    echo -e "${GREEN}Port forwarding stopped${NC}"
+    echo "${GREEN}Port forwarding stopped${NC}"
     exit 0
 }
 
@@ -47,7 +56,7 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 # Start port forwarding for each service
-echo -e "${GREEN}Starting port forwards...${NC}"
+echo "${GREEN}Starting port forwards...${NC}"
 
 # Web UI
 if check_service "taskflow-web" "$NAMESPACE"; then
@@ -55,7 +64,7 @@ if check_service "taskflow-web" "$NAMESPACE"; then
     kubectl port-forward -n $NAMESPACE svc/taskflow-web 3000:3000 &
     PID_WEB=$!
 else
-    echo -e "${RED}✗${NC} TaskFlow Web service not found"
+    echo "${RED}✗${NC} TaskFlow Web service not found"
 fi
 
 # API
@@ -64,7 +73,7 @@ if check_service "taskflow-api" "$NAMESPACE"; then
     kubectl port-forward -n $NAMESPACE svc/taskflow-api 8000:8000 &
     PID_API=$!
 else
-    echo -e "${RED}✗${NC} TaskFlow API service not found"
+    echo "${RED}✗${NC} TaskFlow API service not found"
 fi
 
 # AI Service
@@ -73,7 +82,7 @@ if check_service "taskflow-ai" "$NAMESPACE"; then
     kubectl port-forward -n $NAMESPACE svc/taskflow-ai 8001:8001 &
     PID_AI=$!
 else
-    echo -e "${RED}✗${NC} TaskFlow AI service not found"
+    echo "${RED}✗${NC} TaskFlow AI service not found"
 fi
 
 # PostgreSQL
@@ -82,7 +91,7 @@ if check_service "postgres" "$NAMESPACE"; then
     kubectl port-forward -n $NAMESPACE svc/postgres 5432:5432 &
     PID_POSTGRES=$!
 else
-    echo -e "${RED}✗${NC} PostgreSQL service not found"
+    echo "${RED}✗${NC} PostgreSQL service not found"
 fi
 
 # Qdrant
@@ -91,7 +100,7 @@ if check_service "qdrant" "$NAMESPACE"; then
     kubectl port-forward -n $NAMESPACE svc/qdrant 6333:6333 &
     PID_QDRANT=$!
 else
-    echo -e "${RED}✗${NC} Qdrant service not found"
+    echo "${RED}✗${NC} Qdrant service not found"
 fi
 
 # Ollama (if internal deployment)
@@ -100,14 +109,14 @@ if check_service "ollama-service" "$NAMESPACE"; then
     kubectl port-forward -n $NAMESPACE svc/ollama-service 11434:11434 &
     PID_OLLAMA=$!
 else
-    echo -e "${YELLOW}!${NC} Ollama service not found (might be using external Ollama)"
+    echo "${YELLOW}!${NC} Ollama service not found (might be using external Ollama)"
 fi
 
 # Give services a moment to start
 sleep 2
 
 echo ""
-echo -e "${GREEN}=== Port Forwarding Active ===${NC}"
+echo "${GREEN}=== Port Forwarding Active ===${NC}"
 echo ""
 echo "You can now access:"
 echo "  • TaskFlow Web UI: ${GREEN}http://localhost:3000${NC}"
@@ -125,7 +134,7 @@ if check_service "ollama-service" "$NAMESPACE"; then
     echo "  • Ollama API: ${GREEN}http://localhost:11434${NC}"
     echo ""
 fi
-echo -e "${YELLOW}Press Ctrl+C to stop all port forwards${NC}"
+echo "${YELLOW}Press Ctrl+C to stop all port forwards${NC}"
 echo ""
 
 # Wait for all background processes
