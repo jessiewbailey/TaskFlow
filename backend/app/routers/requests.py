@@ -166,6 +166,7 @@ async def list_requests(
                 workflow_id=req.workflow_id,
                 exercise_id=req.exercise_id,
                 status=req.status,
+                embedding_status=req.embedding_status,
                 due_date=req.due_date,
                 created_at=req.created_at,
                 updated_at=req.updated_at,
@@ -236,25 +237,20 @@ async def create_request(
     
     logger.info("Created TaskFlow request", request_id=taskflow_request.id, job_id=job_id)
     
-    # Generate and store embedding for the new task (after commit)
+    # Queue embedding generation as a separate job (non-blocking)
     try:
-        # Refresh the request to get all fields including created_at
-        await db.refresh(taskflow_request)
-        
-        task_data = {
-            "title": f"Request #{taskflow_request.id}",
-            "description": taskflow_request.text,
-            "priority": "normal",
-            "status": taskflow_request.status.value,
-            "tags": [],
-            "exercise_id": taskflow_request.exercise_id,
-            "created_at": taskflow_request.created_at.isoformat() if taskflow_request.created_at else ""
-        }
-        embedding_id = await embedding_service.store_task_embedding(taskflow_request.id, task_data)
-        logger.info("Stored embedding for request", request_id=taskflow_request.id, embedding_id=embedding_id)
+        embedding_job_id = await job_service.create_job(
+            taskflow_request.id,
+            job_type=JobType.EMBEDDING
+        )
+        logger.info("Queued embedding generation job", 
+                   request_id=taskflow_request.id, 
+                   embedding_job_id=embedding_job_id)
     except Exception as e:
-        logger.error("Failed to store embedding", request_id=taskflow_request.id, error=str(e))
-        # Don't fail the request creation if embedding fails
+        logger.error("Failed to queue embedding job", 
+                    request_id=taskflow_request.id, 
+                    error=str(e))
+        # Don't fail the request creation if embedding job creation fails
     
     return CreateRequestResponse(id=taskflow_request.id, job_id=job_id)
 
@@ -324,6 +320,7 @@ async def get_request(
         workflow_id=request.workflow_id,
         exercise_id=request.exercise_id,
         status=request.status,
+        embedding_status=request.embedding_status,
         due_date=request.due_date,
         created_at=request.created_at,
         updated_at=request.updated_at,
@@ -527,6 +524,7 @@ async def update_request(
         assigned_analyst_id=updated_request.assigned_analyst_id,
         workflow_id=updated_request.workflow_id,
         status=updated_request.status,
+        embedding_status=updated_request.embedding_status,
         due_date=updated_request.due_date,
         created_at=updated_request.created_at,
         updated_at=updated_request.updated_at,
@@ -901,7 +899,6 @@ async def batch_upload_requests(
         # Generate embeddings for all successfully created requests (after commit)
         # We need to query all requests created in this batch
         # Using exercise_id to filter if provided, otherwise use recent time window
-        import asyncio
         from datetime import timedelta
         
         # Get all requests created in this batch
@@ -924,33 +921,22 @@ async def batch_upload_requests(
         
         batch_requests = batch_requests_result.scalars().all()
         
-        # Generate embeddings for successful requests
-        embedding_errors = []
-        for i, request in enumerate(batch_requests):
+        # Queue embedding generation jobs for successful requests
+        embedding_job_count = 0
+        for request in batch_requests:
             try:
-                # Add small delay between requests to prevent overwhelming Ollama
-                if i > 0:  # Skip delay for first request
-                    await asyncio.sleep(0.5)  # 500ms delay between embedding requests
-                
-                # Generate embedding
-                task_data = {
-                    "title": f"Request #{request.id}",
-                    "description": request.text,
-                    "priority": "normal",
-                    "status": request.status.value,
-                    "tags": [],
-                    "exercise_id": request.exercise_id,
-                    "created_at": request.created_at.isoformat() if request.created_at else ""
-                }
-                embedding_id = await embedding_service.store_task_embedding(request.id, task_data)
-                logger.info("Generated embedding for bulk uploaded request", request_id=request.id, embedding_id=embedding_id)
-                
+                embedding_job_id = await job_service.create_job(
+                    request.id,
+                    job_type=JobType.EMBEDDING
+                )
+                embedding_job_count += 1
+                logger.info("Queued embedding job for bulk uploaded request", 
+                           request_id=request.id, 
+                           embedding_job_id=embedding_job_id)
             except Exception as e:
-                logger.warning(f"Failed to generate embedding for request {request.id}: {str(e)}")
-                embedding_errors.append(f"Request {request.id}: Failed to generate embedding - {str(e)}")
+                logger.warning(f"Failed to queue embedding job for request {request.id}: {str(e)}")
         
-        if embedding_errors:
-            logger.warning(f"Embedding generation failed for {len(embedding_errors)} requests: {', '.join(embedding_errors)}")
+        logger.info(f"Queued {embedding_job_count} embedding jobs for batch upload")
         
         success = len(errors) == 0
         
@@ -958,7 +944,7 @@ async def batch_upload_requests(
                    total_rows=total_rows, 
                    success_count=success_count, 
                    error_count=len(errors),
-                   embedding_errors=len(embedding_errors))
+                   embedding_jobs_queued=embedding_job_count)
         
         return BatchUploadResponse(
             success=success,

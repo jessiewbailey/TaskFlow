@@ -8,6 +8,11 @@ import httpx
 import json
 from config import settings
 from ai_pipeline.workflow_processor import WorkflowProcessor
+import ollama
+from qdrant_client import QdrantClient
+from qdrant_client.models import PointStruct
+import uuid
+import os
 
 # Configure logging
 structlog.configure(
@@ -47,7 +52,9 @@ app = FastAPI(
 
 class ProcessRequest(BaseModel):
     request_id: int
-    workflow_id: int
+    workflow_id: Optional[int] = None
+    job_type: str = "WORKFLOW"  # WORKFLOW, EMBEDDING, BULK_EMBEDDING
+    custom_instructions: Optional[str] = None
 
 @app.post("/process")
 async def process_request(request: ProcessRequest):
@@ -55,48 +62,199 @@ async def process_request(request: ProcessRequest):
     
     logger.info("Received processing request", 
                 request_id=request.request_id, 
+                job_type=request.job_type,
                 workflow_id=request.workflow_id)
     
     try:
-        # Get request text from backend API
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                f"{settings.backend_api_url}/api/requests/{request.request_id}"
-            )
-            response.raise_for_status()
-            request_data = response.json()
-        
-        request_text = request_data["text"]
-        logger.info("Retrieved request text", 
-                   request_id=request.request_id, 
-                   text_length=len(request_text))
-        
-        # Initialize workflow processor
-        workflow_processor = WorkflowProcessor()
-        result = await workflow_processor.execute_workflow(
-            request.workflow_id, 
-            request_text,
-            request.request_id
-        )
-        # Get current version and increment
-        version = await get_next_version(request.request_id)
-        
-        # Save AI output to database
-        await save_ai_output(request.request_id, result, version)
-        
-        logger.info("Processing completed successfully", 
-                   request_id=request.request_id,
-                   workflow_id=request.workflow_id,
-                   version=version)
-        
-        return {"status": "completed", "version": version}
+        # Route to appropriate handler based on job type
+        if request.job_type == "EMBEDDING":
+            return await process_embedding_job(request.request_id)
+        elif request.job_type == "BULK_EMBEDDING":
+            # For bulk embedding, request_id contains the batch identifier
+            return await process_bulk_embedding_job(request.request_id)
+        elif request.job_type in ["WORKFLOW", "STANDARD", "CUSTOM"]:
+            return await process_workflow_job(request)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown job type: {request.job_type}")
         
     except Exception as e:
         logger.error("Processing failed", 
                     request_id=request.request_id, 
+                    job_type=request.job_type,
                     error=str(e), 
                     exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+async def process_workflow_job(request: ProcessRequest):
+    """Process a workflow job (existing logic)"""
+    # Get request text from backend API
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.get(
+            f"{settings.backend_api_url}/api/requests/{request.request_id}"
+        )
+        response.raise_for_status()
+        request_data = response.json()
+    
+    request_text = request_data["text"]
+    logger.info("Retrieved request text", 
+               request_id=request.request_id, 
+               text_length=len(request_text))
+    
+    # Initialize workflow processor
+    workflow_processor = WorkflowProcessor()
+    result = await workflow_processor.execute_workflow(
+        request.workflow_id, 
+        request_text,
+        request.request_id
+    )
+    # Get current version and increment
+    version = await get_next_version(request.request_id)
+    
+    # Save AI output to database
+    await save_ai_output(request.request_id, result, version)
+    
+    logger.info("Processing completed successfully", 
+               request_id=request.request_id,
+               workflow_id=request.workflow_id,
+               version=version)
+    
+    return {"status": "completed", "version": version}
+
+async def process_embedding_job(request_id: int):
+    """Process a single embedding generation job"""
+    logger.info("Processing embedding job", request_id=request_id)
+    
+    try:
+        # Get request data
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{settings.backend_api_url}/api/requests/{request_id}"
+            )
+            response.raise_for_status()
+            request_data = response.json()
+        
+        # Update embedding status to PROCESSING
+        await update_embedding_status(request_id, "PROCESSING")
+        
+        # Prepare task data for embedding
+        task_data = {
+            "title": f"Request #{request_id}",
+            "description": request_data["text"],
+            "priority": "normal",
+            "status": request_data["status"],
+            "tags": [],
+            "exercise_id": request_data.get("exercise_id"),
+            "created_at": request_data.get("created_at", "")
+        }
+        
+        # Generate embedding
+        embedding_id = await generate_and_store_embedding(request_id, task_data)
+        
+        # Update embedding status to COMPLETED
+        await update_embedding_status(request_id, "COMPLETED")
+        
+        logger.info("Embedding generated successfully", 
+                   request_id=request_id, 
+                   embedding_id=embedding_id)
+        
+        # Notify backend of completion
+        await notify_embedding_complete(request_id, embedding_id)
+        
+        return {"status": "completed", "embedding_id": embedding_id}
+        
+    except Exception as e:
+        logger.error("Embedding generation failed", 
+                    request_id=request_id, 
+                    error=str(e))
+        # Update embedding status to FAILED
+        await update_embedding_status(request_id, "FAILED")
+        raise
+
+async def process_bulk_embedding_job(batch_id: int):
+    """Process bulk embedding generation jobs"""
+    # TODO: Implement bulk embedding processing
+    logger.warning("Bulk embedding processing not yet implemented", batch_id=batch_id)
+    return {"status": "not_implemented"}
+
+async def generate_and_store_embedding(task_id: int, task_data: Dict[str, Any]) -> str:
+    """Generate embedding and store in Qdrant"""
+    # Create text representation
+    text_parts = []
+    if task_data.get("title"):
+        text_parts.append(f"Title: {task_data['title']}")
+    if task_data.get("description"):
+        text_parts.append(f"Description: {task_data['description']}")
+    if task_data.get("priority"):
+        text_parts.append(f"Priority: {task_data['priority']}")
+    if task_data.get("status"):
+        text_parts.append(f"Status: {task_data['status']}")
+    if task_data.get("tags"):
+        text_parts.append(f"Tags: {', '.join(task_data['tags'])}")
+    
+    text = "\n".join(text_parts)
+    
+    # Generate embedding using Ollama
+    ollama_client = ollama.AsyncClient(host=settings.ollama_host)
+    response = await ollama_client.embeddings(
+        model="nomic-embed-text",
+        prompt=text
+    )
+    embedding = response['embedding']
+    
+    # Store in Qdrant
+    qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
+    qdrant_client = QdrantClient(url=qdrant_url)
+    
+    point_id = str(uuid.uuid4())
+    qdrant_client.upsert(
+        collection_name="tasks",
+        points=[
+            PointStruct(
+                id=point_id,
+                vector=embedding,
+                payload={
+                    "task_id": task_id,
+                    "title": task_data.get("title", ""),
+                    "description": task_data.get("description", ""),
+                    "priority": task_data.get("priority", ""),
+                    "status": task_data.get("status", ""),
+                    "tags": task_data.get("tags", []),
+                    "exercise_id": task_data.get("exercise_id"),
+                    "created_at": task_data.get("created_at", ""),
+                }
+            )
+        ]
+    )
+    
+    return point_id
+
+async def update_embedding_status(request_id: int, status: str):
+    """Update the embedding status for a request"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.patch(
+                f"{settings.backend_api_url}/api/internal/requests/{request_id}/embedding-status",
+                json={"embedding_status": status}
+            )
+            response.raise_for_status()
+            logger.info(f"Updated embedding status for request {request_id} to {status}")
+    except Exception as e:
+        logger.error(f"Failed to update embedding status for request {request_id}: {str(e)}")
+        # Don't fail the job if status update fails
+        pass
+
+async def notify_embedding_complete(request_id: int, embedding_id: str):
+    """Notify backend that embedding is complete"""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            f"{settings.backend_api_url}/api/internal/callbacks/embedding-complete",
+            json={
+                "request_id": request_id,
+                "embedding_id": embedding_id,
+                "status": "completed"
+            }
+        )
+        response.raise_for_status()
 
 async def get_next_version(request_id: int) -> int:
     """Get the next version number for AI output"""

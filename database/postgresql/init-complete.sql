@@ -15,10 +15,11 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TYPE user_role AS ENUM ('ANALYST', 'SUPERVISOR', 'ADMIN');
 CREATE TYPE request_status AS ENUM ('NEW', 'IN_REVIEW', 'PENDING', 'CLOSED');
 CREATE TYPE job_status AS ENUM ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED');
-CREATE TYPE job_type AS ENUM ('STANDARD', 'CUSTOM', 'WORKFLOW');
+CREATE TYPE job_type AS ENUM ('STANDARD', 'CUSTOM', 'WORKFLOW', 'EMBEDDING', 'BULK_EMBEDDING');
 CREATE TYPE workflow_status AS ENUM ('DRAFT', 'ACTIVE', 'ARCHIVED');
 CREATE TYPE block_type AS ENUM ('CORE', 'CUSTOM');
 CREATE TYPE block_input_type AS ENUM ('REQUEST_TEXT', 'BLOCK_OUTPUT');
+CREATE TYPE embedding_status AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
 CREATE TYPE dashboard_layout AS ENUM ('grid', 'list');
 
 -- Users table
@@ -57,6 +58,7 @@ CREATE TABLE requests (
   assigned_analyst_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
   workflow_id BIGINT REFERENCES workflows(id) ON DELETE SET NULL,
   status request_status DEFAULT 'NEW',
+  embedding_status embedding_status DEFAULT 'PENDING',
   due_date DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -67,6 +69,7 @@ CREATE INDEX idx_requests_analyst_status ON requests(assigned_analyst_id, status
 CREATE INDEX idx_requests_status_date ON requests(status, date_received);
 CREATE INDEX idx_requests_due_date ON requests(due_date);
 CREATE INDEX idx_requests_workflow ON requests(workflow_id);
+CREATE INDEX idx_requests_embedding_status ON requests(embedding_status);
 
 -- AI processing outputs table
 CREATE TABLE ai_outputs (
@@ -91,7 +94,9 @@ CREATE TABLE processing_jobs (
   workflow_id BIGINT REFERENCES workflows(id) ON DELETE SET NULL,
   job_type job_type DEFAULT 'WORKFLOW',
   status job_status DEFAULT 'PENDING',
+  custom_instructions TEXT,
   error_message TEXT,
+  retry_count INT DEFAULT 0,
   started_at TIMESTAMP WITH TIME ZONE NULL,
   completed_at TIMESTAMP WITH TIME ZONE NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -100,6 +105,7 @@ CREATE TABLE processing_jobs (
 -- Create indexes for processing_jobs
 CREATE INDEX idx_processing_jobs_status_created ON processing_jobs(status, created_at);
 CREATE INDEX idx_processing_jobs_request ON processing_jobs(request_id);
+CREATE INDEX idx_processing_jobs_retry_count ON processing_jobs(retry_count);
 
 -- Workflow blocks table
 CREATE TABLE workflow_blocks (

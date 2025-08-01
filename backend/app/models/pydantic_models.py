@@ -15,6 +15,12 @@ class RequestStatus(str, enum.Enum):
     PENDING = "PENDING"
     CLOSED = "CLOSED"
 
+class EmbeddingStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
 class JobStatus(str, enum.Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
@@ -124,6 +130,7 @@ class RequestResponse(BaseModel):
     workflow_id: Optional[int] = None
     exercise_id: Optional[int] = None
     status: RequestStatus
+    embedding_status: EmbeddingStatus = EmbeddingStatus.PENDING
     due_date: Optional[date]
     created_at: datetime
     updated_at: datetime

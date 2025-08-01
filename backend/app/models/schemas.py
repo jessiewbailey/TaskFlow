@@ -27,6 +27,8 @@ class JobType(str, enum.Enum):
     STANDARD = "STANDARD"
     CUSTOM = "CUSTOM"
     WORKFLOW = "WORKFLOW"
+    EMBEDDING = "EMBEDDING"
+    BULK_EMBEDDING = "BULK_EMBEDDING"
 
 class WorkflowStatus(str, enum.Enum):
     DRAFT = "DRAFT"
@@ -36,6 +38,12 @@ class WorkflowStatus(str, enum.Enum):
 class BlockInputType(str, enum.Enum):
     REQUEST_TEXT = "REQUEST_TEXT"
     BLOCK_OUTPUT = "BLOCK_OUTPUT"
+
+class EmbeddingStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 class BlockType(str, enum.Enum):
     CORE = "CORE"
@@ -100,6 +108,7 @@ class Request(Base):
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=True)
     exercise_id = Column(BigInteger, ForeignKey("exercises.id"), nullable=True)
     status = Column(Enum(RequestStatus, name='request_status'), default=RequestStatus.NEW)
+    embedding_status = Column(Enum(EmbeddingStatus, name='embedding_status'), default=EmbeddingStatus.PENDING)
     due_date = Column(Date, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
@@ -137,6 +146,7 @@ class ProcessingJob(Base):
     job_type = Column(Enum(JobType, name='job_type'), default=JobType.STANDARD)
     custom_instructions = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
+    retry_count = Column(Integer, default=0)
     started_at = Column(TIMESTAMP, nullable=True)
     completed_at = Column(TIMESTAMP, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())

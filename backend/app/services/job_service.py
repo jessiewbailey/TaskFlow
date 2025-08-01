@@ -118,6 +118,17 @@ class JobService:
             created_at=job.created_at
         )
 
+    def _get_max_retries(self, job_type: JobType) -> int:
+        """Get maximum retry count based on job type"""
+        if job_type == JobType.EMBEDDING:
+            return 3  # More retries for lightweight embedding jobs
+        elif job_type == JobType.WORKFLOW:
+            return 2  # Fewer retries for heavy workflow jobs
+        elif job_type == JobType.BULK_EMBEDDING:
+            return 1  # Minimal retries for bulk operations
+        else:
+            return 2  # Default retry count
+    
     async def _process_job(self, job_id: str):
         """Process job asynchronously by calling AI worker"""
         # Import here to avoid circular imports
@@ -183,15 +194,44 @@ class JobService:
         except Exception as e:
             logger.error("Job processing failed", job_id=job_id, error=str(e))
             
-            # Update job status to FAILED with a new session
+            # Handle retry logic
             async with get_db_session() as db:
-                await db.execute(
-                    update(ProcessingJob)
-                    .where(ProcessingJob.id == job_id)
-                    .values(
-                        status=JobStatus.FAILED, 
-                        completed_at=datetime.utcnow(),
-                        error_message=str(e)
-                    )
+                # Get current job details
+                result = await db.execute(
+                    select(ProcessingJob).where(ProcessingJob.id == job_id)
                 )
-                await db.commit()
+                job = result.scalar_one_or_none()
+                
+                if job and job.retry_count < self._get_max_retries(job.job_type):
+                    # Increment retry count and set back to PENDING for retry
+                    await db.execute(
+                        update(ProcessingJob)
+                        .where(ProcessingJob.id == job_id)
+                        .values(
+                            status=JobStatus.PENDING,
+                            retry_count=job.retry_count + 1,
+                            error_message=f"Retry {job.retry_count + 1}: {str(e)}"
+                        )
+                    )
+                    await db.commit()
+                    
+                    # Calculate backoff delay
+                    delay = min(2 ** job.retry_count, 60)  # Exponential backoff, max 60 seconds
+                    logger.info(f"Job {job_id} will be retried after {delay} seconds (attempt {job.retry_count + 1})")
+                    
+                    # Re-queue the job with delay
+                    await asyncio.sleep(delay)
+                    await job_queue_manager.add_job(str(job_id), self._process_job(str(job_id)))
+                else:
+                    # Max retries exceeded, mark as FAILED
+                    await db.execute(
+                        update(ProcessingJob)
+                        .where(ProcessingJob.id == job_id)
+                        .values(
+                            status=JobStatus.FAILED, 
+                            completed_at=datetime.utcnow(),
+                            error_message=str(e)
+                        )
+                    )
+                    await db.commit()
+                    logger.error(f"Job {job_id} failed after maximum retries")
