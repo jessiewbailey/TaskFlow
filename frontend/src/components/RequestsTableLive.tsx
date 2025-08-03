@@ -230,10 +230,13 @@ export const RequestsTableLive: React.FC<TasksTableProps> = ({
           >
             Previous
           </button>
+          <span className="text-sm text-gray-700">
+            Page {data.page} of {data.total_pages}
+          </span>
           <button
             onClick={() => handlePageChange(data.page + 1)}
             disabled={!data.has_next}
-            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
           </button>
@@ -250,20 +253,122 @@ export const RequestsTableLive: React.FC<TasksTableProps> = ({
             </p>
           </div>
           <div>
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+              {/* First Page */}
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={data.page === 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="First page"
+              >
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+              
+              {/* Previous Page */}
               <button
                 onClick={() => handlePageChange(Math.max(1, data.page - 1))}
                 disabled={data.page === 1}
-                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative inline-flex items-center px-3 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
+              
+              {/* Page Numbers */}
+              {(() => {
+                const totalPages = data.total_pages
+                const currentPage = data.page
+                const pages = []
+                const maxVisible = 7
+                
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2))
+                let endPage = Math.min(totalPages, startPage + maxVisible - 1)
+                
+                if (endPage - startPage + 1 < maxVisible) {
+                  startPage = Math.max(1, endPage - maxVisible + 1)
+                }
+                
+                // Always show first page
+                if (startPage > 1) {
+                  pages.push(
+                    <button
+                      key={1}
+                      onClick={() => handlePageChange(1)}
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      1
+                    </button>
+                  )
+                  if (startPage > 2) {
+                    pages.push(
+                      <span key="dots1" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                        ...
+                      </span>
+                    )
+                  }
+                }
+                
+                // Show page numbers
+                for (let i = startPage; i <= endPage; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => handlePageChange(i)}
+                      className={clsx(
+                        'relative inline-flex items-center px-4 py-2 border text-sm font-medium',
+                        i === currentPage
+                          ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                      )}
+                    >
+                      {i}
+                    </button>
+                  )
+                }
+                
+                // Always show last page
+                if (endPage < totalPages) {
+                  if (endPage < totalPages - 1) {
+                    pages.push(
+                      <span key="dots2" className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                        ...
+                      </span>
+                    )
+                  }
+                  pages.push(
+                    <button
+                      key={totalPages}
+                      onClick={() => handlePageChange(totalPages)}
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      {totalPages}
+                    </button>
+                  )
+                }
+                
+                return pages
+              })()}
+              
+              {/* Next Page */}
               <button
                 onClick={() => handlePageChange(data.page + 1)}
                 disabled={!data.has_next}
-                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative inline-flex items-center px-3 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
+              </button>
+              
+              {/* Last Page */}
+              <button
+                onClick={() => handlePageChange(data.total_pages)}
+                disabled={data.page === data.total_pages}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Last page"
+              >
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 15.707a1 1 0 010-1.414l5-5a1 1 0 011.414 0l-5 5a1 1 0 01-1.414 0zm6 0a1 1 0 010-1.414l4.293-4.293L10.293 5.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
               </button>
             </nav>
           </div>
