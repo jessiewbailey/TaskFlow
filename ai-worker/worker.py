@@ -8,6 +8,7 @@ import httpx
 import json
 from config import settings
 from ai_pipeline.workflow_processor import WorkflowProcessor
+from event_publisher import event_publisher
 import ollama
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
@@ -39,9 +40,11 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting TaskFlow AI Worker service")
+    await event_publisher.connect()
     yield
     # Shutdown
     logger.info("Shutting down TaskFlow AI Worker service")
+    await event_publisher.disconnect()
 
 app = FastAPI(
     title="TaskFlow AI Worker", 
@@ -87,6 +90,9 @@ async def process_request(request: ProcessRequest):
 
 async def process_workflow_job(request: ProcessRequest):
     """Process a workflow job (existing logic)"""
+    # Publish job started event
+    await event_publisher.job_started(request.request_id, "WORKFLOW", str(request.workflow_id))
+    
     # Get request text from backend API
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
@@ -100,8 +106,28 @@ async def process_workflow_job(request: ProcessRequest):
                request_id=request.request_id, 
                text_length=len(request_text))
     
+    # Publish workflow started event
+    await event_publisher.publish_event(request.request_id, "workflow.started", {
+        "workflow_id": request.workflow_id
+    })
+    
     # Initialize workflow processor
     workflow_processor = WorkflowProcessor()
+    
+    # Set up progress callback
+    async def on_step_complete(step_name: str, result: Any):
+        await event_publisher.workflow_step_completed(request.request_id, step_name, result)
+    
+    async def on_progress(step_number: int, total_steps: int, current_step: str, progress: float, completed: bool = False):
+        await event_publisher.job_progress(
+            request.request_id, 
+            progress,
+            f"Step {step_number}/{total_steps}: {current_step} {'✓' if completed else '...'}"
+        )
+    
+    workflow_processor.on_step_complete = on_step_complete
+    workflow_processor.on_progress = on_progress
+    
     result = await workflow_processor.execute_workflow(
         request.workflow_id, 
         request_text,
@@ -118,6 +144,12 @@ async def process_workflow_job(request: ProcessRequest):
                workflow_id=request.workflow_id,
                version=version)
     
+    # Publish workflow completed event
+    await event_publisher.publish_event(request.request_id, "workflow.completed", {
+        "workflow_id": request.workflow_id,
+        "version": version
+    })
+    
     return {"status": "completed", "version": version}
 
 async def process_embedding_job(request_id: int):
@@ -125,6 +157,10 @@ async def process_embedding_job(request_id: int):
     logger.info("Processing embedding job", request_id=request_id)
     
     try:
+        # Publish job started event
+        await event_publisher.job_started(request_id, "EMBEDDING")
+        await event_publisher.embedding_progress(request_id, "PROCESSING", 0.1, "Fetching request data")
+        
         # Get request data
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
@@ -135,6 +171,7 @@ async def process_embedding_job(request_id: int):
         
         # Update embedding status to PROCESSING
         await update_embedding_status(request_id, "PROCESSING")
+        await event_publisher.embedding_progress(request_id, "PROCESSING", 0.3, "Preparing text for embedding")
         
         # Prepare task data for embedding
         task_data = {
@@ -148,10 +185,12 @@ async def process_embedding_job(request_id: int):
         }
         
         # Generate embedding
+        await event_publisher.embedding_progress(request_id, "PROCESSING", 0.5, "Generating embedding vector")
         embedding_id = await generate_and_store_embedding(request_id, task_data)
         
         # Update embedding status to COMPLETED
         await update_embedding_status(request_id, "COMPLETED")
+        await event_publisher.embedding_progress(request_id, "COMPLETED", 1.0, "Embedding stored successfully")
         
         logger.info("Embedding generated successfully", 
                    request_id=request_id, 
@@ -159,6 +198,9 @@ async def process_embedding_job(request_id: int):
         
         # Notify backend of completion
         await notify_embedding_complete(request_id, embedding_id)
+        
+        # Publish job completed event
+        await event_publisher.job_completed(request_id, "EMBEDDING", {"embedding_id": embedding_id})
         
         return {"status": "completed", "embedding_id": embedding_id}
         
@@ -168,6 +210,10 @@ async def process_embedding_job(request_id: int):
                     error=str(e))
         # Update embedding status to FAILED
         await update_embedding_status(request_id, "FAILED")
+        
+        # Publish job failed event
+        await event_publisher.job_failed(request_id, "EMBEDDING", str(e))
+        
         raise
 
 async def process_bulk_embedding_job(batch_id: int):
@@ -193,6 +239,9 @@ async def generate_and_store_embedding(task_id: int, task_data: Dict[str, Any]) 
     
     text = "\n".join(text_parts)
     
+    # Update progress
+    await event_publisher.embedding_progress(task_id, "PROCESSING", 0.6, "Calling Ollama for embedding generation")
+    
     # Generate embedding using Ollama
     ollama_client = ollama.AsyncClient(host=settings.ollama_host)
     response = await ollama_client.embeddings(
@@ -200,6 +249,9 @@ async def generate_and_store_embedding(task_id: int, task_data: Dict[str, Any]) 
         prompt=text
     )
     embedding = response['embedding']
+    
+    # Update progress
+    await event_publisher.embedding_progress(task_id, "PROCESSING", 0.8, "Storing embedding in vector database")
     
     # Store in Qdrant
     qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
@@ -225,6 +277,9 @@ async def generate_and_store_embedding(task_id: int, task_data: Dict[str, Any]) 
             )
         ]
     )
+    
+    # Update progress
+    await event_publisher.embedding_progress(task_id, "PROCESSING", 0.95, "Finalizing embedding storage")
     
     return point_id
 

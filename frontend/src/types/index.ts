@@ -66,6 +66,8 @@ export interface Task {
   latest_ai_output?: AIOutput
   has_active_jobs?: boolean
   latest_failed_job?: JobProgress
+  queue_position?: number
+  latest_job_id?: string
 }
 
 export interface TaskList {
@@ -74,6 +76,7 @@ export interface TaskList {
   page: number
   page_size: number
   total_pages: number
+  has_next: boolean
 }
 
 // Legacy type aliases for compatibility - deprecated

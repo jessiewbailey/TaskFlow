@@ -30,6 +30,19 @@ class JobQueueManager:
         """Add a job to the queue"""
         await self.job_queue.put((job_id, job_coro))
         logger.info(f"Added job {job_id} to queue. Queue size: {self.job_queue.qsize()}")
+    
+    def get_queue_position(self, job_id: str) -> int:
+        """Get the position of a job in the queue (0-based, -1 if not found or running)"""
+        if job_id in self.running_jobs:
+            return -1  # Job is already running
+        
+        # Convert queue to list to find position
+        queue_items = list(self.job_queue._queue)
+        for i, (queued_job_id, _) in enumerate(queue_items):
+            if queued_job_id == job_id:
+                return i
+        
+        return -1  # Job not found in queue
         
     async def _process_queue(self):
         """Process jobs from the queue with concurrency control"""
@@ -140,13 +153,36 @@ class JobService:
             
             # Use a new database session for background processing
             async with get_db_session() as db:
-                # Update job status to RUNNING
-                await db.execute(
+                # First check if job is still PENDING before processing
+                result = await db.execute(
+                    select(ProcessingJob).where(ProcessingJob.id == job_id)
+                )
+                job = result.scalar_one_or_none()
+                
+                if not job:
+                    logger.error(f"Job {job_id} not found")
+                    return
+                
+                if job.status != JobStatus.PENDING:
+                    logger.warning(f"Job {job_id} is not PENDING (status: {job.status}), skipping processing")
+                    return
+                
+                # Update job status to RUNNING only if it's still PENDING
+                result = await db.execute(
                     update(ProcessingJob)
-                    .where(ProcessingJob.id == job_id)
+                    .where(
+                        ProcessingJob.id == job_id,
+                        ProcessingJob.status == JobStatus.PENDING  # Ensure it's still PENDING
+                    )
                     .values(status=JobStatus.RUNNING, started_at=datetime.utcnow())
+                    .returning(ProcessingJob.id)
                 )
                 await db.commit()
+                
+                # If no rows were updated, the job status changed
+                if not result.scalar_one_or_none():
+                    logger.warning(f"Job {job_id} status changed during update, skipping processing")
+                    return
                 
                 # Get job details
                 result = await db.execute(
@@ -202,15 +238,20 @@ class JobService:
                 )
                 job = result.scalar_one_or_none()
                 
-                if job and job.retry_count < self._get_max_retries(job.job_type):
+                if job and job.status == JobStatus.RUNNING and job.retry_count < self._get_max_retries(job.job_type):
+                    # Only retry if job is still RUNNING (not if it's already COMPLETED or FAILED)
                     # Increment retry count and set back to PENDING for retry
                     await db.execute(
                         update(ProcessingJob)
-                        .where(ProcessingJob.id == job_id)
+                        .where(
+                            ProcessingJob.id == job_id,
+                            ProcessingJob.status == JobStatus.RUNNING  # Ensure it's still RUNNING
+                        )
                         .values(
                             status=JobStatus.PENDING,
                             retry_count=job.retry_count + 1,
-                            error_message=f"Retry {job.retry_count + 1}: {str(e)}"
+                            error_message=f"Retry {job.retry_count + 1}: {str(e)}",
+                            started_at=None  # Reset started_at for retry
                         )
                     )
                     await db.commit()
@@ -223,15 +264,21 @@ class JobService:
                     await asyncio.sleep(delay)
                     await job_queue_manager.add_job(str(job_id), self._process_job(str(job_id)))
                 else:
-                    # Max retries exceeded, mark as FAILED
-                    await db.execute(
-                        update(ProcessingJob)
-                        .where(ProcessingJob.id == job_id)
-                        .values(
-                            status=JobStatus.FAILED, 
-                            completed_at=datetime.utcnow(),
-                            error_message=str(e)
+                    # Max retries exceeded or job status changed, mark as FAILED only if still RUNNING
+                    if job and job.status == JobStatus.RUNNING:
+                        await db.execute(
+                            update(ProcessingJob)
+                            .where(
+                                ProcessingJob.id == job_id,
+                                ProcessingJob.status == JobStatus.RUNNING  # Ensure it's still RUNNING
+                            )
+                            .values(
+                                status=JobStatus.FAILED, 
+                                completed_at=datetime.utcnow(),
+                                error_message=str(e)
+                            )
                         )
-                    )
-                    await db.commit()
-                    logger.error(f"Job {job_id} failed after maximum retries")
+                        await db.commit()
+                        logger.error(f"Job {job_id} failed after {job.retry_count + 1} attempts")
+                    else:
+                        logger.warning(f"Job {job_id} status is {job.status if job else 'None'}, not updating to FAILED")

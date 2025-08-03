@@ -10,6 +10,8 @@ import { FineTuningSettingsPage } from './pages/FineTuningSettings'
 import { ExerciseSettings } from './pages/ExerciseSettings'
 import { SimilaritySearchSettings } from './pages/SimilaritySearchSettings'
 import { UISettings } from './pages/UISettings'
+import ProgressBarTest from './components/ProgressBarTest'
+import RequestCardTest from './components/RequestCardTest'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +37,8 @@ function App() {
           <Route path="/settings/fine-tuning" element={<FineTuningSettingsPage />} />
           <Route path="/settings/similarity-search" element={<SimilaritySearchSettings />} />
           <Route path="/settings/ui" element={<Settings><UISettings /></Settings>} />
+          <Route path="/test/progress-bar" element={<ProgressBarTest />} />
+          <Route path="/test/request-card" element={<RequestCardTest />} />
         </Routes>
       </Router>
       <ReactQueryDevtools initialIsOpen={false} />

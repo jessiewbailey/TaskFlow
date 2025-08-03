@@ -37,6 +37,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   const [similarTasks, setSimilarTasks] = useState<any[]>([])
   const [isSearchingSimilar, setIsSearchingSimilar] = useState(false)
   const [isReprocessing, setIsReprocessing] = useState(false)
+  const [polledRequest, setPolledRequest] = useState<Task | null>(null)
   const [drawerWidth, setDrawerWidth] = useState(() => {
     // Default to 50% of window width, with fallback to 672px if window is not available
     return typeof window !== 'undefined' ? Math.max(400, window.innerWidth * 0.5) : 672
@@ -47,6 +48,9 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   const updateRequest = useUpdateRequest()
   const deleteRequest = useDeleteRequest()
   const { showSimilarityFeatures } = useUISettings()
+
+  // Use polled request if available, otherwise use the prop
+  const displayRequest = polledRequest || request
 
   // Search for similar tasks
   const searchSimilarTasks = async () => {
@@ -60,7 +64,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
       const threshold = parseFloat(localStorage.getItem('similarityThreshold') || '0')
       const restrictToExercise = localStorage.getItem('restrictToSameExercise') === 'true'
       
-      const response = await fetch(`/api/requests/${request.id}/similar`, {
+      const response = await fetch(`/api/requests/${displayRequest?.id || request?.id}/similar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -98,14 +102,14 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   // Load dashboard configuration and workflow data when request changes
   useEffect(() => {
     const loadWorkflowData = async () => {
-      if (request && request.workflow_id) {
+      if (displayRequest && displayRequest.workflow_id) {
         try {
           // Load dashboard config
-          const config = await dashboardClient.getDashboardConfig(request.workflow_id)
+          const config = await dashboardClient.getDashboardConfig(displayRequest.workflow_id)
           setDashboardConfig(config)
           
           // Load workflow data (including blocks)
-          const response = await fetch(`/api/workflows/${request.workflow_id}`)
+          const response = await fetch(`/api/workflows/${displayRequest.workflow_id}`)
           if (response.ok) {
             const workflowData = await response.json()
             setWorkflowData(workflowData)
@@ -123,6 +127,36 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
     
     loadWorkflowData()
   }, [request])
+
+  // Poll for updates if request has active jobs
+  useEffect(() => {
+    if (!request?.has_active_jobs || !isOpen) {
+      setPolledRequest(null)
+      return
+    }
+
+    // Initial set
+    setPolledRequest(request)
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const updated = await taskflowApi.getRequest(request.id)
+        setPolledRequest(updated)
+        
+        // If job completed, notify parent and stop polling
+        if (!updated.has_active_jobs) {
+          if (onRequestUpdated) {
+            onRequestUpdated()
+          }
+          clearInterval(pollInterval)
+        }
+      } catch (error) {
+        console.error('Error polling request in drawer:', error)
+      }
+    }, 1000) // Poll every second
+
+    return () => clearInterval(pollInterval)
+  }, [request?.id, request?.has_active_jobs, isOpen, onRequestUpdated])
 
   // Transform AI output data to match dashboard renderer expectations
   const transformAIOutputData = (aiOutput: any) => {
@@ -179,14 +213,14 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   if (!request) return null
   
   const handleReprocess = async () => {
-    if (!request.workflow_id) {
+    if (!displayRequest?.workflow_id) {
       alert('No workflow assigned to this request')
       return
     }
     
     setIsReprocessing(true)
     try {
-      const response = await taskflowApi.processRequest(request.id, {
+      const response = await taskflowApi.processRequest(displayRequest?.id || request?.id, {
         instructions: ''
       })
       
@@ -208,11 +242,11 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   const handleEdit = () => {
     setIsEditing(true)
     setEditedRequest({
-      text: request.text,
-      requester: request.requester,
-      status: request.status,
-      assigned_analyst_id: request.assigned_analyst_id,
-      due_date: request.due_date
+      text: displayRequest?.text,
+      requester: displayRequest?.requester,
+      status: displayRequest?.status,
+      assigned_analyst_id: displayRequest?.assigned_analyst_id,
+      due_date: displayRequest?.due_date
     })
   }
   
@@ -254,7 +288,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
       )
       
       await updateRequest.mutateAsync({
-        id: request.id,
+        id: displayRequest?.id || request?.id,
         payload: filteredRequest
       })
       setIsEditing(false)
@@ -269,7 +303,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   
   const confirmDelete = async () => {
     try {
-      await deleteRequest.mutateAsync(request.id)
+      await deleteRequest.mutateAsync(displayRequest?.id || request?.id)
       setShowDeleteConfirm(false)
       onRequestDeleted?.()
       onClose()
@@ -349,7 +383,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                     <div className="bg-indigo-700 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
                         <Dialog.Title className="text-base font-semibold leading-6 text-white">
-                          Task #{request.id}
+                          Task #{displayRequest?.id || request?.id}
                         </Dialog.Title>
                         <div className="ml-3 flex h-7 items-center space-x-2">
                           {!isEditing && (
@@ -386,7 +420,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                       </div>
                       <div className="mt-1">
                         <p className="text-sm text-indigo-300">
-                          Received {format(new Date(request.date_received), 'MMM d, yyyy')}
+                          Received {format(new Date(displayRequest?.date_received || request?.date_received), 'MMM d, yyyy')}
                         </p>
                       </div>
                     </div>
@@ -488,7 +522,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                           placeholder="Anonymous"
                                         />
                                       ) : (
-                                        request.requester || 'Anonymous'
+                                        displayRequest?.requester || 'Anonymous'
                                       )}
                                     </dd>
                                   </div>
@@ -497,7 +531,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                     <dd className="mt-1 text-sm text-gray-900">
                                       {isEditing ? (
                                         <select
-                                          value={editedRequest.status || request.status}
+                                          value={editedRequest.status || displayRequest?.status}
                                           onChange={(e) => handleFieldChange('status', e.target.value as RequestStatus)}
                                           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                         >
@@ -507,7 +541,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                           <option value="CLOSED">Closed</option>
                                         </select>
                                       ) : (
-                                        request.status.replace('_', ' ')
+                                        displayRequest?.status.replace('_', ' ')
                                       )}
                                     </dd>
                                   </div>
@@ -526,7 +560,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                           <option value="3">John Supervisor</option>
                                         </select>
                                       ) : (
-                                        request.assigned_analyst?.name || 'Unassigned'
+                                        displayRequest?.assigned_analyst?.name || 'Unassigned'
                                       )}
                                     </dd>
                                   </div>
@@ -541,7 +575,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                         />
                                       ) : (
-                                        request.due_date ? format(new Date(request.due_date), 'MMM d, yyyy') : 'Not set'
+                                        displayRequest?.due_date ? format(new Date(displayRequest?.due_date), 'MMM d, yyyy') : 'Not set'
                                       )}
                                     </dd>
                                   </div>
@@ -561,7 +595,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                     />
                                   ) : (
                                     <p className="text-sm text-gray-900 whitespace-pre-wrap">
-                                      {request.text}
+                                      {displayRequest?.text}
                                     </p>
                                   )}
                                 </div>
@@ -571,7 +605,23 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
 
                           {/* AI Analysis Tab */}
                           <Tab.Panel className="p-6">
-                            {request.latest_failed_job ? (
+                            {/* Show queue position if job is pending */}
+                            {displayRequest?.has_active_jobs && displayRequest?.queue_position !== undefined && displayRequest?.queue_position !== null && displayRequest?.queue_position >= 0 && (
+                              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-md p-4">
+                                <div className="flex">
+                                  <div className="ml-3">
+                                    <h3 className="text-sm font-medium text-amber-800">
+                                      {displayRequest.queue_position === 0 ? 'Processing Starting...' : `${displayRequest.queue_position} Jobs Ahead in Queue`}
+                                    </h3>
+                                    <div className="mt-2 text-sm text-amber-700">
+                                      Your request is queued for processing. This page will automatically update when processing completes.
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {displayRequest?.latest_failed_job ? (
                               <div className="space-y-4">
                                 <div className="bg-red-50 border border-red-200 rounded-md p-4">
                                   <div className="flex">
@@ -582,13 +632,13 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                       </h3>
                                       <div className="mt-2 text-sm text-red-700">
                                         <p className="font-medium">
-                                          Failed at: {format(new Date(request.latest_failed_job.created_at), 'MMM d, yyyy h:mm a')}
+                                          Failed at: {format(new Date(displayRequest?.latest_failed_job?.created_at), 'MMM d, yyyy h:mm a')}
                                         </p>
-                                        {request.latest_failed_job.error_message && (
+                                        {displayRequest?.latest_failed_job?.error_message && (
                                           <div className="mt-2">
                                             <p className="font-medium">Error Details:</p>
                                             <p className="mt-1 whitespace-pre-wrap font-mono text-xs bg-red-100 p-2 rounded">
-                                              {request.latest_failed_job.error_message}
+                                              {displayRequest?.latest_failed_job?.error_message}
                                             </p>
                                           </div>
                                         )}
@@ -605,20 +655,20 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                     </div>
                                   </div>
                                 </div>
-                                {request.latest_ai_output && (
+                                {displayRequest?.latest_ai_output && (
                                   <div className="text-sm text-gray-500">
-                                    Note: Showing last successful analysis from {format(new Date(request.latest_ai_output.created_at), 'MMM d, yyyy h:mm a')}
+                                    Note: Showing last successful analysis from {format(new Date(displayRequest?.latest_ai_output?.created_at), 'MMM d, yyyy h:mm a')}
                                   </div>
                                 )}
                               </div>
-                            ) : request.latest_ai_output ? (
+                            ) : displayRequest?.latest_ai_output ? (
                               <div className="space-y-6">
                                 <div>
                                   <h3 className="text-lg font-medium text-gray-900">
-                                    Processing Results (Version {request.latest_ai_output.version})
+                                    Processing Results (Version {displayRequest?.latest_ai_output?.version})
                                   </h3>
                                   <p className="text-sm text-gray-500">
-                                    Generated {format(new Date(request.latest_ai_output.created_at), 'MMM d, yyyy h:mm a')}
+                                    Generated {format(new Date(displayRequest?.latest_ai_output?.created_at), 'MMM d, yyyy h:mm a')}
                                   </p>
                                 </div>
 
@@ -626,8 +676,8 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                 {dashboardConfig && dashboardConfig.fields.length > 0 ? (
                                   <DashboardRenderer 
                                     config={dashboardConfig} 
-                                    data={transformAIOutputData(request.latest_ai_output)}
-                                    requestId={request.id}
+                                    data={transformAIOutputData(displayRequest?.latest_ai_output)}
+                                    requestId={displayRequest?.id || request?.id}
                                     workflowBlocks={workflowData?.blocks}
                                   />
                                 ) : (
@@ -641,14 +691,14 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                     
                                     {/* All workflow outputs are displayed dynamically above */}
 
-                                    {request.latest_ai_output.summary && (
+                                    {displayRequest?.latest_ai_output?.summary && (
                                       <div>
                                         <h4 className="text-sm font-medium text-gray-900 mb-2">Summary</h4>
                                         <div className="bg-gray-50 p-4 rounded-md">
                                           <p className="text-sm text-gray-900">
-                                            {typeof request.latest_ai_output.summary === 'string' 
-                                              ? request.latest_ai_output.summary 
-                                              : JSON.stringify(request.latest_ai_output.summary, null, 2)
+                                            {typeof displayRequest?.latest_ai_output?.summary === 'string' 
+                                              ? displayRequest?.latest_ai_output?.summary 
+                                              : JSON.stringify(displayRequest?.latest_ai_output?.summary, null, 2)
                                             }
                                           </p>
                                         </div>
@@ -668,7 +718,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                           {/* Custom Processing Tab */}
                           <Tab.Panel className="p-6">
                             <CustomInstructions 
-                              requestId={request.id} 
+                              requestId={displayRequest?.id || request?.id} 
                               workflowBlocks={workflowData?.blocks || []}
                             />
                           </Tab.Panel>
@@ -774,7 +824,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
           onClose={() => setShowDeleteConfirm(false)}
           onConfirm={confirmDelete}
           title="Delete Task"
-          message={`Are you sure you want to delete Task #${request.id}? This action cannot be undone and will remove all associated data including AI analysis.`}
+          message={`Are you sure you want to delete Task #${displayRequest?.id || request?.id}? This action cannot be undone and will remove all associated data including AI analysis.`}
           confirmText="Delete"
           type="danger"
         />
@@ -784,7 +834,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
           onClose={() => setShowUpdateConfirm(false)}
           onConfirm={confirmUpdate}
           title="Update Task"
-          message={`Are you sure you want to save these changes to Task #${request.id}?`}
+          message={`Are you sure you want to save these changes to Task #${displayRequest?.id || request?.id}?`}
           confirmText="Save Changes"
           type="info"
         />

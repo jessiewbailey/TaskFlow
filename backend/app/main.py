@@ -8,7 +8,7 @@ import time
 import asyncio
 from contextlib import asynccontextmanager
 from app.config import settings
-from app.routers import requests, jobs, internal, workflows, logs, custom_instructions, export, ground_truth, user_preferences, exercises, rag_search
+from app.routers import requests, jobs, internal, workflows, logs, custom_instructions, export, ground_truth, user_preferences, exercises, rag_search, webhooks
 from app.routers import settings as settings_router
 try:
     from app.routers import config_api
@@ -59,6 +59,7 @@ async def check_stuck_jobs():
                 
                 # Also check that job is not already being processed (started_at is null)
                 # and that it hasn't already completed or failed
+                # Skip jobs that have retry_count > 0 as they're being retried
                 result = await db.execute(
                     select(ProcessingJob)
                     .where(
@@ -66,7 +67,8 @@ async def check_stuck_jobs():
                             ProcessingJob.status == JobStatus.PENDING,
                             ProcessingJob.created_at < cutoff_time,
                             ProcessingJob.started_at.is_(None),  # Never started
-                            ProcessingJob.completed_at.is_(None)  # Never completed
+                            ProcessingJob.completed_at.is_(None),  # Never completed
+                            ProcessingJob.retry_count == 0  # Not a retry
                         )
                     )
                 )
@@ -105,6 +107,12 @@ async def lifespan(app: FastAPI):
     from app.services.job_service import job_queue_manager
     await job_queue_manager.start()
     
+    # Initialize event bus and bridge
+    from app.services.event_bus import event_bus
+    from app.services.event_bridge import event_bridge
+    await event_bus.connect()
+    await event_bridge.start()
+    
     # Start background task for checking stuck jobs
     stuck_job_checker = asyncio.create_task(check_stuck_jobs())
     
@@ -117,6 +125,10 @@ async def lifespan(app: FastAPI):
         await stuck_job_checker
     except asyncio.CancelledError:
         pass
+    
+    # Stop event bridge and bus
+    await event_bridge.stop()
+    await event_bus.disconnect()
 
 app = FastAPI(
     title="TaskFlow Processing API",
@@ -218,6 +230,7 @@ app.include_router(ground_truth.router)
 app.include_router(user_preferences.router)
 app.include_router(settings_router.router)
 app.include_router(rag_search.router)
+app.include_router(webhooks.router)
 if config_api:
     app.include_router(config_api.router)
 

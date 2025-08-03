@@ -18,6 +18,8 @@ from app.models.pydantic_models import (
 from pydantic import BaseModel
 from app.services.job_service import JobService
 from app.services.embedding_service import embedding_service
+from app.services.sse_manager import sse_manager, create_sse_response
+from app.services.event_bus import event_bus, get_channel_for_request, EventType, create_event
 import structlog
 
 logger = structlog.get_logger()
@@ -179,13 +181,15 @@ async def list_requests(
         )
     
     total_pages = (total + page_size - 1) // page_size
+    has_next = page < total_pages
     
     return RequestListResponse(
         requests=request_responses,
         total=total,
         page=page,
         page_size=page_size,
-        total_pages=total_pages
+        total_pages=total_pages,
+        has_next=has_next
     )
 
 @router.post("", response_model=CreateRequestResponse)
@@ -278,13 +282,24 @@ async def get_request(
     if request.ai_outputs:
         latest_ai_output = max(request.ai_outputs, key=lambda x: x.version)
     
-    # Check for active jobs
+    # Check for active jobs and get latest job ID
     active_jobs_result = await db.execute(
-        select(ProcessingJob.id)
+        select(ProcessingJob)
         .where(ProcessingJob.request_id == request_id)
         .where(ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
+        .order_by(ProcessingJob.created_at.desc())
+        .limit(1)
     )
-    has_active_jobs = active_jobs_result.scalar() is not None
+    active_job = active_jobs_result.scalar_one_or_none()
+    has_active_jobs = active_job is not None
+    
+    # Get queue position if there's an active job
+    queue_position = None
+    latest_job_id = None
+    if active_job:
+        from app.services.job_service import job_queue_manager
+        latest_job_id = str(active_job.id)
+        queue_position = job_queue_manager.get_queue_position(latest_job_id)
     
     # Get latest failed job
     failed_job_result = await db.execute(
@@ -328,8 +343,50 @@ async def get_request(
         exercise=Exercise.from_orm(request.exercise) if request.exercise else None,
         latest_ai_output=AIOutputResponse.from_orm(latest_ai_output) if latest_ai_output else None,
         has_active_jobs=has_active_jobs,
-        latest_failed_job=latest_failed_job
+        latest_failed_job=latest_failed_job,
+        queue_position=queue_position,
+        latest_job_id=latest_job_id
     )
+
+@router.get("/{request_id}/events")
+async def request_events(
+    request_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Stream real-time updates for a request using Server-Sent Events"""
+    
+    # Verify request exists
+    result = await db.execute(
+        select(Request).where(Request.id == request_id)
+    )
+    request = result.scalar_one_or_none()
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    # Connect SSE client
+    client = await sse_manager.connect(request_id)
+    
+    async def event_generator():
+        try:
+            # Send initial status
+            await client.send_event("status", {
+                "request_id": request_id,
+                "status": request.status.value,
+                "embedding_status": request.embedding_status.value
+            })
+            
+            # Generate events from the client's queue
+            async for event in sse_manager.generate_events(client):
+                yield event
+                
+        except asyncio.CancelledError:
+            # Client disconnected
+            raise
+        finally:
+            await sse_manager.disconnect(request_id, client)
+    
+    return create_sse_response(event_generator())
 
 @router.post("/{request_id}/process", response_model=ProcessJobResponse)
 async def process_request(

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Text, Date, Enum, TIMESTAMP, Integer, DECIMAL, JSON, ForeignKey, Boolean
+from sqlalchemy import Column, BigInteger, String, Text, Date, Enum, TIMESTAMP, Integer, DECIMAL, JSON, ForeignKey, Boolean, ARRAY
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -96,6 +96,7 @@ class User(Base):
     assigned_requests = relationship("Request", back_populates="assigned_analyst")
     ground_truth_entries = relationship("GroundTruthData", back_populates="creator")
     exercise_permissions = relationship("ExercisePermission", back_populates="user")
+    webhooks = relationship("Webhook", back_populates="creator")
 
 class Request(Base):
     __tablename__ = "requests"
@@ -263,3 +264,43 @@ class SystemSettings(Base):
     description = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+class Webhook(Base):
+    __tablename__ = "webhooks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, unique=True)
+    url = Column(String(500), nullable=False)
+    description = Column(Text, nullable=True)
+    events = Column(ARRAY(String), nullable=False)  # PostgreSQL array type
+    headers = Column(JSON, default={})
+    is_active = Column(Boolean, default=True)
+    secret_token = Column(String(255), nullable=True)
+    retry_count = Column(Integer, default=3)
+    timeout_seconds = Column(Integer, default=30)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+    last_triggered_at = Column(TIMESTAMP, nullable=True)
+    
+    # Relationships
+    creator = relationship("User", back_populates="webhooks")
+    deliveries = relationship("WebhookDelivery", back_populates="webhook", cascade="all, delete-orphan")
+
+class WebhookDelivery(Base):
+    __tablename__ = "webhook_deliveries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    webhook_id = Column(Integer, ForeignKey("webhooks.id", ondelete="CASCADE"), nullable=False)
+    event_type = Column(String(100), nullable=False)
+    event_data = Column(JSON, nullable=False)
+    status = Column(String(20), nullable=False, default="pending")  # pending, success, failed
+    attempts = Column(Integer, default=0)
+    response_status = Column(Integer, nullable=True)
+    response_body = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    delivered_at = Column(TIMESTAMP, nullable=True)
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    
+    # Relationships
+    webhook = relationship("Webhook", back_populates="deliveries")

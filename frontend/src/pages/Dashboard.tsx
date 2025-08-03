@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { FiltersPanel } from '../components/FiltersPanel'
-import { RequestsTable } from '../components/RequestsTable'
+import { RequestsTableLive } from '../components/RequestsTableLive'
 import { RequestDrawer } from '../components/RequestDrawer'
 import { NewRequestModal } from '../components/NewRequestModal'
 import { LogViewer } from '../components/LogViewer'
@@ -20,11 +20,23 @@ export const Dashboard: React.FC = () => {
   const { exercises, selectedExercise, selectExercise, loading: exercisesLoading } = useExercises()
   const { showLogsButton, showSimilarityFeatures } = useUISettings()
   
-  const [filters, setFilters] = useState<RequestFilters>({
-    page: 1,
-    page_size: 20,
-    sort_by: 'created_at',
-    order: 'desc'
+  // Initialize filters from URL parameters
+  const [filters, setFilters] = useState<RequestFilters>(() => {
+    const page = parseInt(searchParams.get('page') || '1', 10)
+    const pageSize = parseInt(searchParams.get('page_size') || '20', 10)
+    const sortBy = searchParams.get('sort_by') || 'created_at'
+    const order = searchParams.get('order') || 'desc'
+    const status = searchParams.get('status') || undefined
+    const analystId = searchParams.get('analyst') ? parseInt(searchParams.get('analyst')!, 10) : undefined
+    
+    return {
+      page: isNaN(page) || page < 1 ? 1 : page,
+      page_size: isNaN(pageSize) || pageSize < 1 ? 20 : pageSize,
+      sort_by: sortBy,
+      order: order as 'asc' | 'desc',
+      status: status as any,
+      analyst: analystId
+    }
   })
   const [selectedRequest, setSelectedRequest] = useState<Task | null>(null)
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false)
@@ -33,14 +45,58 @@ export const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [ragSearchEnabled, setRagSearchEnabled] = useState(true)
 
+  // Update URL when filters change
+  const updateFiltersAndURL = (newFilters: RequestFilters) => {
+    setFilters(newFilters)
+    
+    // Update URL parameters
+    const params = new URLSearchParams(searchParams)
+    
+    // Update pagination params
+    params.set('page', newFilters.page.toString())
+    if (newFilters.page_size !== 20) {
+      params.set('page_size', newFilters.page_size.toString())
+    } else {
+      params.delete('page_size')
+    }
+    
+    // Update sort params
+    if (newFilters.sort_by !== 'created_at') {
+      params.set('sort_by', newFilters.sort_by)
+    } else {
+      params.delete('sort_by')
+    }
+    
+    if (newFilters.order !== 'desc') {
+      params.set('order', newFilters.order)
+    } else {
+      params.delete('order')
+    }
+    
+    // Update filter params
+    if (newFilters.status) {
+      params.set('status', newFilters.status)
+    } else {
+      params.delete('status')
+    }
+    
+    if (newFilters.analyst) {
+      params.set('analyst', newFilters.analyst.toString())
+    } else {
+      params.delete('analyst')
+    }
+    
+    setSearchParams(params, { replace: true })
+  }
+
   // Update filters when selected exercise changes
   useEffect(() => {
     if (selectedExercise) {
-      setFilters(prev => ({
-        ...prev,
+      updateFiltersAndURL({
+        ...filters,
         exercise_id: selectedExercise.id,
         page: 1 // Reset to first page when exercise changes
-      }))
+      })
     }
   }, [selectedExercise])
 
@@ -84,6 +140,16 @@ export const Dashboard: React.FC = () => {
     }
   }, [searchParams, requestsData])
   
+  // When search query changes, reset to page 1
+  useEffect(() => {
+    if (searchQuery && filters.page > 1) {
+      updateFiltersAndURL({
+        ...filters,
+        page: 1
+      })
+    }
+  }, [searchQuery])
+
   // Filter data based on search query
   const filteredData = React.useMemo(() => {
     if (!requestsData || !searchQuery.trim()) {
@@ -211,7 +277,7 @@ export const Dashboard: React.FC = () => {
         </header>
 
         {/* Filters */}
-        <FiltersPanel filters={filters} onFiltersChange={setFilters} />
+        <FiltersPanel filters={filters} onFiltersChange={updateFiltersAndURL} />
 
         {/* Main content area */}
         <div className="flex-1 flex overflow-hidden">
@@ -222,11 +288,11 @@ export const Dashboard: React.FC = () => {
                 Error loading requests: {error.message}
               </div>
             ) : (
-              <RequestsTable
+              <RequestsTableLive
                 data={filteredData}
                 isLoading={isLoading}
                 filters={filters}
-                onFiltersChange={setFilters}
+                onFiltersChange={updateFiltersAndURL}
                 onRequestSelect={setSelectedRequest}
                 selectedRequestId={selectedRequest?.id}
               />

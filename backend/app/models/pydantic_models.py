@@ -139,6 +139,8 @@ class RequestResponse(BaseModel):
     latest_ai_output: Optional[AIOutputResponse]
     has_active_jobs: Optional[bool] = False
     latest_failed_job: Optional[JobProgressResponse] = None
+    queue_position: Optional[int] = None
+    latest_job_id: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -149,6 +151,7 @@ class RequestListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+    has_next: bool = False  # For pagination
 
 class CreateRequestResponse(BaseModel):
     id: int

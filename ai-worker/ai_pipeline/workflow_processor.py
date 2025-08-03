@@ -12,6 +12,8 @@ class WorkflowProcessor:
     def __init__(self):
         self.client = ollama.AsyncClient(host=settings.ollama_host)
         self.default_model = settings.model_name
+        self.on_step_complete = None  # Callback for step completion
+        self.on_progress = None  # Callback for progress updates
         
     async def execute_workflow(self, workflow_id: int, request_text: str, request_id: int = None) -> Dict[str, Any]:
         """Execute a workflow by processing its blocks in order"""
@@ -44,9 +46,19 @@ class WorkflowProcessor:
             block_id_to_name = {block['id']: block['name'] for block in blocks}
             
             # Execute each block in order
-            for block in blocks:
+            total_blocks = len(blocks)
+            for idx, block in enumerate(blocks):
                 block_name = block['name']
                 logger.info("Executing block", block_name=block_name, order=block['order'])
+                
+                # Emit progress event
+                if self.on_progress:
+                    await self.on_progress(
+                        step_number=idx + 1,
+                        total_steps=total_blocks,
+                        current_step=block_name,
+                        progress=(idx / total_blocks)
+                    )
                 
                 try:
                     # Process block inputs to prepare context variables
@@ -79,6 +91,20 @@ class WorkflowProcessor:
                     # Store result in context for future blocks
                     context[block_name.lower().replace(' ', '_')] = result
                     results[block_name] = result
+                    
+                    # Emit completion event for this step
+                    if self.on_step_complete:
+                        await self.on_step_complete(block_name, result)
+                    
+                    # Update progress after completion
+                    if self.on_progress:
+                        await self.on_progress(
+                            step_number=idx + 1,
+                            total_steps=total_blocks,
+                            current_step=block_name,
+                            progress=((idx + 1) / total_blocks),
+                            completed=True
+                        )
                     
                     logger.info("Block completed successfully", 
                                block_name=block_name,

@@ -1,0 +1,234 @@
+/* ProgressBar.css - Styles for the progress bar component */
+
+.progress-bar-container {
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+}
+
+.progress-bar-container.embedding {
+  background-color: #f0f9ff;
+}
+
+.progress-bar-container.workflow {
+  background-color: #fef3c7;
+}
+
+/* Header section */
+.progress-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.progress-bar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-indicator.status-pending {
+  background-color: #9ca3af;
+}
+
+.status-indicator.status-running {
+  background-color: #3b82f6;
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.status-completed {
+  background-color: #10b981;
+}
+
+.status-indicator.status-failed {
+  background-color: #ef4444;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.status-text {
+  text-transform: capitalize;
+  color: #374151;
+}
+
+.progress-percentage {
+  font-weight: 600;
+  color: #1f2937;
+  margin-left: 8px;
+}
+
+.progress-bar-timing {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* Progress track and fill */
+.progress-bar-track {
+  width: 100%;
+  height: 24px;
+  background-color: #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  transition: width 0.5s ease-in-out;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+
+.progress-bar-fill.animated {
+  background-size: 30px 30px;
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 30px 0;
+  }
+}
+
+.progress-bar-default {
+  background-color: #9ca3af;
+}
+
+.progress-bar-primary {
+  background-color: #3b82f6;
+}
+
+.progress-bar-embedding {
+  background-color: #06b6d4;
+}
+
+.progress-bar-workflow {
+  background-color: #f59e0b;
+}
+
+.progress-bar-success {
+  background-color: #10b981;
+}
+
+.progress-bar-error {
+  background-color: #ef4444;
+}
+
+.progress-bar-percentage-inline {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Details section */
+.progress-bar-details {
+  margin-top: 12px;
+}
+
+.progress-message {
+  font-size: 14px;
+  color: #4b5563;
+  margin-bottom: 4px;
+}
+
+.progress-steps {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .progress-bar-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .progress-bar-timing {
+    font-size: 12px;
+  }
+
+  .progress-bar-track {
+    height: 20px;
+  }
+
+  .progress-bar-details {
+    font-size: 13px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .progress-bar-container {
+    background-color: #1f2937;
+    color: #f3f4f6;
+  }
+
+  .progress-bar-container.embedding {
+    background-color: #1e3a5f;
+  }
+
+  .progress-bar-container.workflow {
+    background-color: #451a03;
+  }
+
+  .progress-bar-track {
+    background-color: #374151;
+  }
+
+  .status-text,
+  .progress-percentage {
+    color: #f3f4f6;
+  }
+
+  .progress-bar-timing,
+  .progress-message,
+  .progress-steps {
+    color: #d1d5db;
+  }
+}
