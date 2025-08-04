@@ -2,6 +2,7 @@ from sqlalchemy import Column, BigInteger, String, Text, Date, Enum, TIMESTAMP, 
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 from app.models.database import Base
 import enum
 import uuid
@@ -110,6 +111,7 @@ class Request(Base):
     exercise_id = Column(BigInteger, ForeignKey("exercises.id"), nullable=True)
     status = Column(Enum(RequestStatus, name='request_status'), default=RequestStatus.NEW)
     embedding_status = Column(Enum(EmbeddingStatus, name='embedding_status'), default=EmbeddingStatus.PENDING)
+    embedding_vector = Column(Vector(1536), nullable=True)  # For vector similarity search
     due_date = Column(Date, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
@@ -172,6 +174,8 @@ class Workflow(Base):
     creator = relationship("User")
     blocks = relationship("WorkflowBlock", back_populates="workflow", cascade="all, delete-orphan", order_by="WorkflowBlock.order")
     dashboard_config = relationship("WorkflowDashboardConfig", uselist=False, cascade="all, delete-orphan")
+    embedding_config = relationship("WorkflowEmbeddingConfig", uselist=False, cascade="all, delete-orphan")
+    similarity_config = relationship("WorkflowSimilarityConfig", uselist=False, cascade="all, delete-orphan")
 
 class WorkflowBlock(Base):
     __tablename__ = "workflow_blocks"
@@ -218,6 +222,31 @@ class WorkflowDashboardConfig(Base):
     
     # Relationships
     workflow = relationship("Workflow")
+
+class WorkflowEmbeddingConfig(Base):
+    __tablename__ = "workflow_embedding_configs"
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=False)
+    enabled = Column(Boolean, default=True, nullable=False)
+    embedding_template = Column(Text, nullable=False)  # Template using {{block_name.field}} syntax
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+    
+    # Relationships
+    workflow = relationship("Workflow", back_populates="embedding_config")
+
+class WorkflowSimilarityConfig(Base):
+    __tablename__ = "workflow_similarity_configs"
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=False)
+    fields = Column(JSON, nullable=False)  # Similar to dashboard config fields
+    created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+    
+    # Relationships
+    workflow = relationship("Workflow", back_populates="similarity_config")
 
 class CustomInstruction(Base):
     __tablename__ = "custom_instructions"

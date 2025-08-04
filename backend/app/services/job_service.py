@@ -4,11 +4,15 @@ from typing import Optional, Set
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from app.models.schemas import ProcessingJob, JobStatus, JobType, Request, RequestStatus
+from app.models.schemas import ProcessingJob, JobStatus, JobType, Request, RequestStatus, WorkflowEmbeddingConfig, AnalysisResult
 from app.models.pydantic_models import JobProgressResponse
 import httpx
 from app.config import settings
 import structlog
+import json
+import re
+from app.models.database import get_db_session
+from app.services.event_bus import event_bus
 
 logger = structlog.get_logger()
 
@@ -227,6 +231,9 @@ class JobService:
                 
                 logger.info("Job completed successfully", job_id=job_id)
                 
+                # Generate embedding after successful workflow completion
+                await self._generate_workflow_embedding(job.request_id, job.workflow_id, db)
+                
         except Exception as e:
             logger.error("Job processing failed", job_id=job_id, error=str(e))
             
@@ -282,3 +289,101 @@ class JobService:
                         logger.error(f"Job {job_id} failed after {job.retry_count + 1} attempts")
                     else:
                         logger.warning(f"Job {job_id} status is {job.status if job else 'None'}, not updating to FAILED")
+    
+    async def _generate_workflow_embedding(self, request_id: str, workflow_id: int, db: AsyncSession):
+        """Generate embedding based on workflow configuration after successful completion"""
+        try:
+            # Get embedding configuration for the workflow
+            config_result = await db.execute(
+                select(WorkflowEmbeddingConfig)
+                .where(WorkflowEmbeddingConfig.workflow_id == workflow_id)
+            )
+            embedding_config = config_result.scalar_one_or_none()
+            
+            # Skip if no config or embedding disabled
+            if not embedding_config or not embedding_config.enabled:
+                logger.info("Embedding generation skipped", 
+                           request_id=request_id, 
+                           reason="disabled or no config")
+                return
+            
+            # Get request data
+            request_result = await db.execute(
+                select(Request).where(Request.id == request_id)
+            )
+            request = request_result.scalar_one_or_none()
+            if not request:
+                logger.error("Request not found for embedding generation", request_id=request_id)
+                return
+            
+            # Get all analysis results for this request
+            results_query = await db.execute(
+                select(AnalysisResult)
+                .where(AnalysisResult.request_id == request_id)
+            )
+            analysis_results = results_query.scalars().all()
+            
+            # Build context dictionary for template replacement
+            context = {
+                "REQUEST_TEXT": request.request_text
+            }
+            
+            # Add analysis results to context
+            for result in analysis_results:
+                if result.result:
+                    # Parse JSON result and add to context
+                    try:
+                        result_data = json.loads(result.result)
+                        # Add each field from the result
+                        for key, value in result_data.items():
+                            context[f"{result.block_name}.{key}"] = str(value)
+                        # Also add the full result
+                        context[result.block_name] = result.result
+                    except:
+                        # If not JSON, just add as string
+                        context[result.block_name] = result.result
+            
+            # Process the template
+            embedding_text = embedding_config.embedding_template
+            
+            # Replace all variables in the template
+            for var_match in re.findall(r'\{\{([^}]+)\}\}', embedding_text):
+                var_name = var_match.strip()
+                if var_name in context:
+                    embedding_text = embedding_text.replace(f"{{{{{var_name}}}}}", context[var_name])
+                else:
+                    # Handle nested field access (e.g., BlockName.field)
+                    embedding_text = embedding_text.replace(f"{{{{{var_name}}}}}", "")
+            
+            # Generate embedding via embedding service
+            if embedding_text.strip():
+                await self._send_to_embedding_service(request_id, embedding_text)
+                logger.info("Embedding generation initiated", 
+                           request_id=request_id,
+                           text_length=len(embedding_text))
+            else:
+                logger.warning("Empty embedding text after template processing", 
+                              request_id=request_id)
+                
+        except Exception as e:
+            logger.error("Failed to generate workflow embedding", 
+                        request_id=request_id, 
+                        error=str(e))
+    
+    async def _send_to_embedding_service(self, request_id: str, text: str):
+        """Send text to embedding service for vector generation"""
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{settings.embedding_service_url}/embed",
+                    json={
+                        "request_id": request_id,
+                        "text": text
+                    }
+                )
+                response.raise_for_status()
+                logger.info("Sent to embedding service", request_id=request_id)
+        except Exception as e:
+            logger.error("Failed to send to embedding service", 
+                        request_id=request_id, 
+                        error=str(e))

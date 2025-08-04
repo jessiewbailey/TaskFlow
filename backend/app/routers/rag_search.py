@@ -6,7 +6,10 @@ from app.models.pydantic_models import RAGSearchRequest, RAGSearchResponse, RAGS
 from app.routers.auth import get_current_user
 from app.models.pydantic_models import User
 from app.services.embedding_service import embedding_service
+from app.models.schemas import Request, Workflow, WorkflowSimilarityConfig, AnalysisResult
+from sqlalchemy import select
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -44,19 +47,43 @@ async def perform_rag_search(
         
         logger.info(f"Search completed successfully, found {len(similar_tasks)} results")
         
-        # Convert to response format
+        # Convert to response format with custom display configuration
         results = []
         for task in similar_tasks:
-            result = RAGSearchResult(
-                task_id=task["task_id"],
-                title=task.get("title", f"Task #{task['task_id']}"),
-                description=task.get("description", ""),
-                similarity_score=task["score"],
-                status=task.get("status", ""),
-                priority=task.get("priority"),
-                created_at=task.get("created_at"),
-                exercise_id=task.get("exercise_id")
+            # Get the request and its workflow configuration
+            request_result = await db.execute(
+                select(Request).where(Request.id == task["task_id"])
             )
+            request = request_result.scalar_one_or_none()
+            
+            # Default display data
+            display_data = {
+                "task_id": task["task_id"],
+                "title": f"Task #{task['task_id']}",
+                "description": task.get("description", ""),
+                "similarity_score": task["score"],
+                "status": task.get("status", ""),
+                "priority": task.get("priority"),
+                "created_at": task.get("created_at"),
+                "exercise_id": task.get("exercise_id")
+            }
+            
+            # If request found, check for custom similarity display config
+            if request and request.workflow_id:
+                config_result = await db.execute(
+                    select(WorkflowSimilarityConfig)
+                    .where(WorkflowSimilarityConfig.workflow_id == request.workflow_id)
+                )
+                similarity_config = config_result.scalar_one_or_none()
+                
+                if similarity_config and similarity_config.fields:
+                    # Build custom display based on configuration
+                    custom_display = await _build_custom_display(
+                        request, similarity_config.fields, task["score"], db
+                    )
+                    display_data.update(custom_display)
+            
+            result = RAGSearchResult(**display_data)
             results.append(result)
         
         return RAGSearchResponse(
@@ -104,3 +131,87 @@ async def get_search_parameters(
             }
         }
     }
+
+async def _build_custom_display(
+    request: Request, 
+    field_configs: list, 
+    similarity_score: float,
+    db: AsyncSession
+) -> dict:
+    """Build custom display data based on workflow similarity configuration"""
+    custom_data = {}
+    
+    # Get analysis results for this request
+    results_query = await db.execute(
+        select(AnalysisResult)
+        .where(AnalysisResult.request_id == request.id)
+    )
+    analysis_results = results_query.scalars().all()
+    
+    # Build result lookup
+    results_by_block = {}
+    for result in analysis_results:
+        if result.result:
+            try:
+                results_by_block[result.block_name] = json.loads(result.result)
+            except:
+                results_by_block[result.block_name] = result.result
+    
+    # Process each configured field
+    for field_config in field_configs:
+        field_name = field_config.get("name", "")
+        field_source = field_config.get("source", "")
+        field_type = field_config.get("type", "text")
+        
+        if not field_name or not field_source:
+            continue
+        
+        # Get value based on source
+        value = None
+        
+        if field_source == "TASK_ID":
+            value = request.id
+        elif field_source == "REQUEST_TEXT":
+            value = request.request_text
+        elif field_source == "SIMILARITY_SCORE":
+            value = similarity_score
+        elif field_source == "STATUS":
+            value = request.status.value if request.status else ""
+        elif field_source == "CREATED_AT":
+            value = request.created_at.isoformat() if request.created_at else ""
+        elif field_source == "REQUESTER":
+            value = request.requester_id
+        elif "." in field_source:
+            # Handle block output fields (e.g., "Summarize.executive_summary")
+            block_name, field_path = field_source.split(".", 1)
+            if block_name in results_by_block:
+                block_data = results_by_block[block_name]
+                if isinstance(block_data, dict):
+                    value = block_data.get(field_path, "")
+                else:
+                    value = block_data
+        elif field_source in results_by_block:
+            # Full block output
+            value = results_by_block[field_source]
+        
+        # Format value based on type
+        if value is not None:
+            if field_type == "text" and not isinstance(value, str):
+                value = str(value)
+            elif field_type == "number":
+                try:
+                    value = float(value)
+                except:
+                    value = 0
+            elif field_type == "score":
+                value = round(similarity_score * 100, 1)  # Convert to percentage
+            
+            # Use sanitized field name for response
+            safe_field_name = field_name.lower().replace(" ", "_")
+            custom_data[safe_field_name] = value
+    
+    # Always include these core fields
+    custom_data["task_id"] = request.id
+    custom_data["similarity_score"] = similarity_score
+    
+    return custom_data

@@ -6,12 +6,18 @@ import {
   ArrowUpIcon, 
   ArrowDownIcon,
   ChevronUpIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  CubeIcon,
+  PresentationChartBarIcon,
+  MagnifyingGlassIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline'
 import { Workflow, CreateWorkflowRequest, CreateWorkflowBlockRequest, DashboardConfig } from '../types/workflow'
 import { WorkflowBlockEditor } from './WorkflowBlockEditor'
 import { SchemaEditor } from './SchemaEditor'
 import { DashboardBuilder } from './DashboardBuilder'
+import { WorkflowEmbeddingConfig } from './WorkflowEmbeddingConfig'
+import { WorkflowSimilarityConfig } from './WorkflowSimilarityConfig'
 import { dashboardClient } from '../api/dashboardClient'
 
 interface WorkflowEditorProps {
@@ -38,6 +44,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
     fields: [],
     layout: 'grid'
   })
+  const [activeTab, setActiveTab] = useState<'blocks' | 'dashboard' | 'embedding' | 'similarity'>('blocks')
 
   useEffect(() => {
     if (workflow) {
@@ -334,69 +341,138 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
         </div>
       </div>
 
-      {/* Blocks */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900">Workflow Blocks</h3>
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              console.log('Add Block button clicked')
-              addBlock()
-            }}
-            className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
-            type="button"
+            onClick={() => setActiveTab('blocks')}
+            className={`${
+              activeTab === 'blocks'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } flex items-center whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
           >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Add Block
+            <CubeIcon className="h-5 w-5 mr-2" />
+            Workflow Blocks
           </button>
-        </div>
-
-        {blocks.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">No blocks yet. Add your first block to get started.</p>
-          </div>
-        ) : (
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="blocks">
-              {(provided) => (
-                <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-                  {blocks.map((block, index) => (
-                    <Draggable key={`block-${index}`} draggableId={`block-${index}`} index={index}>
-                      {(provided) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          className="border border-gray-200 rounded-lg p-4"
-                        >
-                          <WorkflowBlockEditor
-                            block={block}
-                            blockIndex={index}
-                            availableBlocks={blocks.slice(0, index)}
-                            onUpdate={(updatedBlock) => updateBlock(index, updatedBlock)}
-                            onDelete={() => deleteBlock(index)}
-                            errors={errors}
-                            dragHandleProps={provided.dragHandleProps}
-                          />
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </DragDropContext>
-        )}
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`${
+              activeTab === 'dashboard'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } flex items-center whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+          >
+            <PresentationChartBarIcon className="h-5 w-5 mr-2" />
+            Dashboard Configuration
+          </button>
+          <button
+            onClick={() => setActiveTab('embedding')}
+            className={`${
+              activeTab === 'embedding'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } flex items-center whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+          >
+            <DocumentTextIcon className="h-5 w-5 mr-2" />
+            Embedding Configuration
+          </button>
+          <button
+            onClick={() => setActiveTab('similarity')}
+            className={`${
+              activeTab === 'similarity'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            } flex items-center whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+          >
+            <MagnifyingGlassIcon className="h-5 w-5 mr-2" />
+            Similarity Display
+          </button>
+        </nav>
       </div>
 
-      {/* Dashboard Builder */}
-      <DashboardBuilder
-        blocks={blocks}
-        dashboardConfig={dashboardConfig}
-        onConfigChange={setDashboardConfig}
-      />
+      {/* Tab Content */}
+      <div className="mt-6">
+        {activeTab === 'blocks' && (
+          <div className="bg-white shadow rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Workflow Blocks</h3>
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('Add Block button clicked')
+                  addBlock()
+                }}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
+                type="button"
+              >
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Add Block
+              </button>
+            </div>
+
+            {blocks.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No blocks yet. Add your first block to get started.</p>
+              </div>
+            ) : (
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="blocks">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
+                      {blocks.map((block, index) => (
+                        <Draggable key={`block-${index}`} draggableId={`block-${index}`} index={index}>
+                          {(provided) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className="border border-gray-200 rounded-lg p-4"
+                            >
+                              <WorkflowBlockEditor
+                                block={block}
+                                blockIndex={index}
+                                availableBlocks={blocks.slice(0, index)}
+                                onUpdate={(updatedBlock) => updateBlock(index, updatedBlock)}
+                                onDelete={() => deleteBlock(index)}
+                                errors={errors}
+                                dragHandleProps={provided.dragHandleProps}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'dashboard' && (
+          <DashboardBuilder
+            blocks={blocks}
+            dashboardConfig={dashboardConfig}
+            onConfigChange={setDashboardConfig}
+          />
+        )}
+
+        {activeTab === 'embedding' && workflow && (
+          <WorkflowEmbeddingConfig
+            workflowId={workflow.id}
+            blocks={workflow.blocks}
+          />
+        )}
+
+        {activeTab === 'similarity' && workflow && (
+          <WorkflowSimilarityConfig
+            workflowId={workflow.id}
+            blocks={workflow.blocks}
+          />
+        )}
+      </div>
     </div>
   )
 }

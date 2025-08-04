@@ -8,7 +8,7 @@ import time
 import asyncio
 from contextlib import asynccontextmanager
 from app.config import settings
-from app.routers import requests, jobs, internal, workflows, logs, custom_instructions, export, ground_truth, user_preferences, exercises, rag_search, webhooks
+from app.routers import requests, jobs, internal, workflows, logs, custom_instructions, export, ground_truth, user_preferences, exercises, rag_search, webhooks, workflow_embedding
 from app.routers import settings as settings_router
 try:
     from app.routers import config_api
@@ -229,6 +229,7 @@ app.include_router(export.router)
 app.include_router(ground_truth.router)
 app.include_router(user_preferences.router)
 app.include_router(settings_router.router)
+app.include_router(workflow_embedding.router)
 app.include_router(rag_search.router)
 app.include_router(webhooks.router)
 if config_api:

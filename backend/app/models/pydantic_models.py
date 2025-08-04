@@ -420,15 +420,62 @@ class RAGSearchRequest(BaseModel):
 
 class RAGSearchResult(BaseModel):
     task_id: int
-    title: str
-    description: str
     similarity_score: float
-    status: str
-    priority: Optional[str]
-    created_at: Optional[datetime]
-    exercise_id: Optional[int]
+    # Make other fields optional to support custom display
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    created_at: Optional[datetime] = None
+    exercise_id: Optional[int] = None
+    
+    class Config:
+        extra = "allow"  # Allow additional fields from custom display config
 
 class RAGSearchResponse(BaseModel):
     results: List[RAGSearchResult]
     query: str
     total_results: int
+
+# Workflow Embedding Configuration Models
+class WorkflowEmbeddingConfigCreate(BaseModel):
+    enabled: bool = True
+    embedding_template: str = Field(..., min_length=1, max_length=5000)
+    
+class WorkflowEmbeddingConfigUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    embedding_template: Optional[str] = Field(None, min_length=1, max_length=5000)
+    
+class WorkflowEmbeddingConfigResponse(BaseModel):
+    id: int
+    workflow_id: int
+    enabled: bool
+    embedding_template: str
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Workflow Similarity Configuration Models
+class SimilarityDisplayField(BaseModel):
+    name: str
+    type: str  # text, number, list, date, etc.
+    source: str  # Block_Name.field_path
+    display_options: Optional[Dict[str, Any]] = None  # formatting options
+
+class WorkflowSimilarityConfigCreate(BaseModel):
+    fields: List[SimilarityDisplayField]
+    
+class WorkflowSimilarityConfigUpdate(BaseModel):
+    fields: Optional[List[SimilarityDisplayField]] = None
+    
+class WorkflowSimilarityConfigResponse(BaseModel):
+    id: int
+    workflow_id: int
+    fields: List[SimilarityDisplayField]
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
