@@ -4,7 +4,7 @@ from typing import Optional, Set
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from app.models.schemas import ProcessingJob, JobStatus, JobType, Request, RequestStatus, WorkflowEmbeddingConfig, AnalysisResult
+from app.models.schemas import ProcessingJob, JobStatus, JobType, Request, RequestStatus, WorkflowEmbeddingConfig, AIOutput
 from app.models.pydantic_models import JobProgressResponse
 import httpx
 from app.config import settings
@@ -316,32 +316,40 @@ class JobService:
                 logger.error("Request not found for embedding generation", request_id=request_id)
                 return
             
-            # Get all analysis results for this request
-            results_query = await db.execute(
-                select(AnalysisResult)
-                .where(AnalysisResult.request_id == request_id)
+            # Get AI output for this request
+            output_query = await db.execute(
+                select(AIOutput)
+                .where(AIOutput.request_id == request_id)
+                .order_by(AIOutput.version.desc())
             )
-            analysis_results = results_query.scalars().all()
+            ai_output = output_query.scalars().first()
             
             # Build context dictionary for template replacement
             context = {
-                "REQUEST_TEXT": request.request_text
+                "REQUEST_TEXT": request.text
             }
             
-            # Add analysis results to context
-            for result in analysis_results:
-                if result.result:
-                    # Parse JSON result and add to context
-                    try:
-                        result_data = json.loads(result.result)
-                        # Add each field from the result
-                        for key, value in result_data.items():
-                            context[f"{result.block_name}.{key}"] = str(value)
-                        # Also add the full result
-                        context[result.block_name] = result.result
-                    except:
-                        # If not JSON, just add as string
-                        context[result.block_name] = result.result
+            # Add AI output to context if available
+            if ai_output and ai_output.summary:
+                try:
+                    # Parse the summary JSON which contains all workflow outputs
+                    summary_data = json.loads(ai_output.summary)
+                    
+                    # Add each block's output to context
+                    for block_name, block_data in summary_data.items():
+                        if isinstance(block_data, dict):
+                            # Add individual fields
+                            for key, value in block_data.items():
+                                context[f"{block_name}.{key}"] = str(value)
+                            # Also add the full block data as JSON
+                            context[block_name] = json.dumps(block_data)
+                        else:
+                            # If not a dict, just add as string
+                            context[block_name] = str(block_data)
+                except Exception as e:
+                    logger.warning("Failed to parse AI output summary", 
+                                 request_id=request_id, 
+                                 error=str(e))
             
             # Process the template
             embedding_text = embedding_config.embedding_template

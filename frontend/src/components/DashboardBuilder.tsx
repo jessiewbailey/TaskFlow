@@ -5,9 +5,7 @@ import {
   TrashIcon, 
   EyeIcon, 
   EyeSlashIcon,
-  Bars3Icon,
-  ChevronDownIcon,
-  ChevronUpIcon
+  Bars3Icon
 } from '@heroicons/react/24/outline'
 import { CreateWorkflowBlockRequest, DashboardConfig, DashboardFieldConfig } from '../types/workflow'
 import { DashboardPreview } from './DashboardPreview'
@@ -31,7 +29,6 @@ export const DashboardBuilder: React.FC<DashboardBuilderProps> = ({
   dashboardConfig,
   onConfigChange
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false)
   const [showAddField, setShowAddField] = useState(false)
   const [availableFields, setAvailableFields] = useState<AvailableField[]>([])
 
@@ -159,26 +156,8 @@ export const DashboardBuilder: React.FC<DashboardBuilderProps> = ({
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6 mt-6">
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center space-x-2 text-lg font-medium text-gray-900 hover:text-gray-700"
-        >
-          {isExpanded ? (
-            <ChevronUpIcon className="h-5 w-5" />
-          ) : (
-            <ChevronDownIcon className="h-5 w-5" />
-          )}
-          <span>AI Analysis Dashboard</span>
-        </button>
-        <span className="text-sm text-gray-500">
-          {dashboardConfig.fields.length} field{dashboardConfig.fields.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-
-      {isExpanded && (
-        <div className="space-y-4">
+    <div className="bg-white shadow rounded-lg p-6">
+      <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-600">
               Configure how AI analysis results appear in the request details
@@ -344,8 +323,7 @@ export const DashboardBuilder: React.FC<DashboardBuilderProps> = ({
           {dashboardConfig.fields.length > 0 && (
             <DashboardPreview config={dashboardConfig} />
           )}
-        </div>
-      )}
+      </div>
     </div>
   )
 }

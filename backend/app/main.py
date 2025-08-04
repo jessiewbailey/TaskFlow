@@ -221,6 +221,8 @@ async def get_available_models():
 app.include_router(requests.router)
 app.include_router(jobs.router)
 app.include_router(internal.router)
+# Include workflow_embedding before workflows to avoid route conflicts
+app.include_router(workflow_embedding.router)
 app.include_router(workflows.router)
 app.include_router(exercises.router)
 app.include_router(custom_instructions.router)
@@ -229,7 +231,6 @@ app.include_router(export.router)
 app.include_router(ground_truth.router)
 app.include_router(user_preferences.router)
 app.include_router(settings_router.router)
-app.include_router(workflow_embedding.router)
 app.include_router(rag_search.router)
 app.include_router(webhooks.router)
 if config_api:

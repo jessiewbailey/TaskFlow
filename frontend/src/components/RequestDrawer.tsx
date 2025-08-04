@@ -349,7 +349,7 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-40" onClose={onClose} static>
-        {/* Remove the overlay to allow RAG search to stay open */}
+        {/* Remove the overlay to allow AI search to stay open */}
 
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">

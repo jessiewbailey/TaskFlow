@@ -118,7 +118,7 @@ export const RAGSearchSidebar: React.FC<RAGSearchSidebarProps> = ({ isOpen, onCl
                     <div className="bg-indigo-700 px-4 py-6 sm:px-6">
                       <div className="flex items-center justify-between">
                         <Dialog.Title className="text-base font-semibold leading-6 text-white">
-                          RAG Search
+                          AI Search
                         </Dialog.Title>
                         <div className="ml-3 flex h-7 items-center">
                           <button

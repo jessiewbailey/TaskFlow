@@ -111,7 +111,7 @@ class Request(Base):
     exercise_id = Column(BigInteger, ForeignKey("exercises.id"), nullable=True)
     status = Column(Enum(RequestStatus, name='request_status'), default=RequestStatus.NEW)
     embedding_status = Column(Enum(EmbeddingStatus, name='embedding_status'), default=EmbeddingStatus.PENDING)
-    embedding_vector = Column(Vector(1536), nullable=True)  # For vector similarity search
+    # embedding_vector = Column(Vector(1536), nullable=True)  # For vector similarity search - requires pgvector extension
     due_date = Column(Date, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, server_default=func.current_timestamp(), onupdate=func.current_timestamp())

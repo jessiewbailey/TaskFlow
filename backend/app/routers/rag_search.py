@@ -6,7 +6,7 @@ from app.models.pydantic_models import RAGSearchRequest, RAGSearchResponse, RAGS
 from app.routers.auth import get_current_user
 from app.models.pydantic_models import User
 from app.services.embedding_service import embedding_service
-from app.models.schemas import Request, Workflow, WorkflowSimilarityConfig, AnalysisResult
+from app.models.schemas import Request, Workflow, WorkflowSimilarityConfig, AIOutput
 from sqlalchemy import select
 import logging
 import json
@@ -141,21 +141,22 @@ async def _build_custom_display(
     """Build custom display data based on workflow similarity configuration"""
     custom_data = {}
     
-    # Get analysis results for this request
-    results_query = await db.execute(
-        select(AnalysisResult)
-        .where(AnalysisResult.request_id == request.id)
+    # Get AI output for this request
+    output_query = await db.execute(
+        select(AIOutput)
+        .where(AIOutput.request_id == request.id)
+        .order_by(AIOutput.version.desc())
     )
-    analysis_results = results_query.scalars().all()
+    ai_output = output_query.scalars().first()
     
-    # Build result lookup
+    # Build result lookup from AI output
     results_by_block = {}
-    for result in analysis_results:
-        if result.result:
-            try:
-                results_by_block[result.block_name] = json.loads(result.result)
-            except:
-                results_by_block[result.block_name] = result.result
+    if ai_output and ai_output.summary:
+        try:
+            summary_data = json.loads(ai_output.summary)
+            results_by_block = summary_data
+        except Exception as e:
+            logger.warning(f"Failed to parse AI output summary: {str(e)}")
     
     # Process each configured field
     for field_config in field_configs:
@@ -172,7 +173,7 @@ async def _build_custom_display(
         if field_source == "TASK_ID":
             value = request.id
         elif field_source == "REQUEST_TEXT":
-            value = request.request_text
+            value = request.text
         elif field_source == "SIMILARITY_SCORE":
             value = similarity_score
         elif field_source == "STATUS":
@@ -180,7 +181,7 @@ async def _build_custom_display(
         elif field_source == "CREATED_AT":
             value = request.created_at.isoformat() if request.created_at else ""
         elif field_source == "REQUESTER":
-            value = request.requester_id
+            value = request.requester
         elif "." in field_source:
             # Handle block output fields (e.g., "Summarize.executive_summary")
             block_name, field_path = field_source.split(".", 1)
