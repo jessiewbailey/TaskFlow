@@ -1,0 +1,45 @@
+# Local Registry Overlay
+# This overlay configures TaskFlow to use a local Docker registry
+# Perfect for Docker Desktop development
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference to base configuration
+resources:
+  - ../../base
+
+# Override images to use local registry
+images:
+  - name: docker.io/jessiewbailey/taskflow-api
+    newName: localhost:5000/taskflow-api
+    newTag: latest
+  - name: docker.io/jessiewbailey/taskflow-ai
+    newName: localhost:5000/taskflow-ai
+    newTag: latest
+  - name: docker.io/jessiewbailey/taskflow-web
+    newName: localhost:5000/taskflow-web
+    newTag: latest
+
+# Patch to use IfNotPresent for local development
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+    target:
+      kind: Deployment
+      name: taskflow-api
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+    target:
+      kind: Deployment
+      name: taskflow-ai
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+    target:
+      kind: Deployment
+      name: taskflow-web

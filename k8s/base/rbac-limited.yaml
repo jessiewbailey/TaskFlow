@@ -1,0 +1,52 @@
+# Service Account for TaskFlow API (limited permissions version)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: taskflow-api
+  namespace: taskflow
+  labels:
+    app: taskflow
+    app.kubernetes.io/name: taskflow-api-sa
+    app.kubernetes.io/component: service-account
+    app.kubernetes.io/part-of: taskflow
+
+---
+# Role with namespace-only permissions to read pod logs
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: taskflow-namespace-log-reader
+  namespace: taskflow
+  labels:
+    app: taskflow
+    app.kubernetes.io/name: taskflow-log-reader
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: taskflow
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+
+---
+# RoleBinding for namespace-only permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: taskflow-namespace-log-reader-binding
+  namespace: taskflow
+  labels:
+    app: taskflow
+    app.kubernetes.io/name: taskflow-log-reader-binding
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: taskflow
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: taskflow-namespace-log-reader
+subjects:
+  - kind: ServiceAccount
+    name: taskflow-api
+    namespace: taskflow

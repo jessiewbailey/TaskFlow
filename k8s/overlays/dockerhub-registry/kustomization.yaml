@@ -1,0 +1,40 @@
+# Docker Hub Registry Overlay
+# This overlay configures TaskFlow to use Docker Hub images
+# Configured for jessiewbailey Docker Hub username
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference to base configuration
+resources:
+  - ../../base
+
+# Override images to use Docker Hub (this is now the default, so no changes needed)
+# Base configuration already uses docker.io/jessiewbailey/
+# This overlay exists for consistency and future customization
+
+# Optional: Add imagePullSecrets if using private repositories
+# patches:
+#   - patch: |-
+#       - op: add
+#         path: /spec/template/spec/imagePullSecrets
+#         value:
+#           - name: dockerhub-secret
+#     target:
+#       kind: Deployment
+#       name: taskflow-api
+#   - patch: |-
+#       - op: add
+#         path: /spec/template/spec/imagePullSecrets
+#         value:
+#           - name: dockerhub-secret
+#     target:
+#       kind: Deployment
+#       name: taskflow-ai
+#   - patch: |-
+#       - op: add
+#         path: /spec/template/spec/imagePullSecrets
+#         value:
+#           - name: dockerhub-secret
+#     target:
+#       kind: Deployment
+#       name: taskflow-web

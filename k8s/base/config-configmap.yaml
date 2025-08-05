@@ -1,0 +1,21 @@
+# TaskFlow Configuration ConfigMap
+# This ConfigMap contains all configuration files for TaskFlow
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taskflow-config
+  namespace: taskflow
+  labels:
+    app: taskflow
+    component: config
+data:
+  # Domain configuration
+  domain-config.yaml: |
+    # Domain-specific configuration
+    domain: "generic"
+    terminology:
+      task: "Task"
+      request: "Request"
+      requester: "Requester"
+      analyst: "Analyst"
+    

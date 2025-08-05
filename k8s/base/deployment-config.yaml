@@ -1,0 +1,27 @@
+# TaskFlow Deployment Configuration
+# This file controls which components to deploy and how to configure them
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: taskflow-deployment-config
+  namespace: taskflow
+  labels:
+    app: taskflow
+    app.kubernetes.io/name: deployment-config
+    app.kubernetes.io/component: configuration
+    app.kubernetes.io/part-of: taskflow
+data:
+  # Ollama Configuration
+  OLLAMA_DEPLOYMENT_MODE: "internal"
+  EXTERNAL_OLLAMA_HOST: "http://ollama-service:11434"
+  
+  # Model Configuration
+  DEFAULT_MODEL: "gemma2:2b"  # Using lighter model for demo (change to gemma3:27b for production)
+  
+  # Resource Configuration
+  POSTGRES_DEPLOYMENT_MODE: "internal"  # internal | external
+  
+  # Logging Configuration
+  LOG_LEVEL: "INFO"
+  ENABLE_KUBERNETES_LOGS: "true"

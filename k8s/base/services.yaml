@@ -1,0 +1,65 @@
+# TaskFlow API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskflow-api
+  namespace: taskflow
+  labels:
+    app: taskflow-api
+    app.kubernetes.io/name: taskflow-api
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: taskflow
+spec:
+  type: ClusterIP
+  selector:
+    app: taskflow-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+
+---
+# TaskFlow AI Worker Service  
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskflow-ai
+  namespace: taskflow
+  labels:
+    app: taskflow-ai
+    app.kubernetes.io/name: taskflow-ai
+    app.kubernetes.io/component: ai-worker
+    app.kubernetes.io/part-of: taskflow
+spec:
+  type: ClusterIP
+  selector:
+    app: taskflow-ai
+  ports:
+    - name: http
+      port: 8001
+      targetPort: 8001
+      protocol: TCP
+
+---
+# TaskFlow Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: taskflow-web
+  namespace: taskflow
+  labels:
+    app: taskflow-web
+    app.kubernetes.io/name: taskflow-web
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: taskflow
+spec:
+  type: ClusterIP
+  selector:
+    app: taskflow-web
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+

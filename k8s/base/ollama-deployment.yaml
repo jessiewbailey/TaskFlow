@@ -1,0 +1,218 @@
+# Ollama LLM Server Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: taskflow
+  labels:
+    app: ollama
+    app.kubernetes.io/name: ollama
+    app.kubernetes.io/component: llm-server
+    app.kubernetes.io/part-of: taskflow
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Ollama needs consistent storage
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+        app.kubernetes.io/name: ollama
+        app.kubernetes.io/component: llm-server
+        app.kubernetes.io/part-of: taskflow
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: "OnRootMismatch"
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ollama
+          image: docker.io/jessiewbailey/taskflow-ollama:latest
+          ports:
+            - name: http
+              containerPort: 11434
+              protocol: TCP
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0"
+            - name: OLLAMA_ORIGINS
+              value: "*"
+            # Using default HOME for ollama image
+          readinessProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30  # 5 minutes total
+          resources:
+            requests:
+              memory: "4Gi"
+              cpu: "1000m"
+            limits:
+              memory: "8Gi"
+              cpu: "4000m"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: false  # Ollama needs to write to its data directory
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /home/ubuntu/.ollama
+            - name: tmp
+              mountPath: /tmp
+            - name: var-tmp
+              mountPath: /var/tmp
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-pvc
+        - name: tmp
+          emptyDir: {}
+        - name: var-tmp
+          emptyDir: {}
+      restartPolicy: Always
+
+---
+# Ollama Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-service
+  namespace: taskflow
+  labels:
+    app: ollama
+    app.kubernetes.io/name: ollama-service
+    app.kubernetes.io/component: llm-server
+    app.kubernetes.io/part-of: taskflow
+spec:
+  type: ClusterIP
+  selector:
+    app: ollama
+  ports:
+    - name: http
+      port: 11434
+      targetPort: 11434
+      protocol: TCP
+
+---
+# Ollama Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-pvc
+  namespace: taskflow
+  labels:
+    app: ollama
+    app.kubernetes.io/name: ollama-storage
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: taskflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  # storageClassName: ""  # Use default storage class
+
+---
+# Ollama Model Initialization Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ollama-model-init
+  namespace: taskflow
+  labels:
+    app: ollama-init
+    app.kubernetes.io/name: ollama-model-init
+    app.kubernetes.io/component: initialization
+    app.kubernetes.io/part-of: taskflow
+spec:
+  template:
+    metadata:
+      labels:
+        app: ollama-init
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      restartPolicy: OnFailure
+      containers:
+        - name: model-puller
+          image: docker.io/jessiewbailey/taskflow-ollama:latest
+          command: ["/bin/bash"]
+          args:
+            - -c
+            - |
+              echo "Setting up Ollama environment..."
+              export OLLAMA_HOST=http://ollama-service:11434
+              
+              echo "Waiting for Ollama service to be ready..."
+              until /bin/ollama list > /dev/null 2>&1; do
+                echo "Waiting for Ollama service..."
+                sleep 10
+              done
+              
+              echo "Ollama service is ready! Pulling required models..."
+              /bin/ollama pull gemma2:2b || echo "Failed to pull gemma2:2b"
+              /bin/ollama pull nomic-embed-text || echo "Failed to pull nomic-embed-text"
+              
+              echo "Available models:"
+              /bin/ollama list
+              echo "Model initialization complete"
+          env:
+            - name: OLLAMA_HOST
+              value: "http://ollama-service:11434"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

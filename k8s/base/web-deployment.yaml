@@ -1,0 +1,90 @@
+# TaskFlow Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskflow-web
+  namespace: taskflow
+  labels:
+    app: taskflow-web
+    app.kubernetes.io/name: taskflow-web
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: taskflow
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: taskflow-web
+  template:
+    metadata:
+      labels:
+        app: taskflow-web
+        app.kubernetes.io/name: taskflow-web
+        app.kubernetes.io/component: frontend
+        app.kubernetes.io/part-of: taskflow
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: web
+          image: docker.io/jessiewbailey/taskflow-web:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            # Frontend configuration - references API service
+            - name: VITE_API_BASE_URL
+              value: "" # Use relative URLs to work with ingress
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+      volumes:
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+      restartPolicy: Always

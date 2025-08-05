@@ -404,5 +404,6 @@ coverage/
 # TaskFlow specific - prevent committing actual secrets
 k8s/secrets.yaml.claude/
 .claude/
-k8s/
+k8s_private/
 test-files/
+secrets.yaml

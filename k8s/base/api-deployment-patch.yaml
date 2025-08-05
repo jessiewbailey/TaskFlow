@@ -1,0 +1,29 @@
+# Patch for API deployment to properly mount config files
+# This should be applied via Kustomization
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskflow-api
+  namespace: taskflow
+spec:
+  template:
+    spec:
+      containers:
+      - name: api
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: ui-labels
+          mountPath: /app/config/ui-labels
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: taskflow-config
+          items:
+          - key: domain-config.yaml
+            path: domain-config.yaml
+      - name: ui-labels
+        configMap:
+          name: taskflow-ui-labels
