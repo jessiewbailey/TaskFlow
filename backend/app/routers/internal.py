@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.database import get_db
-from app.models.schemas import Request, AIOutput, EmbeddingStatus
+from app.models.schemas import Request, AIOutput, EmbeddingStatus, ProcessingJob, JobType, JobStatus
 from app.models.pydantic_models import AIOutputResponse, EmbeddingStatus as EmbeddingStatusEnum
+from app.services.job_service import JobService
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import json
@@ -114,3 +115,46 @@ async def embedding_complete_callback(
     # - Updating metrics
     
     return {"message": "Callback processed successfully"}
+
+class CreateJobRequest(BaseModel):
+    request_id: int
+    job_type: str
+    workflow_id: Optional[int] = None
+
+@router.post("/jobs")
+async def create_internal_job(
+    job_request: CreateJobRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a processing job (internal API for AI worker)"""
+    
+    # Verify request exists
+    result = await db.execute(
+        select(Request).where(Request.id == job_request.request_id)
+    )
+    request = result.scalar_one_or_none()
+    
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    # For embedding jobs, use the request's workflow_id
+    workflow_id = job_request.workflow_id
+    if not workflow_id and job_request.job_type == "EMBEDDING":
+        workflow_id = request.workflow_id
+    
+    # Create job using JobService
+    job_service = JobService(db)
+    job_id = await job_service.create_job(
+        request_id=job_request.request_id,
+        job_type=JobType(job_request.job_type),
+        workflow_id=workflow_id
+    )
+    
+    await db.commit()
+    
+    logger.info("Created internal job",
+               request_id=job_request.request_id,
+               job_type=job_request.job_type,
+               job_id=job_id)
+    
+    return {"job_id": job_id}

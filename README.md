@@ -371,6 +371,89 @@ cd frontend
 npm run lint
 npm run typecheck
 ```
+
+## Testing
+
+TaskFlow includes comprehensive testing infrastructure for both backend and frontend components.
+
+### Quick Test Commands
+
+```bash
+# Run all tests
+make test
+
+# Run backend tests only
+make test-backend
+
+# Run frontend tests only  
+make test-frontend
+
+# Generate coverage reports
+make coverage
+
+# Run linters
+make lint
+```
+
+### Backend Testing (pytest)
+
+```bash
+cd backend
+
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+
+# Run specific test file
+pytest tests/unit/services/test_job_service.py
+
+# Run tests matching pattern
+pytest -k "test_create"
+
+# Run only unit tests
+pytest tests/unit -v
+
+# Run only integration tests
+pytest tests/integration -v -m integration
+```
+
+### Frontend Testing (Jest + React Testing Library)
+
+```bash
+cd frontend
+
+# Run tests in watch mode
+npm test
+
+# Run tests once with coverage
+npm test -- --coverage --watchAll=false
+
+# Run specific test file
+npm test -- RequestCard.test.tsx
+
+# Run E2E tests (if configured)
+npm run test:e2e
+```
+
+### Test Structure
+
+- **Backend**: Tests are in `backend/tests/` with unit and integration subdirectories
+- **Frontend**: Tests are colocated with components (e.g., `Component.test.tsx`)
+- **Fixtures**: Shared test data and mocks in `conftest.py` (backend) and `test-utils/` (frontend)
+
+### Pre-commit Hooks
+
+Install pre-commit hooks to ensure code quality:
+
+```bash
+./scripts/setup-pre-commit.sh
+```
+
+This will run linting, formatting, and tests before each commit.
+
+For detailed testing documentation, see [TESTING_PLAN.md](TESTING_PLAN.md).
 ## Configuration
 
 ### UI Labels Customization

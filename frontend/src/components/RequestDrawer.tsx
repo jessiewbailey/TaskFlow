@@ -757,17 +757,30 @@ export const RequestDrawer: React.FC<RequestDrawerProps> = ({
                                                 Task #{task.task_id}
                                               </h4>
                                               <span className="text-xs text-gray-500">
-                                                {(task.score * 100).toFixed(1)}% similarity
+                                                {((task.similarity_score || task.score || 0) * 100).toFixed(1)}% similarity
                                               </span>
                                             </div>
-                                            <p className="mt-1 text-sm text-gray-600 line-clamp-3">
-                                              {task.description}
-                                            </p>
-                                            <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                                              <span>Status: {task.status}</span>
-                                              {task.priority && <span>Priority: {task.priority}</span>}
+                                            
+                                            {/* Display summary if available from similarity config */}
+                                            {task.summary && (
+                                              <p className="mt-1 text-sm text-gray-700 font-medium">
+                                                {task.summary}
+                                              </p>
+                                            )}
+                                            
+                                            {/* Fallback to description if no summary */}
+                                            {!task.summary && task.description && (
+                                              <p className="mt-1 text-sm text-gray-600 line-clamp-3">
+                                                {task.description}
+                                              </p>
+                                            )}
+                                            
+                                            {/* Display any other custom fields */}
+                                            <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                                              {task.status && <span className="bg-gray-100 px-2 py-1 rounded">Status: {task.status}</span>}
+                                              {task.priority && <span className="bg-gray-100 px-2 py-1 rounded">Priority: {task.priority}</span>}
                                               {task.created_at && (
-                                                <span>Created: {new Date(task.created_at).toLocaleDateString()}</span>
+                                                <span className="bg-gray-100 px-2 py-1 rounded">Created: {new Date(task.created_at).toLocaleDateString()}</span>
                                               )}
                                             </div>
                                           </div>

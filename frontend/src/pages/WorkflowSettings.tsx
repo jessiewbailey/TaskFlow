@@ -115,6 +115,41 @@ export const WorkflowSettings: React.FC = () => {
         dashboardConfig = null
       }
 
+      // Fetch embedding configuration
+      let embeddingConfig = null
+      try {
+        const embeddingResponse = await fetch(`/api/workflows/${workflow.id}/embedding-config`)
+        if (embeddingResponse.ok) {
+          const data = await embeddingResponse.json()
+          if (data) {
+            embeddingConfig = {
+              enabled: data.enabled,
+              embedding_template: data.embedding_template
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch embedding config for export:', error)
+        embeddingConfig = null
+      }
+
+      // Fetch similarity configuration
+      let similarityConfig = null
+      try {
+        const similarityResponse = await fetch(`/api/workflows/${workflow.id}/similarity-config`)
+        if (similarityResponse.ok) {
+          const data = await similarityResponse.json()
+          if (data) {
+            similarityConfig = {
+              fields: data.fields
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch similarity config for export:', error)
+        similarityConfig = null
+      }
+
       // Create a clean export format without internal IDs and timestamps
       const exportData = {
         name: workflow.name,
@@ -138,7 +173,11 @@ export const WorkflowSettings: React.FC = () => {
           }))
         })),
         // Include dashboard configuration if it exists
-        dashboard_config: dashboardConfig
+        dashboard_config: dashboardConfig,
+        // Include embedding configuration if it exists
+        embedding_config: embeddingConfig,
+        // Include similarity configuration if it exists
+        similarity_config: similarityConfig
       }
 
       const dataStr = JSON.stringify(exportData, null, 2)
@@ -230,6 +269,61 @@ export const WorkflowSettings: React.FC = () => {
         } catch (dashboardError) {
           console.warn('Failed to import dashboard configuration:', dashboardError)
           // Don't fail the entire import if dashboard config fails
+        }
+      }
+      
+      // Import embedding configuration if it exists in the file
+      if (workflowData.embedding_config && createdWorkflow && createdWorkflow.id) {
+        try {
+          const embeddingConfig = {
+            enabled: workflowData.embedding_config.enabled ?? true,
+            embedding_template: workflowData.embedding_config.embedding_template || ''
+          }
+          
+          const response = await fetch(`/api/workflows/${createdWorkflow.id}/embedding-config`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(embeddingConfig)
+          })
+          
+          if (response.ok) {
+            console.log('Embedding configuration imported successfully')
+          } else {
+            console.warn('Failed to import embedding configuration:', response.statusText)
+          }
+        } catch (embeddingError) {
+          console.warn('Failed to import embedding configuration:', embeddingError)
+          // Don't fail the entire import if embedding config fails
+        }
+      }
+      
+      // Import similarity configuration if it exists in the file
+      if (workflowData.similarity_config && createdWorkflow && createdWorkflow.id) {
+        try {
+          const similarityConfig = {
+            fields: workflowData.similarity_config.fields || []
+          }
+          
+          if (similarityConfig.fields.length > 0) {
+            const response = await fetch(`/api/workflows/${createdWorkflow.id}/similarity-config`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(similarityConfig)
+            })
+            
+            if (response.ok) {
+              console.log('Similarity configuration imported successfully')
+            } else {
+              console.warn('Failed to import similarity configuration:', response.statusText)
+            }
+          }
+        } catch (similarityError) {
+          console.warn('Failed to import similarity configuration:', similarityError)
+          // Don't fail the entire import if similarity config fails
         }
       }
       

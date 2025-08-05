@@ -156,6 +156,36 @@ CREATE TABLE workflow_dashboard_configs (
 -- GIN index for dashboard fields
 CREATE INDEX idx_dashboard_configs_fields ON workflow_dashboard_configs USING GIN (fields);
 
+-- Workflow embedding configuration table
+CREATE TABLE workflow_embedding_configs (
+  id BIGSERIAL PRIMARY KEY,
+  workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+  enabled BOOLEAN NOT NULL DEFAULT false,
+  embedding_template TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(workflow_id)
+);
+
+-- Index for embedding configs
+CREATE INDEX idx_workflow_embedding_configs_workflow_id ON workflow_embedding_configs(workflow_id);
+
+-- Workflow similarity configuration table
+CREATE TABLE workflow_similarity_configs (
+  id BIGSERIAL PRIMARY KEY,
+  workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+  fields JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(workflow_id)
+);
+
+-- GIN index for similarity config fields
+CREATE INDEX idx_workflow_similarity_configs_fields ON workflow_similarity_configs USING GIN (fields);
+
+-- Index for similarity configs
+CREATE INDEX idx_workflow_similarity_configs_workflow_id ON workflow_similarity_configs(workflow_id);
+
 -- Custom instructions table
 CREATE TABLE custom_instructions (
   id BIGSERIAL PRIMARY KEY,
@@ -217,6 +247,12 @@ CREATE TRIGGER update_workflow_blocks_updated_at BEFORE UPDATE ON workflow_block
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_dashboard_configs_updated_at BEFORE UPDATE ON workflow_dashboard_configs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workflow_embedding_configs_updated_at BEFORE UPDATE ON workflow_embedding_configs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workflow_similarity_configs_updated_at BEFORE UPDATE ON workflow_similarity_configs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_custom_instructions_updated_at BEFORE UPDATE ON custom_instructions
@@ -419,3 +455,68 @@ COMMENT ON COLUMN webhooks.secret_token IS 'Used to generate HMAC signatures for
 
 COMMENT ON TABLE webhook_deliveries IS 'Tracks webhook delivery attempts and their results';
 COMMENT ON COLUMN webhook_deliveries.event_data IS 'The actual event payload that was/will be sent';
+-- ============================================
+-- Migration: Add pgvector support for embeddings
+-- Date: 2024-08-03
+-- ============================================
+
+-- Add pgvector extension for embedding support
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Add embedding_vector column to requests table
+ALTER TABLE requests 
+ADD COLUMN IF NOT EXISTS embedding_vector vector(1536);
+
+-- Create index for similarity search
+CREATE INDEX IF NOT EXISTS requests_embedding_vector_idx 
+ON requests 
+USING ivfflat (embedding_vector vector_cosine_ops)
+WITH (lists = 100);
+
+-- ============================================
+-- Migration: Add workflow embedding configuration
+-- Date: 2024-08-04
+-- ============================================
+
+-- Create table for workflow embedding configuration
+CREATE TABLE IF NOT EXISTS workflow_embedding_configs (
+    id BIGSERIAL PRIMARY KEY,
+    workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    enabled BOOLEAN DEFAULT true,
+    -- Template for building embedding text using workflow outputs
+    embedding_template TEXT NOT NULL,
+    -- Example: "Summary: {{Summarize Content.executive_summary}}\nTopics: {{Classify Topic.primary_topic}}"
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(workflow_id)
+);
+
+-- Create table for similarity search display configuration
+CREATE TABLE IF NOT EXISTS workflow_similarity_configs (
+    id BIGSERIAL PRIMARY KEY,
+    workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    -- JSON configuration similar to dashboard config
+    fields JSON NOT NULL,
+    -- Example: [{"name": "Summary", "type": "text", "source": "Summarize Content.executive_summary"}, ...]
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(workflow_id)
+);
+
+-- Create triggers for new tables
+CREATE TRIGGER update_workflow_embedding_configs_updated_at 
+BEFORE UPDATE ON workflow_embedding_configs 
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workflow_similarity_configs_updated_at 
+BEFORE UPDATE ON workflow_similarity_configs 
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Comments for documentation
+COMMENT ON TABLE workflow_embedding_configs IS 'Stores configuration for generating embeddings from workflow outputs';
+COMMENT ON COLUMN workflow_embedding_configs.embedding_template IS 'Template string with placeholders for workflow output values';
+
+COMMENT ON TABLE workflow_similarity_configs IS 'Defines which fields to display in similarity search results';
+COMMENT ON COLUMN workflow_similarity_configs.fields IS 'JSON array of field configurations for similarity search display';
+
+EOF < /dev/null

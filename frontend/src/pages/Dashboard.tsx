@@ -89,14 +89,23 @@ export const Dashboard: React.FC = () => {
     setSearchParams(params, { replace: true })
   }
 
+  // Track if this is the initial load
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  
   // Update filters when selected exercise changes
   useEffect(() => {
     if (selectedExercise) {
       updateFiltersAndURL({
         ...filters,
         exercise_id: selectedExercise.id,
-        page: 1 // Reset to first page when exercise changes
+        // Only reset to page 1 if this is not the initial load
+        page: isInitialLoad ? filters.page : 1
       })
+      
+      // After the first update, mark as no longer initial load
+      if (isInitialLoad) {
+        setIsInitialLoad(false)
+      }
     }
   }, [selectedExercise])
 

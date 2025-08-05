@@ -2,7 +2,6 @@ from sqlalchemy import Column, BigInteger, String, Text, Date, Enum, TIMESTAMP, 
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-from pgvector.sqlalchemy import Vector
 from app.models.database import Base
 import enum
 import uuid
@@ -301,7 +300,8 @@ class Webhook(Base):
     name = Column(String(255), nullable=False, unique=True)
     url = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
-    events = Column(ARRAY(String), nullable=False)  # PostgreSQL array type
+    # Use JSON for compatibility with SQLite in tests, ARRAY for production
+    events = Column(JSON, nullable=False)  # Store as JSON array for compatibility
     headers = Column(JSON, default={})
     is_active = Column(Boolean, default=True)
     secret_token = Column(String(255), nullable=True)

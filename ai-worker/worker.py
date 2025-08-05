@@ -150,6 +150,35 @@ async def process_workflow_job(request: ProcessRequest):
         "version": version
     })
     
+    # Check if embedding should be generated for this workflow
+    should_generate_embedding = await check_workflow_embedding_config(request.workflow_id)
+    
+    if should_generate_embedding:
+        # Create embedding job after successful workflow completion
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    f"{settings.backend_api_url}/api/internal/jobs",
+                    json={
+                        "request_id": request.request_id,
+                        "job_type": "EMBEDDING"
+                    }
+                )
+                if response.status_code == 200:
+                    job_data = response.json()
+                    logger.info("Created embedding job after workflow completion",
+                               request_id=request.request_id,
+                               embedding_job_id=job_data.get("job_id"))
+                else:
+                    logger.warning("Failed to create embedding job",
+                                 request_id=request.request_id,
+                                 status_code=response.status_code)
+        except Exception as e:
+            logger.error("Error creating embedding job after workflow",
+                        request_id=request.request_id,
+                        error=str(e))
+            # Don't fail the workflow if embedding job creation fails
+    
     return {"status": "completed", "version": version}
 
 async def process_embedding_job(request_id: int):
@@ -161,7 +190,7 @@ async def process_embedding_job(request_id: int):
         await event_publisher.job_started(request_id, "EMBEDDING")
         await event_publisher.embedding_progress(request_id, "PROCESSING", 0.1, "Fetching request data")
         
-        # Get request data
+        # Get request data with workflow output
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 f"{settings.backend_api_url}/api/requests/{request_id}"
@@ -171,17 +200,53 @@ async def process_embedding_job(request_id: int):
         
         # Update embedding status to PROCESSING
         await update_embedding_status(request_id, "PROCESSING")
-        await event_publisher.embedding_progress(request_id, "PROCESSING", 0.3, "Preparing text for embedding")
+        await event_publisher.embedding_progress(request_id, "PROCESSING", 0.2, "Fetching workflow embedding configuration")
         
-        # Prepare task data for embedding
+        # Get workflow embedding configuration
+        workflow_id = request_data.get("workflow_id")
+        if not workflow_id:
+            raise ValueError("No workflow assigned to request")
+            
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{settings.backend_api_url}/api/workflows/{workflow_id}/embedding-config"
+            )
+            response.raise_for_status()
+            embedding_config = response.json()
+            
+        if not embedding_config.get("enabled", False):
+            raise ValueError("Embedding generation not enabled for workflow")
+            
+        await event_publisher.embedding_progress(request_id, "PROCESSING", 0.3, "Preparing embedding text from workflow output")
+        
+        # Get the latest AI output
+        latest_ai_output = request_data.get("latest_ai_output")
+        if not latest_ai_output:
+            raise ValueError("No workflow output available for embedding generation")
+            
+        # Parse the workflow output
+        workflow_output = json.loads(latest_ai_output.get("summary", "{}"))
+        
+        # Generate embedding text using the template
+        embedding_template = embedding_config.get("embedding_template", "")
+        embedding_text = await generate_embedding_text(
+            request_id=request_id,
+            request_text=request_data["text"],
+            workflow_output=workflow_output,
+            template=embedding_template
+        )
+        
+        # Prepare task data for vector storage
         task_data = {
             "title": f"Request #{request_id}",
             "description": request_data["text"],
-            "priority": "normal",
+            "embedding_text": embedding_text,  # The generated text from template
+            "priority": request_data.get("priority", "normal"),
             "status": request_data["status"],
             "tags": [],
             "exercise_id": request_data.get("exercise_id"),
-            "created_at": request_data.get("created_at", "")
+            "created_at": request_data.get("created_at", ""),
+            "workflow_output": workflow_output  # Store the full output for reference
         }
         
         # Generate embedding
@@ -224,20 +289,25 @@ async def process_bulk_embedding_job(batch_id: int):
 
 async def generate_and_store_embedding(task_id: int, task_data: Dict[str, Any]) -> str:
     """Generate embedding and store in Qdrant"""
-    # Create text representation
-    text_parts = []
-    if task_data.get("title"):
-        text_parts.append(f"Title: {task_data['title']}")
-    if task_data.get("description"):
-        text_parts.append(f"Description: {task_data['description']}")
-    if task_data.get("priority"):
-        text_parts.append(f"Priority: {task_data['priority']}")
-    if task_data.get("status"):
-        text_parts.append(f"Status: {task_data['status']}")
-    if task_data.get("tags"):
-        text_parts.append(f"Tags: {', '.join(task_data['tags'])}")
-    
-    text = "\n".join(text_parts)
+    # Use the embedding_text if provided (from workflow template)
+    # Otherwise fall back to creating text from basic fields
+    if task_data.get("embedding_text"):
+        text = task_data["embedding_text"]
+    else:
+        # Fallback for legacy/non-workflow embeddings
+        text_parts = []
+        if task_data.get("title"):
+            text_parts.append(f"Title: {task_data['title']}")
+        if task_data.get("description"):
+            text_parts.append(f"Description: {task_data['description']}")
+        if task_data.get("priority"):
+            text_parts.append(f"Priority: {task_data['priority']}")
+        if task_data.get("status"):
+            text_parts.append(f"Status: {task_data['status']}")
+        if task_data.get("tags"):
+            text_parts.append(f"Tags: {', '.join(task_data['tags'])}")
+        
+        text = "\n".join(text_parts)
     
     # Update progress
     await event_publisher.embedding_progress(task_id, "PROCESSING", 0.6, "Calling Ollama for embedding generation")
@@ -273,6 +343,8 @@ async def generate_and_store_embedding(task_id: int, task_data: Dict[str, Any]) 
                     "tags": task_data.get("tags", []),
                     "exercise_id": task_data.get("exercise_id"),
                     "created_at": task_data.get("created_at", ""),
+                    "workflow_output": task_data.get("workflow_output"),  # Store workflow output for RAG search
+                    "embedding_text": text  # Store the text used for embedding
                 }
             )
         ]
@@ -330,6 +402,86 @@ async def get_next_version(request_id: int) -> int:
     except Exception as e:
         logger.warning("Failed to get current version, defaulting to 1", error=str(e))
         return 1
+
+def _format_block_output(block_output):
+    """Format block output for human-readable text without JSON syntax"""
+    if isinstance(block_output, dict):
+        # Extract meaningful text from common fields
+        if "text" in block_output:
+            return block_output["text"]
+        elif "content" in block_output:
+            return block_output["content"]
+        elif "summary" in block_output:
+            return block_output["summary"]
+        elif "analysis" in block_output:
+            return block_output["analysis"]
+        else:
+            # Format as key-value pairs
+            parts = []
+            for key, value in block_output.items():
+                if value and not key.startswith("_"):  # Skip metadata fields
+                    parts.append(f"{key}: {value}")
+            return "\n".join(parts)
+    else:
+        return str(block_output)
+
+def _format_workflow_output(workflow_output):
+    """Format entire workflow output for human-readable text"""
+    parts = []
+    for block_name, block_output in workflow_output.items():
+        formatted_output = _format_block_output(block_output)
+        if formatted_output:
+            parts.append(f"{block_name}:\n{formatted_output}")
+    return "\n\n".join(parts)
+
+async def generate_embedding_text(request_id: int, request_text: str, workflow_output: dict, template: str) -> str:
+    """Generate embedding text using the template and workflow output"""
+    if not template:
+        # Default template if none provided
+        template = "Request: {request_text}\n\nAnalysis: {workflow_output}"
+    
+    # Create a context dictionary for template substitution
+    context = {
+        "request_id": request_id,
+        "request_text": request_text,
+        "workflow_output": _format_workflow_output(workflow_output)
+    }
+    
+    # Add individual workflow block outputs to context
+    for block_name, block_output in workflow_output.items():
+        safe_name = block_name.replace(" ", "_").lower()
+        formatted_output = _format_block_output(block_output)
+        
+        # Add both formats for compatibility
+        context[f"block_{safe_name}"] = formatted_output
+        context[block_name] = formatted_output  # Also add with original block name
+    
+    # Simple template substitution
+    embedding_text = template
+    for key, value in context.items():
+        embedding_text = embedding_text.replace(f"{{{key}}}", str(value))
+    
+    return embedding_text
+
+async def check_workflow_embedding_config(workflow_id: int) -> bool:
+    """Check if embedding generation is enabled for this workflow"""
+    if not workflow_id:
+        return False
+        
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{settings.backend_api_url}/api/workflows/{workflow_id}/embedding-config"
+            )
+            if response.status_code == 200:
+                config = response.json()
+                return config.get("enabled", False)
+            return False
+    except Exception as e:
+        logger.warning("Failed to check workflow embedding config",
+                      workflow_id=workflow_id,
+                      error=str(e))
+        return False
 
 async def save_ai_output(request_id: int, result: dict, version: int):
     """Save AI processing result to database"""

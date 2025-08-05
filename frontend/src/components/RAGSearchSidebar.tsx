@@ -13,10 +13,12 @@ interface SearchResult {
   title: string
   description: string
   similarity_score: number
-  status: string
-  priority: string | null
-  created_at: string | null
-  exercise_id: number | null
+  status?: string
+  priority?: string | null
+  created_at?: string | null
+  exercise_id?: number | null
+  // Allow additional dynamic fields
+  [key: string]: any
 }
 
 export const RAGSearchSidebar: React.FC<RAGSearchSidebarProps> = ({ isOpen, onClose, onSelectTask }) => {
@@ -63,7 +65,7 @@ export const RAGSearchSidebar: React.FC<RAGSearchSidebarProps> = ({ isOpen, onCl
       const data = await response.json()
       setResults(data.results)
     } catch (error) {
-      console.error('Error performing RAG search:', error)
+      console.error('Error performing AI search:', error)
       // TODO: Show error message to user
     } finally {
       setIsSearching(false)
@@ -288,14 +290,25 @@ export const RAGSearchSidebar: React.FC<RAGSearchSidebarProps> = ({ isOpen, onCl
                                           {(result.similarity_score * 100).toFixed(1)}% match
                                         </span>
                                       </div>
-                                      <p className="mt-1 text-sm text-gray-600 line-clamp-3">
-                                        {result.description}
-                                      </p>
-                                      <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                                        <span>Status: {result.status}</span>
-                                        {result.priority && <span>Priority: {result.priority}</span>}
+                                      {/* Display summary if available from similarity config */}
+                                      {result.summary && (
+                                        <p className="mt-1 text-sm text-gray-700 font-medium">
+                                          {result.summary}
+                                        </p>
+                                      )}
+                                      
+                                      {/* Fallback to description if no summary */}
+                                      {!result.summary && result.description && (
+                                        <p className="mt-1 text-sm text-gray-600 line-clamp-3">
+                                          {result.description}
+                                        </p>
+                                      )}
+                                      {/* Display any custom fields */}
+                                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                                        {result.status && <span className="bg-gray-100 px-2 py-1 rounded">Status: {result.status}</span>}
+                                        {result.priority && <span className="bg-gray-100 px-2 py-1 rounded">Priority: {result.priority}</span>}
                                         {result.created_at && (
-                                          <span>Created: {new Date(result.created_at).toLocaleDateString()}</span>
+                                          <span className="bg-gray-100 px-2 py-1 rounded">Created: {new Date(result.created_at).toLocaleDateString()}</span>
                                         )}
                                       </div>
                                     </div>

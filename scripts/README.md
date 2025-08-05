@@ -135,6 +135,44 @@ SKIP_PUSH=true ./scripts/build-and-push.sh
 # Access UI at http://localhost:3000
 ```
 
+## 🗄️ Database Scripts
+
+### `db-migrate.sh`
+**Purpose**: Manage database migrations with tracking and rollback support  
+**When to use**:
+- After creating new migration files
+- To check migration status
+- Rolling back problematic migrations
+- Initial setup of migration tracking
+
+**What it does**:
+1. Initializes migration tracking system
+2. Runs pending migrations in order
+3. Records execution status and timing
+4. Supports rollback of specific migrations
+5. Shows migration history and status
+
+**Usage**:
+```bash
+# Initialize migration tracking (first time only)
+./scripts/db-migrate.sh init
+
+# Run all pending migrations
+./scripts/db-migrate.sh migrate
+
+# Run up to a specific version
+./scripts/db-migrate.sh migrate --version 003_add_feature
+
+# Check migration status
+./scripts/db-migrate.sh status
+
+# Rollback a specific migration
+./scripts/db-migrate.sh rollback --version 003_add_feature
+
+# With custom database connection
+DB_HOST=postgres.example.com DB_NAME=taskflow_prod ./scripts/db-migrate.sh migrate
+```
+
 ## 📊 Operational Scripts
 
 ### `verify-deployment.sh`
@@ -190,6 +228,7 @@ SKIP_PUSH=true ./scripts/build-and-push.sh
 | `deploy.sh` | kubectl | Active k8s cluster, internet access |
 | `build-and-push.sh` | docker | Registry access (if pushing) |
 | `setup-dev.sh` | Various | See script for full list |
+| `db-migrate.sh` | python3, psycopg2 | Database access, migration files |
 | `port-forward.sh` | kubectl | Deployed TaskFlow services |
 | `port-forward-web.sh` | kubectl | Deployed TaskFlow web service |
 | `verify-deployment.sh` | kubectl | Deployed TaskFlow |
@@ -250,6 +289,29 @@ K8S_OVERLAY=dev ./scripts/deploy-fresh.sh
 
 # 5. Port forward for testing
 ./scripts/port-forward.sh
+```
+
+### Database Migration Workflow
+```bash
+# 1. Create new migration
+touch database/migrations/003_add_feature.sql
+
+# 2. Write migration with rollback
+# Edit the file with your changes
+
+# 3. Test on local database
+docker-compose up -d postgres
+./scripts/db-migrate.sh migrate
+
+# 4. Verify changes
+docker-compose exec postgres psql -U taskflow_user -d taskflow_db -c "\d+"
+
+# 5. Apply to production
+kubectl port-forward -n taskflow svc/postgres 5432:5432 &
+DB_HOST=localhost ./scripts/db-migrate.sh migrate
+
+# 6. Update init-complete.sql for new deployments
+cat database/migrations/003_add_feature.sql >> database/postgresql/init-complete.sql
 ```
 
 ## ⚠️ Important Notes

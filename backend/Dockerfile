@@ -14,6 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/ ./app/
 
+# Copy Alembic configuration and migrations
+COPY alembic.ini .
+COPY alembic/ ./alembic/
+
 # Create non-root user
 RUN useradd -u 1000 -m taskflow && chown -R taskflow:taskflow /app
 USER taskflow

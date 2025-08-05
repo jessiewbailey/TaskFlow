@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/rag-search", tags=["rag-search"])
 
 @router.post("/search", response_model=RAGSearchResponse)
 async def perform_rag_search(
-    request: RAGSearchRequest,
+    search_request: RAGSearchRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -27,11 +27,11 @@ async def perform_rag_search(
     This endpoint allows users to search for similar tasks using natural language queries.
     The search is performed using vector embeddings and returns the most similar tasks.
     """
-    logger.info(f"RAG search request received - Query: '{request.query}', Limit: {request.limit}, Filters: {request.filters}")
+    logger.info(f"RAG search request received - Query: '{search_request.query}', Limit: {search_request.limit}, Filters: {search_request.filters}")
     
     try:
         # Check if user has specified exercise filter
-        filters = request.filters or {}
+        filters = search_request.filters or {}
         
         # Add exercise filter based on user permissions if needed
         # For now, we'll search across all exercises the user has access to
@@ -40,8 +40,8 @@ async def perform_rag_search(
         
         # Perform the similarity search
         similar_tasks = await embedding_service.search_similar_tasks(
-            query_text=request.query,
-            limit=request.limit,
+            query_text=search_request.query,
+            limit=search_request.limit,
             filters=filters
         )
         
@@ -88,7 +88,7 @@ async def perform_rag_search(
         
         return RAGSearchResponse(
             results=results,
-            query=request.query,
+            query=search_request.query,
             total_results=len(results)
         )
         

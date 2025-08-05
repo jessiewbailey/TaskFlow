@@ -7,7 +7,7 @@ import pandas as pd
 import io
 from datetime import datetime
 from app.models.database import get_db
-from app.models.schemas import Request, User, AIOutput, RequestStatus, Workflow, JobType, CustomInstruction, ProcessingJob, JobStatus, Exercise as ExerciseModel
+from app.models.schemas import Request, User, AIOutput, RequestStatus, Workflow, JobType, CustomInstruction, ProcessingJob, JobStatus, Exercise as ExerciseModel, WorkflowSimilarityConfig
 from app.models.pydantic_models import (
     CreateRequestRequest, CreateRequestResponse, UpdateRequestStatusRequest,
     UpdateRequestRequest, ProcessRequestRequest, ProcessJobResponse, RequestResponse, 
@@ -21,6 +21,7 @@ from app.services.embedding_service import embedding_service
 from app.services.sse_manager import sse_manager, create_sse_response
 from app.services.event_bus import event_bus, get_channel_for_request, EventType, create_event
 import structlog
+import json
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/requests", tags=["requests"])
@@ -45,7 +46,125 @@ class SimilarTask(BaseModel):
     created_at: str
 
 class SimilaritySearchResponse(BaseModel):
-    similar_tasks: List[SimilarTask]
+    similar_tasks: List[Dict[str, Any]]  # Changed to allow dynamic fields
+
+async def _build_similarity_display(
+    task_request: Request,
+    similarity_config: Optional[WorkflowSimilarityConfig],
+    similarity_score: float,
+    db: AsyncSession
+) -> Dict[str, Any]:
+    """Build display data based on workflow similarity configuration"""
+    
+    # Default display if no config
+    if not similarity_config or not similarity_config.fields:
+        return {
+            "task_id": task_request.id,
+            "title": f"Request #{task_request.id}",
+            "description": task_request.text[:200] + "..." if len(task_request.text) > 200 else task_request.text,
+            "similarity_score": similarity_score,
+            "status": task_request.status.value if task_request.status else "",
+            "priority": "normal",  # Default since not in schema
+            "created_at": task_request.created_at.isoformat() if task_request.created_at else "",
+            "exercise_id": task_request.exercise_id
+        }
+    
+    # Build custom display based on configuration
+    custom_data = {}
+    
+    # Get AI output for this request
+    output_query = await db.execute(
+        select(AIOutput)
+        .where(AIOutput.request_id == task_request.id)
+        .order_by(AIOutput.version.desc())
+    )
+    ai_output = output_query.scalars().first()
+    
+    # Build result lookup from AI output
+    results_by_block = {}
+    if ai_output and ai_output.summary:
+        try:
+            summary_data = json.loads(ai_output.summary)
+            results_by_block = summary_data
+        except Exception as e:
+            logger.warning(f"Failed to parse AI output summary: {str(e)}")
+    
+    # Process each configured field
+    for field_config in similarity_config.fields:
+        field_name = field_config.get("name", "")
+        field_source = field_config.get("source", "")
+        field_type = field_config.get("type", "text")
+        
+        if not field_name or not field_source:
+            continue
+        
+        # Get value based on source
+        value = None
+        
+        if field_source == "TASK_ID":
+            value = task_request.id
+        elif field_source == "REQUEST_TEXT":
+            value = task_request.text
+        elif field_source == "SIMILARITY_SCORE":
+            value = similarity_score
+        elif field_source == "STATUS":
+            value = task_request.status.value if task_request.status else ""
+        elif field_source == "CREATED_AT":
+            value = task_request.created_at.isoformat() if task_request.created_at else ""
+        elif field_source == "REQUESTER":
+            value = task_request.requester
+        elif "." in field_source:
+            # Handle block output fields (e.g., "Summarize.executive_summary")
+            block_name, field_path = field_source.split(".", 1)
+            if block_name in results_by_block:
+                block_data = results_by_block[block_name]
+                if isinstance(block_data, dict):
+                    value = block_data.get(field_path, "")
+                else:
+                    value = block_data
+        elif field_source in results_by_block:
+            # Full block output
+            value = results_by_block[field_source]
+        
+        # Format value based on type
+        if value is not None:
+            if field_type == "text":
+                if isinstance(value, dict):
+                    # For dict values, extract text or convert to readable format
+                    if "text" in value:
+                        value = value["text"]
+                    elif "content" in value:
+                        value = value["content"]
+                    elif "summary" in value:
+                        value = value["summary"]
+                    else:
+                        # Convert dict to readable text without JSON formatting
+                        value = " ".join(f"{k}: {v}" for k, v in value.items() if v)
+                elif not isinstance(value, str):
+                    value = str(value)
+            elif field_type == "number":
+                try:
+                    value = float(value)
+                except:
+                    value = 0
+            elif field_type == "score":
+                value = round(similarity_score * 100, 1)  # Convert to percentage
+            
+            # Use sanitized field name for response
+            safe_field_name = field_name.lower().replace(" ", "_")
+            custom_data[safe_field_name] = value
+    
+    # Always include these core fields
+    custom_data["task_id"] = task_request.id
+    custom_data["similarity_score"] = similarity_score
+    
+    # Add fields expected by frontend
+    if "title" not in custom_data:
+        custom_data["title"] = f"Request #{task_request.id}"
+    if "description" not in custom_data:
+        custom_data["description"] = task_request.text[:200] + "..." if len(task_request.text) > 200 else task_request.text
+    
+    return custom_data
 
 @router.get("", response_model=RequestListResponse)
 async def list_requests(
@@ -241,20 +360,8 @@ async def create_request(
     
     logger.info("Created TaskFlow request", request_id=taskflow_request.id, job_id=job_id)
     
-    # Queue embedding generation as a separate job (non-blocking)
-    try:
-        embedding_job_id = await job_service.create_job(
-            taskflow_request.id,
-            job_type=JobType.EMBEDDING
-        )
-        logger.info("Queued embedding generation job", 
-                   request_id=taskflow_request.id, 
-                   embedding_job_id=embedding_job_id)
-    except Exception as e:
-        logger.error("Failed to queue embedding job", 
-                    request_id=taskflow_request.id, 
-                    error=str(e))
-        # Don't fail the request creation if embedding job creation fails
+    # NOTE: Embedding generation is now triggered after workflow completion
+    # See the workflow completion handler in the ai-worker for embedding logic
     
     return CreateRequestResponse(id=taskflow_request.id, job_id=job_id)
 
@@ -297,9 +404,10 @@ async def get_request(
     queue_position = None
     latest_job_id = None
     if active_job:
-        from app.services.job_service import job_queue_manager
+        from app.services.queue_position_service import QueuePositionService
+        queue_service = QueuePositionService(db)
         latest_job_id = str(active_job.id)
-        queue_position = job_queue_manager.get_queue_position(latest_job_id)
+        queue_position = await queue_service.get_queue_position(latest_job_id)
     
     # Get latest failed job
     failed_job_result = await db.execute(
@@ -697,20 +805,45 @@ async def search_similar_tasks_by_id(
             if task['score'] >= search_request.threshold
         ]
         
-        # Convert to response format
+        # Get similarity configuration for the request's workflow
+        similarity_config = None
+        if request.workflow_id:
+            config_result = await db.execute(
+                select(WorkflowSimilarityConfig)
+                .where(WorkflowSimilarityConfig.workflow_id == request.workflow_id)
+            )
+            similarity_config = config_result.scalar_one_or_none()
+        
+        # Convert to response format with custom display
         response_tasks = []
         for task in filtered_tasks:
-            response_tasks.append(SimilarTask(
-                score=task["score"],
-                task_id=task["task_id"],
-                title=task["title"],
-                description=task["description"],
-                priority=task["priority"],
-                status=task["status"],
-                tags=task["tags"],
-                exercise_id=task["exercise_id"],
-                created_at=task["created_at"]
-            ))
+            # Get the similar request details
+            similar_request_result = await db.execute(
+                select(Request).where(Request.id == task["task_id"])
+            )
+            similar_request = similar_request_result.scalar_one_or_none()
+            
+            if similar_request:
+                # Build display based on similarity config
+                display_data = await _build_similarity_display(
+                    similar_request,
+                    similarity_config,
+                    task["score"],
+                    db
+                )
+                response_tasks.append(display_data)
+            else:
+                # Fallback if request not found
+                response_tasks.append({
+                    "task_id": task["task_id"],
+                    "title": task["title"],
+                    "description": task["description"],
+                    "similarity_score": task["score"],
+                    "priority": task["priority"],
+                    "status": task["status"],
+                    "created_at": task["created_at"],
+                    "exercise_id": task["exercise_id"]
+                })
         
         return SimilaritySearchResponse(similar_tasks=response_tasks)
         
@@ -978,30 +1111,15 @@ async def batch_upload_requests(
         
         batch_requests = batch_requests_result.scalars().all()
         
-        # Queue embedding generation jobs for successful requests
-        embedding_job_count = 0
-        for request in batch_requests:
-            try:
-                embedding_job_id = await job_service.create_job(
-                    request.id,
-                    job_type=JobType.EMBEDDING
-                )
-                embedding_job_count += 1
-                logger.info("Queued embedding job for bulk uploaded request", 
-                           request_id=request.id, 
-                           embedding_job_id=embedding_job_id)
-            except Exception as e:
-                logger.warning(f"Failed to queue embedding job for request {request.id}: {str(e)}")
-        
-        logger.info(f"Queued {embedding_job_count} embedding jobs for batch upload")
+        # NOTE: Embedding generation is now triggered after workflow completion
+        # See the workflow completion handler in the ai-worker for embedding logic
         
         success = len(errors) == 0
         
         logger.info("Batch upload completed", 
                    total_rows=total_rows, 
                    success_count=success_count, 
-                   error_count=len(errors),
-                   embedding_jobs_queued=embedding_job_count)
+                   error_count=len(errors))
         
         return BatchUploadResponse(
             success=success,

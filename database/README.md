@@ -1,6 +1,6 @@
-# Database Structure
+# TaskFlow Database
 
-This directory contains all database-related files for TaskFlow.
+This directory contains the database schema files and migration scripts for TaskFlow.
 
 ## Directory Structure
 
@@ -9,24 +9,68 @@ database/
 ├── README.md                    # This file
 ├── postgresql/
 │   └── init-complete.sql       # Complete PostgreSQL initialization script
-└── migrations/
-    ├── add_block_type.sql      # Add block type enumeration
-    ├── add_dashboard_config.sql # Add dashboard configuration
-    ├── add_default_exercise.sql # Add default exercise
-    ├── add_exercises.sql       # Add exercises table
-    ├── add_is_default.sql      # Add default workflow flag
-    ├── add_system_settings.sql # Add system settings
-    ├── add_ui_visibility_settings.sql # Add UI visibility settings
-    ├── final_schemas.sql       # Final schema updates
-    ├── insert_workflow_blocks.sql # Insert workflow block data
-    ├── migration-custom-instructions.sql # Custom instructions table
-    ├── migration_add_model_to_workflow_blocks.sql # Add model field
-    ├── migration_add_workflow_integration.sql # Workflow integration
-    ├── remove_deprecated_ai_output_columns.sql # Remove deprecated columns
-    ├── update_schemas_by_id.sql # Schema updates by ID
-    ├── update_schemas_simple.sql # Simple schema updates
-    └── update_workflow_schemas.sql # Workflow schema updates
+├── migrations/                  # SQL migration files
+│   ├── 001_create_migration_tracking.sql    # Migration tracking system
+│   ├── 002_record_existing_migrations.sql   # Track pre-existing migrations
+│   └── [legacy migrations]                  # Historical migration files
+└── migrate.py                   # Python migration management tool
 ```
+
+## 📚 Documentation
+
+All database documentation is located in `/docs/database/`:
+
+- **[Database Overview](/docs/database/README.md)** - Architecture and schema details
+- **[Migration Guide](/docs/database/MIGRATION_GUIDE.md)** - Creating and managing migrations
+- **[Update Procedures](/docs/database/UPDATE_PROCEDURES.md)** - Database update workflows
+- **[Migration Audit](/docs/database/migration-audit-report.md)** - Current migration status
+
+## Quick Reference
+
+### Running Migrations
+
+```bash
+# Initialize migration tracking (first time only)
+./scripts/db-migrate.sh init
+
+# Run all pending migrations
+./scripts/db-migrate.sh migrate
+
+# Check migration status
+./scripts/db-migrate.sh status
+
+# Rollback a specific migration
+./scripts/db-migrate.sh rollback --version 003_feature_name
+```
+
+### Creating New Migrations
+
+1. **Create migration file**:
+   ```bash
+   touch database/migrations/003_add_new_feature.sql
+   ```
+
+2. **Write migration with rollback**:
+   ```sql
+   -- Add new feature table
+   -- Author: Your Name
+   -- Date: 2024-12-19
+   
+   CREATE TABLE new_feature (
+       id SERIAL PRIMARY KEY,
+       name VARCHAR(255) NOT NULL
+   );
+   
+   -- ROLLBACK:
+   -- DROP TABLE IF EXISTS new_feature;
+   ```
+
+3. **Apply migration**:
+   ```bash
+   ./scripts/db-migrate.sh migrate
+   ```
+
+For detailed instructions, see the [Migration Guide](/docs/database/MIGRATION_GUIDE.md).
 
 ## Primary Database File
 
