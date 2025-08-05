@@ -67,9 +67,10 @@ echo -e "${YELLOW}Deploying TaskFlow from Docker Hub images...${NC}"
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Deploy using the correct path
-kubectl apply -k "${SCRIPT_DIR}/base/"
+kubectl apply -k "${PROJECT_ROOT}/k8s/base/"
 
 echo ""
 echo -e "${YELLOW}Waiting for pods to be ready...${NC}"

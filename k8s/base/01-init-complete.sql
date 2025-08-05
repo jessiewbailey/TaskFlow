@@ -180,6 +180,9 @@ CREATE TABLE workflow_similarity_configs (
   UNIQUE(workflow_id)
 );
 
+-- GIN index for similarity config fields
+CREATE INDEX idx_workflow_similarity_configs_fields ON workflow_similarity_configs USING GIN (fields);
+
 -- Index for similarity configs
 CREATE INDEX idx_workflow_similarity_configs_workflow_id ON workflow_similarity_configs(workflow_id);
 
@@ -244,6 +247,12 @@ CREATE TRIGGER update_workflow_blocks_updated_at BEFORE UPDATE ON workflow_block
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_dashboard_configs_updated_at BEFORE UPDATE ON workflow_dashboard_configs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workflow_embedding_configs_updated_at BEFORE UPDATE ON workflow_embedding_configs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workflow_similarity_configs_updated_at BEFORE UPDATE ON workflow_similarity_configs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_custom_instructions_updated_at BEFORE UPDATE ON custom_instructions
