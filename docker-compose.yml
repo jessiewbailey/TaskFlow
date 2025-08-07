@@ -99,6 +99,23 @@ services:
     networks:
       - taskflow-network
 
+  # Redis for pub/sub messaging
+  redis:
+    image: redis:7-alpine
+    container_name: taskflow-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taskflow-network
+
   # Backend API
   taskflow-api:
     build:
@@ -151,6 +168,8 @@ services:
         condition: service_healthy
       taskflow-api:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/healthz"]
       interval: 30s
@@ -187,6 +206,7 @@ volumes:
   postgres_data:
   ollama_data:
   qdrant_data:
+  redis_data:
 
 networks:
   taskflow-network:
