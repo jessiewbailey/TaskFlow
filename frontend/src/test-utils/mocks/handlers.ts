@@ -1,6 +1,6 @@
 // MSW request handlers for API mocking
 
-import { rest } from 'msw';
+import { http, HttpResponse } from 'msw';
 
 // Base API URL
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
@@ -12,6 +12,17 @@ const mockUser = {
   email: 'test@example.com',
   role: 'ANALYST',
 };
+
+const mockExercises = [
+  {
+    id: 1,
+    name: 'Default Exercise',
+    description: 'Default exercise for all users',
+    is_active: true,
+    is_default: true,
+    created_at: '2024-01-01T00:00:00Z',
+  },
+];
 
 const mockWorkflows = [
   {
@@ -50,16 +61,23 @@ const mockRequests = [
     status: 'COMPLETED',
     priority: 'high',
     workflow_id: 1,
+    exercise_id: 1,
+    assigned_analyst_id: 1,
     created_at: '2024-01-15T10:00:00Z',
     updated_at: '2024-01-15T10:30:00Z',
     processing_status: 'COMPLETED',
-    ai_outputs: [
-      {
-        id: 1,
-        summary: '{"Summarize": {"summary": "This is a sample analysis"}}',
-        created_at: '2024-01-15T10:30:00Z',
-      },
-    ],
+    has_active_jobs: false,
+    queue_position: null,
+    latest_job_id: null,
+    embedding_status: 'COMPLETED',
+    assigned_analyst: mockUser,
+    exercise: mockExercises[0],
+    latest_ai_output: {
+      id: 1,
+      summary: '{"Summarize": {"summary": "This is a sample analysis"}}',
+      created_at: '2024-01-15T10:30:00Z',
+    },
+    latest_failed_job: null,
   },
   {
     id: 2,
@@ -68,63 +86,58 @@ const mockRequests = [
     status: 'NEW',
     priority: 'medium',
     workflow_id: 2,
+    exercise_id: 1,
+    assigned_analyst_id: null,
     created_at: '2024-01-15T11:00:00Z',
     updated_at: '2024-01-15T11:00:00Z',
     processing_status: 'PENDING',
+    has_active_jobs: true,
     queue_position: 3,
-  },
-];
-
-const mockExercises = [
-  {
-    id: 1,
-    name: 'Default Exercise',
-    description: 'Default exercise for all users',
-    is_active: true,
-    is_default: true,
-    created_at: '2024-01-01T00:00:00Z',
+    latest_job_id: 'job-123',
+    embedding_status: 'PENDING',
+    assigned_analyst: null,
+    exercise: mockExercises[0],
+    latest_ai_output: null,
+    latest_failed_job: null,
   },
 ];
 
 // Request handlers
 export const handlers = [
   // Authentication
-  rest.post(`${API_URL}/api/auth/login`, (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json({
-        access_token: 'mock-jwt-token',
-        token_type: 'bearer',
-      })
-    );
+  http.post(`${API_URL}/api/auth/login`, () => {
+    return HttpResponse.json({
+      access_token: 'mock-jwt-token',
+      token_type: 'bearer',
+    });
   }),
 
-  rest.get(`${API_URL}/api/auth/me`, (req, res, ctx) => {
-    const token = req.headers.get('Authorization');
+  http.get(`${API_URL}/api/auth/me`, ({ request }) => {
+    const token = request.headers.get('Authorization');
     if (!token || !token.startsWith('Bearer ')) {
-      return res(ctx.status(401), ctx.json({ detail: 'Not authenticated' }));
+      return HttpResponse.json({ detail: 'Not authenticated' }, { status: 401 });
     }
-    return res(ctx.status(200), ctx.json(mockUser));
+    return HttpResponse.json(mockUser);
   }),
 
   // Workflows
-  rest.get(`${API_URL}/api/workflows`, (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json(mockWorkflows));
+  http.get(`${API_URL}/api/workflows`, () => {
+    return HttpResponse.json(mockWorkflows);
   }),
 
-  rest.get(`${API_URL}/api/workflows/:id`, (req, res, ctx) => {
-    const { id } = req.params;
+  http.get(`${API_URL}/api/workflows/:id`, ({ params }) => {
+    const { id } = params;
     const workflow = mockWorkflows.find((w) => w.id === Number(id));
     
     if (!workflow) {
-      return res(ctx.status(404), ctx.json({ detail: 'Workflow not found' }));
+      return HttpResponse.json({ detail: 'Workflow not found' }, { status: 404 });
     }
     
-    return res(ctx.status(200), ctx.json(workflow));
+    return HttpResponse.json(workflow);
   }),
 
-  rest.post(`${API_URL}/api/workflows`, async (req, res, ctx) => {
-    const body = await req.json();
+  http.post(`${API_URL}/api/workflows`, async ({ request }) => {
+    const body = await request.json();
     const newWorkflow = {
       id: mockWorkflows.length + 1,
       ...body,
@@ -134,118 +147,107 @@ export const handlers = [
     };
     
     mockWorkflows.push(newWorkflow);
-    return res(ctx.status(201), ctx.json(newWorkflow));
+    return HttpResponse.json(newWorkflow, { status: 201 });
   }),
 
-  rest.put(`${API_URL}/api/workflows/:id`, async (req, res, ctx) => {
-    const { id } = req.params;
-    const body = await req.json();
+  http.put(`${API_URL}/api/workflows/:id`, async ({ params, request }) => {
+    const { id } = params;
+    const body = await request.json();
     const workflowIndex = mockWorkflows.findIndex((w) => w.id === Number(id));
     
     if (workflowIndex === -1) {
-      return res(ctx.status(404), ctx.json({ detail: 'Workflow not found' }));
+      return HttpResponse.json({ detail: 'Workflow not found' }, { status: 404 });
     }
     
     mockWorkflows[workflowIndex] = { ...mockWorkflows[workflowIndex], ...body };
-    return res(ctx.status(200), ctx.json(mockWorkflows[workflowIndex]));
+    return HttpResponse.json(mockWorkflows[workflowIndex]);
   }),
 
-  rest.delete(`${API_URL}/api/workflows/:id`, (req, res, ctx) => {
-    const { id } = req.params;
+  http.delete(`${API_URL}/api/workflows/:id`, ({ params }) => {
+    const { id } = params;
     const workflowIndex = mockWorkflows.findIndex((w) => w.id === Number(id));
     
     if (workflowIndex === -1) {
-      return res(ctx.status(404), ctx.json({ detail: 'Workflow not found' }));
+      return HttpResponse.json({ detail: 'Workflow not found' }, { status: 404 });
     }
     
     mockWorkflows.splice(workflowIndex, 1);
-    return res(ctx.status(204));
+    return new HttpResponse(null, { status: 204 });
   }),
 
   // Workflow Embedding Config
-  rest.get(`${API_URL}/api/workflows/:id/embedding-config`, (req, res, ctx) => {
-    const { id } = req.params;
+  http.get(`${API_URL}/api/workflows/:id/embedding-config`, ({ params }) => {
+    const { id } = params;
     
     // Return mock embedding config for workflow 1
     if (Number(id) === 1) {
-      return res(
-        ctx.status(200),
-        ctx.json({
-          id: 1,
-          workflow_id: 1,
-          enabled: true,
-          embedding_template: 'Summary: {{Summarize.summary}}',
-        })
-      );
+      return HttpResponse.json({
+        id: 1,
+        workflow_id: 1,
+        enabled: true,
+        embedding_template: 'Summary: {{Summarize.summary}}',
+      });
     }
     
-    return res(ctx.status(404));
+    return new HttpResponse(null, { status: 404 });
   }),
 
-  rest.post(`${API_URL}/api/workflows/:id/embedding-config`, async (req, res, ctx) => {
-    const { id } = req.params;
-    const body = await req.json();
+  http.post(`${API_URL}/api/workflows/:id/embedding-config`, async ({ params, request }) => {
+    const { id } = params;
+    const body = await request.json();
     
-    return res(
-      ctx.status(200),
-      ctx.json({
-        id: 1,
-        workflow_id: Number(id),
-        ...body,
-      })
-    );
+    return HttpResponse.json({
+      id: 1,
+      workflow_id: Number(id),
+      ...body,
+    });
   }),
 
   // Workflow Similarity Config
-  rest.get(`${API_URL}/api/workflows/:id/similarity-config`, (req, res, ctx) => {
-    return res(ctx.status(404));
+  http.get(`${API_URL}/api/workflows/:id/similarity-config`, () => {
+    return new HttpResponse(null, { status: 404 });
   }),
 
-  rest.post(`${API_URL}/api/workflows/:id/similarity-config`, async (req, res, ctx) => {
-    const { id } = req.params;
-    const body = await req.json();
+  http.post(`${API_URL}/api/workflows/:id/similarity-config`, async ({ params, request }) => {
+    const { id } = params;
+    const body = await request.json();
     
-    return res(
-      ctx.status(200),
-      ctx.json({
-        id: 1,
-        workflow_id: Number(id),
-        ...body,
-      })
-    );
+    return HttpResponse.json({
+      id: 1,
+      workflow_id: Number(id),
+      ...body,
+    });
   }),
 
   // Requests
-  rest.get(`${API_URL}/api/requests`, (req, res, ctx) => {
-    const page = Number(req.url.searchParams.get('page') || 1);
-    const pageSize = Number(req.url.searchParams.get('page_size') || 20);
+  http.get(`${API_URL}/api/requests`, ({ request }) => {
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page') || 1);
+    const pageSize = Number(url.searchParams.get('page_size') || 20);
     
-    return res(
-      ctx.status(200),
-      ctx.json({
-        items: mockRequests,
-        total: mockRequests.length,
-        page: page,
-        page_size: pageSize,
-        total_pages: Math.ceil(mockRequests.length / pageSize),
-        has_next: false,
-      })
-    );
+    return HttpResponse.json({
+      items: mockRequests,
+      total: mockRequests.length,
+      page: page,
+      page_size: pageSize,
+      total_pages: Math.ceil(mockRequests.length / pageSize),
+      has_next: false,
+    });
   }),
 
-  rest.get(`${API_URL}/api/requests/:id`, (req, res, ctx) => {
-    const { id } = req.params;
+  http.get(`${API_URL}/api/requests/:id`, ({ params }) => {
+    const { id } = params;
     const request = mockRequests.find((r) => r.id === Number(id));
     
     if (!request) {
-      return res(ctx.status(404), ctx.json({ detail: 'Request not found' }));
+      return HttpResponse.json({ detail: 'Request not found' }, { status: 404 });
     }
     
-    return res(ctx.status(200), ctx.json(request));
+    return HttpResponse.json(request);
   }),
 
-  rest.post(`${API_URL}/api/requests`, async (req, res, ctx) => {
-    const body = await req.json();
+  http.post(`${API_URL}/api/requests`, async ({ request }) => {
+    const body = await request.json();
     const newRequest = {
       id: mockRequests.length + 1,
       ...body,
@@ -253,21 +255,28 @@ export const handlers = [
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       processing_status: 'PENDING',
+      has_active_jobs: false,
       queue_position: 5,
+      latest_job_id: null,
+      embedding_status: 'PENDING',
+      assigned_analyst: null,
+      exercise: mockExercises[0],
+      latest_ai_output: null,
+      latest_failed_job: null,
     };
     
     mockRequests.push(newRequest);
-    return res(ctx.status(201), ctx.json(newRequest));
+    return HttpResponse.json(newRequest, { status: 201 });
   }),
 
   // Exercises
-  rest.get(`${API_URL}/api/exercises`, (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json(mockExercises));
+  http.get(`${API_URL}/api/exercises`, () => {
+    return HttpResponse.json(mockExercises);
   }),
 
   // Settings
-  rest.get(`${API_URL}/api/settings/system/:key`, (req, res, ctx) => {
-    const { key } = req.params;
+  http.get(`${API_URL}/api/settings/system/:key`, ({ params }) => {
+    const { key } = params;
     
     const settings: Record<string, any> = {
       'ui_show_logs_button': { value: true },
@@ -275,94 +284,79 @@ export const handlers = [
       'rag-search-enabled': true,
     };
     
-    return res(
-      ctx.status(200),
-      ctx.json(settings[key as string] || { value: false })
-    );
+    return HttpResponse.json(settings[key as string] || { value: false });
   }),
 
   // SSE Events endpoint
-  rest.get(`${API_URL}/api/events`, (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.set('Content-Type', 'text/event-stream'),
-      ctx.set('Cache-Control', 'no-cache'),
-      ctx.set('Connection', 'keep-alive'),
-      ctx.body('data: {"type": "connection", "data": {"status": "connected"}}\n\n')
-    );
+  http.get(`${API_URL}/api/events`, () => {
+    return new HttpResponse('data: {"type": "connection", "data": {"status": "connected"}}\\n\\n', {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   }),
 
   // RAG Search
-  rest.post(`${API_URL}/api/rag-search/search`, async (req, res, ctx) => {
-    const body = await req.json();
+  http.post(`${API_URL}/api/rag-search/search`, async ({ request }) => {
+    const body = await request.json();
     
-    return res(
-      ctx.status(200),
-      ctx.json({
-        results: [
-          {
-            task_id: 1,
-            title: 'Task #1',
-            description: 'Similar task found',
-            similarity_score: 0.95,
-            status: 'COMPLETED',
-            priority: 'high',
-            created_at: '2024-01-10T00:00:00Z',
-          },
-        ],
-        query: body.query,
-        total_results: 1,
-      })
-    );
+    return HttpResponse.json({
+      results: [
+        {
+          task_id: 1,
+          title: 'Task #1',
+          description: 'Similar task found',
+          similarity_score: 0.95,
+          status: 'COMPLETED',
+          priority: 'high',
+          created_at: '2024-01-10T00:00:00Z',
+        },
+      ],
+      query: body.query,
+      total_results: 1,
+    });
   }),
 
   // Jobs
-  rest.get(`${API_URL}/api/jobs/:id/status`, (req, res, ctx) => {
-    const { id } = req.params;
+  http.get(`${API_URL}/api/jobs/:id/status`, ({ params }) => {
+    const { id } = params;
     
-    return res(
-      ctx.status(200),
-      ctx.json({
-        job_id: id,
-        request_id: 1,
-        status: 'COMPLETED',
-        error_message: null,
-        started_at: '2024-01-15T10:00:00Z',
-        completed_at: '2024-01-15T10:05:00Z',
-        created_at: '2024-01-15T09:59:00Z',
-      })
-    );
+    return HttpResponse.json({
+      job_id: id,
+      request_id: 1,
+      status: 'COMPLETED',
+      error_message: null,
+      started_at: '2024-01-15T10:00:00Z',
+      completed_at: '2024-01-15T10:05:00Z',
+      created_at: '2024-01-15T09:59:00Z',
+    });
   }),
 
   // Catch all handler for unhandled requests
-  rest.get('*', (req, res, ctx) => {
-    console.error(`Unhandled GET request: ${req.url.toString()}`);
-    return res(ctx.status(404));
+  http.get('*', ({ request }) => {
+    console.error(`Unhandled GET request: ${request.url}`);
+    return new HttpResponse(null, { status: 404 });
   }),
   
-  rest.post('*', (req, res, ctx) => {
-    console.error(`Unhandled POST request: ${req.url.toString()}`);
-    return res(ctx.status(404));
+  http.post('*', ({ request }) => {
+    console.error(`Unhandled POST request: ${request.url}`);
+    return new HttpResponse(null, { status: 404 });
   }),
 ];
 
 // Error handlers for testing error scenarios
 export const errorHandlers = {
-  networkError: rest.get('*', (req, res) => {
-    return res.networkError('Network error');
+  networkError: http.get('*', () => {
+    return HttpResponse.error();
   }),
   
-  serverError: rest.get('*', (req, res, ctx) => {
-    return res(
-      ctx.status(500),
-      ctx.json({ detail: 'Internal server error' })
-    );
+  serverError: http.get('*', () => {
+    return HttpResponse.json({ detail: 'Internal server error' }, { status: 500 });
   }),
   
-  unauthorized: rest.get('*', (req, res, ctx) => {
-    return res(
-      ctx.status(401),
-      ctx.json({ detail: 'Unauthorized' })
-    );
+  unauthorized: http.get('*', () => {
+    return HttpResponse.json({ detail: 'Unauthorized' }, { status: 401 });
   }),
 };

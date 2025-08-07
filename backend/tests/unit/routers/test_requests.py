@@ -24,9 +24,13 @@ class TestRequestRoutes:
         """Test getting requests when none exist."""
         response = await async_client.get("/api/requests")
         
+        print(f"Response status: {response.status_code}")
+        print(f"Response headers: {response.headers}")
+        print(f"Response text: {response.text}")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["items"] == []
+        print(f"Response data: {data}")  # Debug output
+        assert data["requests"] == []
         assert data["total"] == 0
         assert data["page"] == 1
     
@@ -151,7 +155,7 @@ class TestRequestRoutes:
         response = await async_client.get("/api/requests?page=1&page_size=10")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert len(data["items"]) == 10
+        assert len(data["requests"]) == 10
         assert data["total"] == 25
         assert data["total_pages"] == 3
         assert data["has_next"] == True
@@ -159,13 +163,13 @@ class TestRequestRoutes:
         # Get second page
         response = await async_client.get("/api/requests?page=2&page_size=10")
         data = response.json()
-        assert len(data["items"]) == 10
+        assert len(data["requests"]) == 10
         assert data["page"] == 2
         
         # Get last page
         response = await async_client.get("/api/requests?page=3&page_size=10")
         data = response.json()
-        assert len(data["items"]) == 5
+        assert len(data["requests"]) == 5
         assert data["has_next"] == False
     
     @pytest.mark.asyncio
@@ -198,14 +202,14 @@ class TestRequestRoutes:
         # Filter by priority
         response = await async_client.get("/api/requests?priority=high")
         data = response.json()
-        assert len(data["items"]) == 1
-        assert data["items"][0]["priority"] == "high"
+        assert len(data["requests"]) == 1
+        assert data["requests"][0]["priority"] == "high"
         
         # Filter by requester
         response = await async_client.get("/api/requests?requester=urgent@example.com")
         data = response.json()
-        assert len(data["items"]) == 1
-        assert data["items"][0]["requester"] == "urgent@example.com"
+        assert len(data["requests"]) == 1
+        assert data["requests"][0]["requester"] == "urgent@example.com"
     
     @pytest.mark.asyncio
     async def test_bulk_create_requests(self, async_client: AsyncClient):

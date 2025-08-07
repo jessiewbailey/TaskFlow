@@ -12,6 +12,7 @@ from typing import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, Mock, patch
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
+from sqlalchemy import text
 # Lazy imports to avoid metaclass conflict
 TestClient = None
 AsyncClient = None
@@ -22,9 +23,18 @@ from app.models.database import Base, get_db
 from app.models.pydantic_models import User, UserRole
 from app.routers.auth import get_current_user
 
+# Import all models to ensure they're registered with Base.metadata
+from app.models.schemas import (
+    Exercise, ExercisePermission, User as UserModel, Request, AIOutput, 
+    ProcessingJob, Workflow, WorkflowBlock, WorkflowBlockInput, 
+    WorkflowDashboardConfig, WorkflowEmbeddingConfig, WorkflowSimilarityConfig,
+    CustomInstruction, GroundTruthData, SystemSettings, Webhook, WebhookDelivery
+)
 
-# Test database URL - using SQLite for tests
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+# Test database URL - using temporary SQLite file for tests
+# Using a file ensures all sessions/connections see the same database
+TEST_DATABASE_URL = "sqlite+aiosqlite:///test_db.sqlite"
 
 
 @pytest.fixture(scope="session")
@@ -38,17 +48,33 @@ def event_loop():
 @pytest.fixture(scope="session")
 async def test_engine():
     """Create a test database engine."""
+    import os
+    
     engine = create_async_engine(
         TEST_DATABASE_URL,
         poolclass=NullPool,
     )
     
     async with engine.begin() as conn:
+        # Create all tables
         await conn.run_sync(Base.metadata.create_all)
-    
+        
+        # SQLite doesn't support enums natively, but SQLAlchemy handles this automatically
+        # No additional setup needed for SQLite compatibility with enums
+        
+        # Add a test user for foreign key constraints
+        await conn.execute(text("""
+            INSERT OR IGNORE INTO users (id, name, email, role, created_at)
+            VALUES (1, 'Test User', 'test@example.com', 'ANALYST', datetime('now'))
+        """))
+        
     yield engine
     
     await engine.dispose()
+    
+    # Clean up test database file
+    if os.path.exists("test_db.sqlite"):
+        os.remove("test_db.sqlite")
 
 
 @pytest.fixture(scope="function")
@@ -60,7 +86,9 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     
     async with async_session() as session:
         yield session
-        await session.rollback()
+        # Rollback any uncommitted changes
+        if session.in_transaction():
+            await session.rollback()
 
 
 @pytest.fixture(scope="function")

@@ -3,7 +3,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.schemas import Workflow, WorkflowSimilarityConfig
-from app.models.pydantic_models import WorkflowSimilarityConfigRequest
+from app.models.pydantic_models import WorkflowSimilarityConfigCreate
 from httpx import AsyncClient
 import json
 

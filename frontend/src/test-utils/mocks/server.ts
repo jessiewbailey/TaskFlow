@@ -7,5 +7,5 @@ import { handlers } from './handlers';
 export const server = setupServer(...handlers);
 
 // Expose methods to manipulate the server instance
-export { rest } from 'msw';
+export { http, HttpResponse } from 'msw';
 export { handlers, errorHandlers } from './handlers';

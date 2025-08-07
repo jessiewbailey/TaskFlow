@@ -2,18 +2,17 @@
 
 import '@testing-library/jest-dom';
 
-// Temporarily disable MSW due to Node.js compatibility issues
-// TODO: Fix MSW setup for Node.js environment
-// import { server } from './mocks/server';
+// Import MSW server for API mocking
+import { server } from './mocks/server';
 
 // Start MSW server before all tests
-// beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 
 // Reset handlers after each test
-// afterEach(() => server.resetHandlers());
+afterEach(() => server.resetHandlers());
 
 // Clean up after all tests
-// afterAll(() => server.close());
+afterAll(() => server.close());
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {

@@ -94,6 +94,37 @@ mock_redis_module = MagicMock()
 mock_redis_module.from_url = lambda *args, **kwargs: MockRedis()
 sys.modules['redis.asyncio'] = mock_redis_module
 
+# Mock requests module selectively to avoid breaking kubernetes client
+import requests as real_requests
+
+class MockRequestsSession:
+    def __init__(self):
+        pass
+    
+    def get(self, *args, **kwargs):
+        return MockResponse(200, {"models": [{"name": "test-model"}]})
+    
+    def post(self, *args, **kwargs):
+        return MockResponse(200, {"embedding": [0.1] * 768})
+    
+    def mount(self, *args, **kwargs):
+        pass
+
+# Preserve the real requests module but mock the Session class
+real_requests.Session = MockRequestsSession
+
+# Mock ollama client
+class MockOllamaClient:
+    def __init__(self, *args, **kwargs):
+        pass
+    
+    def embeddings(self, *args, **kwargs):
+        return {"embedding": [0.1] * 768}
+
+mock_ollama_module = MagicMock()
+mock_ollama_module.Client = MockOllamaClient
+sys.modules['ollama'] = mock_ollama_module
+
 # Create a mock embedding service class
 class MockEmbeddingService:
     def __init__(self):

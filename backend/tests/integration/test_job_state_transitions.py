@@ -2,6 +2,7 @@
 import pytest
 import asyncio
 import time
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.schemas import Request, ProcessingJob, JobStatus, JobType, Workflow
@@ -57,14 +58,14 @@ async def test_rapid_job_state_transitions(db_session: AsyncSession):
     )
     job = job_result.scalar_one()
     job.status = JobStatus.RUNNING
-    job.started_at = time.time()
+    job.started_at = datetime.now(timezone.utc)
     await db_session.commit()
     transition_times.append(("RUNNING", time.time() - start_time))
     
     # Simulate quick completion (COMPLETED)
     await asyncio.sleep(0.5)  # 500ms processing
     job.status = JobStatus.COMPLETED
-    job.completed_at = time.time()
+    job.completed_at = datetime.now(timezone.utc)
     await db_session.commit()
     transition_times.append(("COMPLETED", time.time() - start_time))
     
@@ -143,7 +144,7 @@ async def test_polling_window_race_condition(db_session: AsyncSession):
     )
     job = job_result.scalar_one()
     job.status = JobStatus.RUNNING
-    job.started_at = time.time()
+    job.started_at = datetime.now(timezone.utc)
     await db_session.commit()
     
     # Poll 2: After 1 second - should still see active job (RUNNING)
@@ -155,7 +156,7 @@ async def test_polling_window_race_condition(db_session: AsyncSession):
     # Complete job after 1.3 seconds total
     await asyncio.sleep(0.3)
     job.status = JobStatus.COMPLETED
-    job.completed_at = time.time()
+    job.completed_at = datetime.now(timezone.utc)
     await db_session.commit()
     
     # Poll 3: After 2 seconds - should NOT see active job (COMPLETED)
@@ -227,13 +228,13 @@ async def test_concurrent_job_completion_visibility(db_session: AsyncSession):
         
         # Transition through states quickly
         job.status = JobStatus.RUNNING
-        job.started_at = time.time()
+        job.started_at = datetime.now(timezone.utc)
         await db_session.commit()
         
         await asyncio.sleep(0.1)  # Brief processing
         
         job.status = JobStatus.COMPLETED
-        job.completed_at = time.time()
+        job.completed_at = datetime.now(timezone.utc)
         await db_session.commit()
         
         completion_order.append((request_id, time.time()))
