@@ -7,9 +7,30 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline'
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL !== undefined 
-  ? (import.meta as any).env.VITE_API_BASE_URL 
-  : ''
+// Get API base URL from environment
+// This handles both Vite (browser) and Node.js (test) environments
+declare const process: any;
+
+function getApiBaseUrl(): string {
+  // In test/Node.js environment 
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  }
+  
+  // In browser with Vite, use import.meta if available
+  if (typeof window !== 'undefined') {
+    try {
+      const meta = (globalThis as any).import?.meta || (global as any).import?.meta;
+      return meta?.env?.VITE_API_BASE_URL || '';
+    } catch {
+      return '';
+    }
+  }
+  
+  return 'http://localhost:8000';
+}
+
+const API_BASE_URL = getApiBaseUrl()
 
 interface LogEntry {
   timestamp: string

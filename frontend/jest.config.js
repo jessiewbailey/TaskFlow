@@ -3,13 +3,14 @@ export default {
   testEnvironment: 'jsdom',
   
   // Setup files
-  setupFiles: ['<rootDir>/jest.setup.js'],
+  setupFiles: ['<rootDir>/polyfills/import-meta.js', '<rootDir>/jest.setup.js'],
   setupFilesAfterEnv: ['<rootDir>/src/test-utils/setup.ts'],
   
   // Module paths
   moduleNameMapper: {
-    // Handle CSS imports
-    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    // Handle CSS imports - fix regex pattern
+    '\\.css$': 'identity-obj-proxy',
+    '\\.(less|scss|sass)$': 'identity-obj-proxy',
     
     // Handle image imports
     '\\.(jpg|jpeg|png|gif|svg)$': '<rootDir>/__mocks__/fileMock.js',
@@ -27,6 +28,11 @@ export default {
     '^.+\\.(ts|tsx)$': 'ts-jest',
     '^.+\\.(js|jsx)$': 'babel-jest',
   },
+
+  // Transform ignore patterns - ensure MSW is transformed
+  transformIgnorePatterns: [
+    '/node_modules/(?!(msw)/)',
+  ],
   
   // Test match patterns
   testMatch: [

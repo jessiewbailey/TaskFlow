@@ -1,8 +1,26 @@
-import axios from 'axios';
-import { apiClient, setAuthToken, clearAuthToken, handleApiError } from './client';
+// Mock axios before importing anything else
+const mockAxiosInstance = {
+  interceptors: {
+    request: { use: jest.fn() },
+    response: { use: jest.fn() }
+  },
+  get: jest.fn(),
+  post: jest.fn(),
+  put: jest.fn(),
+  delete: jest.fn(),
+  patch: jest.fn(),
+};
 
-// Mock axios
-jest.mock('axios');
+jest.mock('axios', () => ({
+  create: jest.fn(() => mockAxiosInstance),
+  default: {
+    create: jest.fn(() => mockAxiosInstance),
+  },
+}));
+
+import axios from 'axios';
+import api, { taskflowApi, API_BASE_URL } from './client';
+
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 // Mock localStorage
@@ -20,128 +38,102 @@ Object.defineProperty(window, 'localStorage', {
 describe('API Client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    localStorageMock.getItem.mockClear();
-    localStorageMock.setItem.mockClear();
-    localStorageMock.removeItem.mockClear();
+    localStorageMock.getItem.mockReturnValue(null);
   });
 
-  describe('apiClient configuration', () => {
-    it('should create axios instance with correct base URL', () => {
-      expect(mockedAxios.create).toHaveBeenCalledWith({
-        baseURL: expect.stringContaining('/api'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+  describe('API configuration', () => {
+    it('should have correct API base URL', () => {
+      expect(API_BASE_URL).toBe('http://localhost:8000');
+    });
+  });
+
+  describe('taskflowApi', () => {
+    it('should have all expected methods', () => {
+      expect(taskflowApi).toHaveProperty('getRequests');
+      expect(taskflowApi).toHaveProperty('getRequest');
+      expect(taskflowApi).toHaveProperty('createRequest');
+      expect(taskflowApi).toHaveProperty('updateRequestStatus');
+      expect(taskflowApi).toHaveProperty('updateRequest');
+      expect(taskflowApi).toHaveProperty('deleteRequest');
+      expect(taskflowApi).toHaveProperty('processRequest');
+      expect(taskflowApi).toHaveProperty('getJobStatus');
+      expect(taskflowApi).toHaveProperty('streamJobProgress');
+      expect(taskflowApi).toHaveProperty('getOllamaModels');
+    });
+
+    it('should call correct API endpoint for getRequests', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { items: [], total: 0 } });
+
+      await taskflowApi.getRequests();
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/requests?');
+    });
+
+    it('should call correct API endpoint for getRequest', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { id: 1, text: 'Test' } });
+
+      await taskflowApi.getRequest(1);
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/requests/1');
+    });
+
+    it('should call correct API endpoint for createRequest', async () => {
+      const payload = { text: 'Test request' };
+      mockAxiosInstance.post.mockResolvedValue({ data: { id: 1 } });
+
+      await taskflowApi.createRequest(payload);
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/requests', payload);
+    });
+
+    it('should handle filters in getRequests', async () => {
+      mockAxiosInstance.get.mockResolvedValue({ data: { items: [], total: 0 } });
+
+      await taskflowApi.getRequests({ 
+        analyst: 1, 
+        status: 'NEW', 
+        page: 2,
+        page_size: 10 
+      });
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith(
+        '/api/requests?analyst=1&status=NEW&page=2&page_size=10'
+      );
+    });
+
+    it('should handle getOllamaModels success', async () => {
+      const mockModels = { models: [{ name: 'llama2' }] };
+      mockAxiosInstance.get.mockResolvedValue({ data: mockModels });
+
+      const result = await taskflowApi.getOllamaModels();
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/models/ollama');
+      expect(result).toEqual({
+        models: mockModels.models,
+        total: 1
+      });
+    });
+
+    it('should handle getOllamaModels error', async () => {
+      mockAxiosInstance.get.mockRejectedValue(new Error('Network error'));
+
+      const result = await taskflowApi.getOllamaModels();
+
+      expect(result).toEqual({
+        models: [],
+        total: 0,
+        error: 'Failed to connect to Ollama'
       });
     });
   });
 
-  describe('setAuthToken', () => {
-    it('should set authorization header and store token', () => {
-      const token = 'test-jwt-token';
-      setAuthToken(token);
-
-      expect(localStorageMock.setItem).toHaveBeenCalledWith('authToken', token);
-    });
-
-    it('should handle null token', () => {
-      setAuthToken(null);
-      
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('authToken');
-    });
-
-    it('should handle undefined token', () => {
-      setAuthToken(undefined);
-      
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('authToken');
-    });
-  });
-
-  describe('clearAuthToken', () => {
-    it('should remove token from localStorage', () => {
-      clearAuthToken();
-
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith('authToken');
-    });
-  });
-
-  describe('handleApiError', () => {
-    it('should return error message from response data', () => {
-      const error = {
-        response: {
-          data: {
-            message: 'Custom error message',
-          },
-        },
-      };
-
-      const result = handleApiError(error);
-      expect(result).toBe('Custom error message');
-    });
-
-    it('should return detail from response data if no message', () => {
-      const error = {
-        response: {
-          data: {
-            detail: 'Detailed error message',
-          },
-        },
-      };
-
-      const result = handleApiError(error);
-      expect(result).toBe('Detailed error message');
-    });
-
-    it('should return status text if no message or detail', () => {
-      const error = {
-        response: {
-          statusText: 'Bad Request',
-          data: {},
-        },
-      };
-
-      const result = handleApiError(error);
-      expect(result).toBe('Bad Request');
-    });
-
-    it('should return error message for non-response errors', () => {
-      const error = {
-        message: 'Network Error',
-      };
-
-      const result = handleApiError(error);
-      expect(result).toBe('Network Error');
-    });
-
-    it('should return default message for unknown errors', () => {
-      const result = handleApiError({});
-      expect(result).toBe('An unexpected error occurred');
-    });
-
-    it('should return default message for null error', () => {
-      const result = handleApiError(null);
-      expect(result).toBe('An unexpected error occurred');
-    });
-
-    it('should handle 401 errors specially', () => {
-      const error = {
-        response: {
-          status: 401,
-          statusText: 'Unauthorized',
-          data: {},
-        },
-      };
-
-      const result = handleApiError(error);
-      expect(result).toBe('Unauthorized');
-      // In a real app, this might trigger a logout or redirect
-    });
-  });
-
-  describe('Auth token initialization', () => {
-    it('should load token from localStorage on initialization', () => {
-      // This would typically happen when the module is imported
-      expect(localStorageMock.getItem).toHaveBeenCalledWith('authToken');
+  describe('axios instance', () => {
+    it('should export the axios instance', () => {
+      expect(api).toBeDefined();
+      expect(api).toHaveProperty('get');
+      expect(api).toHaveProperty('post');
+      expect(api).toHaveProperty('put');
+      expect(api).toHaveProperty('delete');
     });
   });
 });

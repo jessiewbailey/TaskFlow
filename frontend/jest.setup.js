@@ -1,10 +1,10 @@
 // Jest setup file to add necessary polyfills
 require('whatwg-fetch');
 
-// Mock import.meta.env
-global.importMeta = {
+// Mock import.meta.env for Vite
+const mockImportMeta = {
   env: {
-    VITE_API_BASE_URL: '',
+    VITE_API_BASE_URL: 'http://localhost:8000',
     MODE: 'test',
     DEV: false,
     PROD: false,
@@ -12,14 +12,21 @@ global.importMeta = {
   }
 };
 
-// Add import.meta to the global scope for tests
-Object.defineProperty(global, 'import', {
-  value: {
-    meta: global.importMeta
-  },
-  configurable: true,
-  writable: true
-});
+// Store reference for later use
+global.importMeta = mockImportMeta;
+
+// Set up import.meta for Node.js/Jest environment
+// This needs to be done before any modules that use import.meta are loaded
+if (typeof globalThis.import === 'undefined') {
+  globalThis.import = {};
+}
+globalThis.import.meta = mockImportMeta;
+
+// Also set on global for compatibility
+if (typeof global.import === 'undefined') {
+  global.import = {};
+}
+global.import.meta = mockImportMeta;
 
 // Polyfill TextEncoder/TextDecoder
 const { TextEncoder, TextDecoder } = require('util');
@@ -53,6 +60,31 @@ if (typeof TransformStream === 'undefined') {
     constructor() {
       this.readable = null;
       this.writable = null;
+    }
+  };
+}
+
+// Add BroadcastChannel polyfill for MSW v2
+if (typeof BroadcastChannel === 'undefined') {
+  global.BroadcastChannel = class BroadcastChannel {
+    constructor(name) {
+      this.name = name;
+    }
+    
+    postMessage(message) {
+      // Mock implementation - just log or ignore
+    }
+    
+    close() {
+      // Mock implementation
+    }
+    
+    addEventListener() {
+      // Mock implementation
+    }
+    
+    removeEventListener() {
+      // Mock implementation
     }
   };
 }

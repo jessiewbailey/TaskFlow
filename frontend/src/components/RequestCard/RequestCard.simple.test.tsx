@@ -1,14 +1,17 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 
-// Mock all dependencies
+// Mock RequestCard component
+const MockRequestCard = ({ request }: { request: any }) => (
+  <div data-testid="request-card">
+    <h3>{request.text}</h3>
+    <p>{request.status}</p>
+  </div>
+);
+
+// Mock the RequestCard module
 jest.mock('../RequestCard', () => ({
-  RequestCard: ({ request }) => (
-    <div data-testid="request-card">
-      <h3>{request.text}</h3>
-      <p>{request.status}</p>
-    </div>
-  ),
+  RequestCard: MockRequestCard,
 }));
 
 describe('RequestCard Simple Test', () => {
@@ -19,11 +22,7 @@ describe('RequestCard Simple Test', () => {
       status: 'NEW',
     };
 
-    render(
-      <div>
-        {React.createElement(require('../RequestCard').RequestCard, { request: mockRequest })}
-      </div>
-    );
+    render(<MockRequestCard request={mockRequest} />);
 
     expect(screen.getByTestId('request-card')).toBeInTheDocument();
     expect(screen.getByText('Test request')).toBeInTheDocument();

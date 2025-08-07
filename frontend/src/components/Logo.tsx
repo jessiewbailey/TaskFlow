@@ -7,14 +7,17 @@ interface LogoProps {
 }
 
 export const Logo: React.FC<LogoProps> = ({ 
-  className = "h-8 w-auto", 
+  className, 
   alt = "TaskFlow" 
 }) => {
+  const defaultClasses = "h-8 w-auto";
+  const finalClassName = className ? `${defaultClasses} ${className}` : defaultClasses;
+  
   return (
     <img 
       src={LogoImage} 
       alt={alt}
-      className={className}
+      className={finalClassName}
     />
   )
 }

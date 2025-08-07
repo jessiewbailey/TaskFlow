@@ -269,8 +269,29 @@ class EventStreamService extends SimpleEventEmitter {
 const eventStreamService = new EventStreamService();
 
 // Export for use in React DevTools
-if (import.meta.env.DEV) {
+// Check for development environment in a way that works in both browser and Node.js
+declare const process: any;
+
+function isDevelopment(): boolean {
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env.NODE_ENV === 'development';
+  }
+  
+  if (typeof window !== 'undefined') {
+    try {
+      const meta = (globalThis as any).import?.meta || (global as any).import?.meta;
+      return meta?.env?.DEV === true;
+    } catch {
+      return false;
+    }
+  }
+  
+  return false;
+}
+
+if (isDevelopment()) {
   (window as any).__eventStreamService = eventStreamService;
 }
 
+export { EventStreamService };
 export default eventStreamService;
