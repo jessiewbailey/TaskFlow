@@ -407,3 +407,5 @@ k8s/secrets.yaml.claude/
 k8s_private/
 test-files/
 secrets.yaml
+CLAUDE.md
+01-init-complete.sql
