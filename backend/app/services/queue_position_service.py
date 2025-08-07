@@ -74,8 +74,8 @@ class QueuePositionService:
             return None
         
         # Get average processing time for completed jobs in the last hour
-        from datetime import datetime, timedelta
-        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+        from datetime import datetime, timedelta, timezone
+        one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
         
         avg_time_result = await self.db.execute(
             select(func.avg(

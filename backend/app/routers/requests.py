@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from typing import Optional, List, Dict, Any
 import pandas as pd
 import io
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from app.models.database import get_db
 from app.models.schemas import Request, User, AIOutput, RequestStatus, Workflow, JobType, CustomInstruction, ProcessingJob, JobStatus, Exercise as ExerciseModel, WorkflowSimilarityConfig
 from app.models.pydantic_models import (
@@ -179,6 +179,8 @@ async def list_requests(
 ):
     """List and filter requests with pagination"""
     
+    from sqlalchemy import func
+    
     # Build query
     query = select(Request).options(
         selectinload(Request.assigned_analyst),
@@ -225,12 +227,14 @@ async def list_requests(
     request_ids = [req.id for req in requests]
     
     # Check for active jobs (PENDING or RUNNING) for all requests in one query
+    # Exclude embedding jobs as they don't indicate user-visible processing status
     active_job_request_ids = set()
     if request_ids:  # Only query if there are requests
         active_jobs_result = await db.execute(
             select(ProcessingJob.request_id)
             .where(ProcessingJob.request_id.in_(request_ids))
             .where(ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
+            .where(ProcessingJob.job_type.in_([JobType.WORKFLOW, JobType.STANDARD, JobType.CUSTOM]))
         )
         active_job_request_ids = set(active_jobs_result.scalars().all())
     
@@ -390,10 +394,12 @@ async def get_request(
         latest_ai_output = max(request.ai_outputs, key=lambda x: x.version)
     
     # Check for active jobs and get latest job ID
+    # Exclude embedding jobs as they don't indicate user-visible processing status
     active_jobs_result = await db.execute(
         select(ProcessingJob)
         .where(ProcessingJob.request_id == request_id)
         .where(ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
+        .where(ProcessingJob.job_type.in_([JobType.WORKFLOW, JobType.STANDARD, JobType.CUSTOM]))
         .order_by(ProcessingJob.created_at.desc())
         .limit(1)
     )
@@ -1097,7 +1103,7 @@ async def batch_upload_requests(
             batch_requests_result = await db.execute(
                 select(Request)
                 .where(Request.exercise_id == exercise_id)
-                .where(Request.created_at >= datetime.utcnow() - timedelta(minutes=5))
+                .where(Request.created_at >= datetime.now(timezone.utc) - timedelta(minutes=5))
                 .order_by(Request.created_at.desc())
                 .limit(success_count)
             )

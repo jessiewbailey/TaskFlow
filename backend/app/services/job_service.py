@@ -1,9 +1,9 @@
 import uuid
 import asyncio
 from typing import Optional, Set
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete, and_
 from app.models.schemas import ProcessingJob, JobStatus, JobType, Request, RequestStatus, WorkflowEmbeddingConfig, AIOutput
 from app.models.pydantic_models import JobProgressResponse
 import httpx
@@ -178,7 +178,7 @@ class JobService:
                         ProcessingJob.id == job_id,
                         ProcessingJob.status == JobStatus.PENDING  # Ensure it's still PENDING
                     )
-                    .values(status=JobStatus.RUNNING, started_at=datetime.utcnow())
+                    .values(status=JobStatus.RUNNING, started_at=datetime.now(timezone.utc))
                     .returning(ProcessingJob.id)
                 )
                 await db.commit()
@@ -225,7 +225,7 @@ class JobService:
                 await db.execute(
                     update(ProcessingJob)
                     .where(ProcessingJob.id == job_id)
-                    .values(status=JobStatus.COMPLETED, completed_at=datetime.utcnow())
+                    .values(status=JobStatus.COMPLETED, completed_at=datetime.now(timezone.utc))
                 )
                 await db.commit()
                 
@@ -233,6 +233,9 @@ class JobService:
                 
                 # Generate embedding after successful workflow completion
                 await self._generate_workflow_embedding(job.request_id, job.workflow_id, db)
+                
+                # Clean up old completed jobs to prevent status confusion
+                await self._cleanup_old_jobs(job.request_id, db)
                 
         except Exception as e:
             logger.error("Job processing failed", job_id=job_id, error=str(e))
@@ -281,7 +284,7 @@ class JobService:
                             )
                             .values(
                                 status=JobStatus.FAILED, 
-                                completed_at=datetime.utcnow(),
+                                completed_at=datetime.now(timezone.utc),
                                 error_message=str(e)
                             )
                         )
@@ -375,6 +378,48 @@ class JobService:
                 
         except Exception as e:
             logger.error("Failed to generate workflow embedding", 
+                        request_id=request_id, 
+                        error=str(e))
+    
+    async def _cleanup_old_jobs(self, request_id: str, db: AsyncSession):
+        """Clean up old completed jobs to prevent UI status confusion"""
+        try:
+            from datetime import timedelta
+            
+            # Keep only the 3 most recent jobs per request to maintain history
+            # but remove excess older jobs that can cause status confusion
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
+            
+            # Subquery to get job IDs to keep (most recent 3 per request)
+            keep_jobs_subquery = (
+                select(ProcessingJob.id)
+                .where(ProcessingJob.request_id == request_id)
+                .order_by(ProcessingJob.created_at.desc())
+                .limit(3)
+            )
+            
+            # Delete old jobs that are not in the keep list and are older than 24 hours
+            delete_result = await db.execute(
+                delete(ProcessingJob)
+                .where(
+                    and_(
+                        ProcessingJob.request_id == request_id,
+                        ProcessingJob.status.in_([JobStatus.COMPLETED, JobStatus.FAILED]),
+                        ProcessingJob.created_at < cutoff_time,
+                        ProcessingJob.id.notin_(keep_jobs_subquery)
+                    )
+                )
+            )
+            
+            deleted_count = delete_result.rowcount
+            if deleted_count > 0:
+                await db.commit()
+                logger.info("Cleaned up old jobs", 
+                           request_id=request_id, 
+                           deleted_count=deleted_count)
+                           
+        except Exception as e:
+            logger.error("Failed to cleanup old jobs", 
                         request_id=request_id, 
                         error=str(e))
     
