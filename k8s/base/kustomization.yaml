@@ -1,23 +1,10 @@
-# TaskFlow Kustomization Configuration
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Target namespace for all resources
-namespace: taskflow
-
-# Common metadata applied to all resources
-metadata:
-  name: taskflow
-  
-labels:
-  - pairs:
-      app.kubernetes.io/name: taskflow
-      app.kubernetes.io/part-of: taskflow
-      app.kubernetes.io/version: "1.0.0"
-
-# Resources to deploy
+# Include base configuration
 resources:
   # Namespaces are created manually via kubectl
+  # longhorn-storageclass.yaml  # Longhorn creates its own StorageClass during installation
   - qdrant-deployment.yaml     # Qdrant vector database for RAG search
   - ollama-deployment.yaml     # Ollama LLM server in llm namespace
   - redis-deployment.yaml      # Redis for event bus and pub/sub
@@ -34,41 +21,8 @@ resources:
   # - ingress.yaml create ingresses manually
 
 # Container image management
-images:
-  - name: docker.io/jessiewbailey/taskflow-api
-    newName: docker.io/jessiewbailey/taskflow-api
-    newTag: latest
-  - name: docker.io/jessiewbailey/taskflow-ai
-    newName: docker.io/jessiewbailey/taskflow-ai
-    newTag: latest  
-  - name: docker.io/jessiewbailey/taskflow-web
-    newName: docker.io/jessiewbailey/taskflow-web
-    newTag: latest
-  - name: docker.io/jessiewbailey/taskflow-ollama
-    newName: docker.io/jessiewbailey/taskflow-ollama
-    newTag: latest
 
-# JSON/YAML patches (optional)
-patches:
-  - target:
-      kind: Deployment
-      name: taskflow-api
-    path: api-deployment-patch.yaml
-
-# Replicas override (for different environments)
-# Uncomment and modify for different environments
-# replicas:
-#   - name: taskflow-api
-#     count: 3
-#   - name: taskflow-web
-#     count: 3
-#   - name: taskflow-ai
-#     count: 2
-
-# Resource transformations
-transformers: []
-
-# ConfigMap Generators
+# ConfigMap generators
 configMapGenerator:
   - name: taskflow-ui-labels
     files:
@@ -79,4 +33,29 @@ configMapGenerator:
     files:
       - 01-init-complete.sql
     options:
-      disableNameSuffixHash: true
+
+# Image transformations
+images:
+  - name: docker.io/jessiewbailey/taskflow-api
+    newName: docker.io/jessiewbailey/taskflow-api
+    newTag: latest
+  - name: docker.io/jessiewbailey/taskflow-ai
+    newName: docker.io/jessiewbailey/taskflow-ai
+    newTag: latest
+  - name: docker.io/jessiewbailey/taskflow-web
+    newName: docker.io/jessiewbailey/taskflow-web
+    newTag: latest
+  - name: docker.io/jessiewbailey/taskflow-ollama
+    newName: docker.io/jessiewbailey/taskflow-ollama
+    newTag: latest
+
+# Labels
+labels:
+  - pairs:
+      app.kubernetes.io/name: taskflow
+      app.kubernetes.io/part-of: taskflow
+      app.kubernetes.io/version: "1.0.0"
+
+
+# Namespace
+namespace: taskflow
