@@ -243,7 +243,7 @@ IMPORTANT: You must respond with valid JSON only containing actual data values (
                             attempt=attempt, 
                             block_name=block_name,
                             error=str(e),
-                            raw_response=content[:500])
+                            raw_response=raw_response[:500])
                 if attempt == settings.max_retries:
                     raise Exception(f"Failed to get valid JSON from block '{block_name}' after {settings.max_retries + 1} attempts")
                     
