@@ -12,7 +12,8 @@ export const useRequests = (filters: RequestFilters = {}) => {
   return useQuery({
     queryKey: ['requests', filters],
     queryFn: () => taskflowApi.getRequests(filters),
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 5 * 60 * 1000, // 5 minutes - requests list doesn't change frequently
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   })
 }
 

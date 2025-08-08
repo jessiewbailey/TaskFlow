@@ -23,35 +23,61 @@ const ProcessingStatus: React.FC<{ request: Task, onUpdate?: () => void }> = ({ 
 
   useEffect(() => {
     if (!request.has_active_jobs) {
+      // Reset polling state when no active jobs
+      setPollingRequest(null);
+      setJobProgress(null);
       return;
     }
 
-    const pollInterval = setInterval(async () => {
-      try {
-        // Fetch updated request data
-        const updated = await taskflowApi.getRequest(request.id);
-        setPollingRequest(updated);
-        
-        // Fetch job progress if available
-        if (updated.latest_job_id) {
-          try {
-            const progress = await taskflowApi.getJobProgress(updated.latest_job_id);
-            setJobProgress(progress);
-          } catch (e) {
-            // Job progress endpoint might not exist yet
-          }
-        }
-        
-        // If job completed, notify parent to refresh
-        if (!updated.has_active_jobs && onUpdate) {
-          onUpdate();
-        }
-      } catch (error) {
-        console.error('Error polling request:', error);
-      }
-    }, 1000); // Poll every second
+    let pollInterval: NodeJS.Timeout | null = null;
+    let isActive = true;
 
-    return () => clearInterval(pollInterval);
+    const startPolling = () => {
+      pollInterval = setInterval(async () => {
+        if (!isActive) return;
+
+        try {
+          // Fetch updated request data
+          const updated = await taskflowApi.getRequest(request.id);
+          if (!isActive) return;
+          
+          setPollingRequest(updated);
+          
+          // If job completed, stop polling and notify parent
+          if (!updated.has_active_jobs) {
+            if (pollInterval) clearInterval(pollInterval);
+            isActive = false;
+            if (onUpdate) {
+              onUpdate();
+            }
+            return;
+          }
+          
+          // Fetch job progress if available
+          if (updated.latest_job_id) {
+            try {
+              const progress = await taskflowApi.getJobProgress(updated.latest_job_id);
+              if (isActive) {
+                setJobProgress(progress);
+              }
+            } catch (e) {
+              // Job progress endpoint might not exist yet
+            }
+          }
+        } catch (error) {
+          console.error('Error polling request:', error);
+        }
+      }, 2000); // Poll every 2 seconds instead of 1
+    };
+
+    startPolling();
+
+    return () => {
+      isActive = false;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
   }, [request.id, request.has_active_jobs, onUpdate]);
 
   const displayRequest = pollingRequest || request;

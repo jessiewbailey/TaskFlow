@@ -14,37 +14,61 @@ export function useRequestPolling(requestId: number | null | undefined, options:
 
   useEffect(() => {
     if (!requestId || !enabled) {
+      setRequest(null);
       return;
     }
+
+    let isActive = true;
 
     const fetchRequest = async () => {
       try {
         setIsLoading(true);
         const data = await taskflowApi.getRequest(requestId);
-        setRequest(data);
+        if (isActive) {
+          setRequest(data);
+        }
+        return data;
       } catch (error) {
         console.error('Error fetching request:', error);
+        return null;
       } finally {
-        setIsLoading(false);
+        if (isActive) {
+          setIsLoading(false);
+        }
       }
     };
 
-    // Initial fetch
-    fetchRequest();
-
-    // Set up polling if request has active jobs
-    intervalRef.current = setInterval(() => {
-      if (request?.has_active_jobs) {
-        fetchRequest();
+    const startPolling = async () => {
+      // Initial fetch
+      const initialData = await fetchRequest();
+      if (!isActive || !initialData?.has_active_jobs) {
+        return;
       }
-    }, interval);
+
+      // Set up polling only if there are active jobs
+      intervalRef.current = setInterval(async () => {
+        if (!isActive) return;
+        
+        const updatedData = await fetchRequest();
+        
+        // Stop polling if no active jobs
+        if (!updatedData?.has_active_jobs && intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      }, interval);
+    };
+
+    startPolling();
 
     return () => {
+      isActive = false;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [requestId, enabled, interval, request?.has_active_jobs]);
+  }, [requestId, enabled, interval]);
 
   return { request, isLoading };
 }
