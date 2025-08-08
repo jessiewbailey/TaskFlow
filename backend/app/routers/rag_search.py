@@ -5,7 +5,12 @@ from app.models.database import get_db
 from app.models.pydantic_models import RAGSearchRequest, RAGSearchResponse, RAGSearchResult
 from app.routers.auth import get_current_user
 from app.models.pydantic_models import User
-from app.services.embedding_service import embedding_service
+# Conditional import to prevent startup failures
+try:
+    from app.services.embedding_service import embedding_service
+except Exception as e:
+    print(f"WARNING: EmbeddingService failed to initialize in rag_search: {e}")
+    embedding_service = None
 from app.models.schemas import Request, Workflow, WorkflowSimilarityConfig, AIOutput
 from sqlalchemy import select
 import logging
@@ -36,6 +41,9 @@ async def perform_rag_search(
         # Add exercise filter based on user permissions if needed
         # For now, we'll search across all exercises the user has access to
         
+        if not embedding_service or not embedding_service.is_available():
+            raise HTTPException(status_code=503, detail="Embedding service not available")
+            
         logger.info("About to call embedding_service.search_similar_tasks...")
         
         # Perform the similarity search
