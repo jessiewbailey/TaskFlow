@@ -15,7 +15,7 @@ class EmbeddingService:
     def __init__(self):
         self.ollama_host = os.getenv("OLLAMA_HOST", "http://ollama-service:11434")
         self.qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
-        self.embedding_model = "nomic-embed-text"
+        self.embedding_model = "nomic-embed-text:latest"
         self.collection_name = "tasks"
         self.vector_size = 768  # nomic-embed-text dimension
         
@@ -33,21 +33,30 @@ class EmbeddingService:
             self.ollama_client = OllamaClient(host=self.ollama_host)
             self.qdrant_client = QdrantClient(url=self.qdrant_url)
             
-            # Test Ollama connection
+            # Test Ollama connection (non-blocking for startup)
             logger.info("Testing Ollama connection...")
-            response = self.session.get(f"{self.ollama_host}/api/tags", timeout=10)
-            response.raise_for_status()
-            models = [m['name'] for m in response.json().get('models', [])]
-            logger.info(f"Ollama connection successful. Available models: {models}")
+            try:
+                response = self.session.get(f"{self.ollama_host}/api/tags", timeout=10)
+                response.raise_for_status()
+                models = [m['name'] for m in response.json().get('models', [])]
+                logger.info(f"Ollama connection successful. Available models: {models}")
+                
+                if self.embedding_model not in models:
+                    logger.warning(f"Required embedding model '{self.embedding_model}' not found in Ollama!")
+                    logger.warning(f"Available models: {models}")
+            except Exception as e:
+                logger.warning(f"Ollama connection failed during startup (this is normal if Ollama is still starting): {str(e)}")
+                logger.info("EmbeddingService will retry connections when embedding operations are requested")
             
-            if self.embedding_model not in models:
-                logger.error(f"Required embedding model '{self.embedding_model}' not found in Ollama!")
-                logger.error(f"Available models: {models}")
-            
-            self._ensure_collection()
+            # Initialize Qdrant collection (this usually works)
+            try:
+                self._ensure_collection()
+            except Exception as e:
+                logger.warning(f"Qdrant collection initialization failed during startup: {str(e)}")
+                logger.info("EmbeddingService will retry Qdrant connection when needed")
         except Exception as e:
-            logger.error(f"Failed to initialize EmbeddingService: {str(e)}")
-            raise
+            logger.warning(f"EmbeddingService initialization had issues: {str(e)}")
+            logger.info("EmbeddingService will continue startup and retry connections when needed")
     
     def _ensure_collection(self):
         """Ensure the Qdrant collection exists with proper configuration."""
@@ -361,5 +370,55 @@ class EmbeddingService:
             logger.error(f"Error deleting task embedding: {str(e)}")
             raise
 
-# Singleton instance
-embedding_service = EmbeddingService()
+# Lazy initialization implementation
+import os
+
+class LazyEmbeddingService:
+    """Lazy wrapper for EmbeddingService that initializes only when first accessed."""
+    
+    def __init__(self):
+        self._service = None
+        self._initialized = False
+        self._disabled = os.getenv('DISABLE_EMBEDDING_SERVICE', 'false').lower() == 'true'
+        
+    def _ensure_initialized(self):
+        """Initialize the service if not already done."""
+        if self._initialized:
+            return
+            
+        self._initialized = True
+        
+        if self._disabled:
+            logger.warning("EmbeddingService disabled by environment variable")
+            self._service = None
+            return
+            
+        try:
+            logger.info("Initializing EmbeddingService on first access...")
+            self._service = EmbeddingService()
+            logger.info("EmbeddingService initialized successfully")
+        except Exception as e:
+            logger.warning(f"EmbeddingService initialization failed: {str(e)}")
+            logger.warning("EmbeddingService will remain unavailable")
+            self._service = None
+            
+    def __getattr__(self, name):
+        """Delegate attribute access to the underlying service after ensuring it's initialized."""
+        self._ensure_initialized()
+        if self._service is None:
+            raise RuntimeError("EmbeddingService is not available")
+        return getattr(self._service, name)
+        
+    def __bool__(self):
+        """Return True if the service is available."""
+        self._ensure_initialized()
+        return self._service is not None
+        
+    def is_available(self):
+        """Check if the embedding service is available without triggering initialization."""
+        if not self._initialized:
+            return not self._disabled
+        return self._service is not None
+
+# Create lazy singleton instance
+embedding_service = LazyEmbeddingService()
