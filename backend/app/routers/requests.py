@@ -17,7 +17,12 @@ from app.models.pydantic_models import (
 )
 from pydantic import BaseModel
 from app.services.job_service import JobService
-from app.services.embedding_service import embedding_service
+# Conditional import to prevent startup failures
+try:
+    from app.services.embedding_service import embedding_service
+except Exception as e:
+    print(f"WARNING: EmbeddingService failed to initialize: {e}")
+    embedding_service = None
 from app.services.sse_manager import sse_manager, create_sse_response
 from app.services.event_bus import event_bus, get_channel_for_request, EventType, create_event
 import structlog
@@ -721,7 +726,11 @@ async def delete_request(
     
     # Delete embedding from Qdrant first
     try:
-        await embedding_service.delete_task_embedding(request_id)
+        if embedding_service.is_available():
+            try:
+                await embedding_service.delete_task_embedding(request_id)
+            except RuntimeError as e:
+                logger.warning(f"Embedding service not available for deletion: {e}")
         logger.info("Deleted embedding for request", request_id=request_id)
     except Exception as e:
         logger.error("Failed to delete embedding", request_id=request_id, error=str(e))
@@ -747,6 +756,9 @@ async def search_similar_tasks_by_text(
     
     try:
         # Search similar tasks
+        if not embedding_service or not embedding_service.is_available():
+            raise HTTPException(status_code=503, detail="Embedding service not available")
+        
         similar_tasks = await embedding_service.search_similar_tasks(
             query_text=search_request.query,
             limit=search_request.limit,
@@ -798,6 +810,9 @@ async def search_similar_tasks_by_id(
             filters['exercise_id'] = request.exercise_id
         
         # Search similar tasks
+        if not embedding_service or not embedding_service.is_available():
+            raise HTTPException(status_code=503, detail="Embedding service not available")
+        
         similar_tasks = await embedding_service.search_similar_by_task_id(
             task_id=request_id,
             limit=search_request.limit,
