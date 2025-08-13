@@ -62,6 +62,7 @@ export const WorkflowEditor: React.FC<WorkflowEditorProps> = ({
       setBlocks(workflow.blocks.map(block => ({
         name: block.name,
         prompt: block.prompt,
+        system_prompt: block.system_prompt,
         order: block.order,
         block_type: block.block_type,
         output_schema: block.output_schema,

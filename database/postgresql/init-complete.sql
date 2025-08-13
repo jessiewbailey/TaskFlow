@@ -113,6 +113,7 @@ CREATE TABLE workflow_blocks (
   workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
   name VARCHAR(128) NOT NULL,
   prompt TEXT NOT NULL,
+  system_prompt TEXT,
   order_index INT NOT NULL,
   block_type block_type DEFAULT 'CUSTOM',
   output_schema JSONB,

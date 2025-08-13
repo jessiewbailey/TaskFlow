@@ -183,6 +183,7 @@ class WorkflowBlock(Base):
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=False)
     name = Column(String(128), nullable=False)
     prompt = Column(Text, nullable=False)
+    system_prompt = Column(Text, nullable=True)
     order = Column('order_index', Integer, nullable=False)
     block_type = Column(Enum(BlockType, name='block_type'), default=BlockType.CUSTOM, nullable=False)
     output_schema = Column(JSON, nullable=True)  # Pydantic schema as JSON

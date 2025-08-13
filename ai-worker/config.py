@@ -5,7 +5,7 @@ import os
 class Settings(BaseSettings):
     # Ollama Configuration
     ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-    model_name: str = os.getenv("MODEL_NAME", "gemma3:27b")
+    model_name: str = os.getenv("MODEL_NAME", "gemma3:1b")
     
     # API Configuration
     api_host: str = os.getenv("API_HOST", "0.0.0.0")

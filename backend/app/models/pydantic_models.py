@@ -231,6 +231,7 @@ class WorkflowBlockInputRequest(BaseModel):
 class WorkflowBlockRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
     prompt: str = Field(..., min_length=1)
+    system_prompt: Optional[str] = None
     order: int = Field(..., ge=0)
     block_type: str = "CUSTOM"  # "CORE" or "CUSTOM"
     output_schema: Optional[Dict[str, Any]] = None
@@ -268,6 +269,7 @@ class WorkflowBlockResponse(BaseModel):
     workflow_id: int
     name: str
     prompt: str
+    system_prompt: Optional[str]
     order: int
     block_type: str
     output_schema: Optional[Dict[str, Any]]

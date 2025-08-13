@@ -4,7 +4,7 @@ kind: Kustomization
 # Include base configuration
 resources:
   # Namespaces are created manually via kubectl
-  # longhorn-storageclass.yaml  # Longhorn creates its own StorageClass during installation
+  # - longhorn-storageclass.yaml  # Longhorn creates its own StorageClass during installation
   - qdrant-deployment.yaml     # Qdrant vector database for RAG search
   - ollama-deployment.yaml     # Ollama LLM server in llm namespace
   - redis-deployment.yaml      # Redis for event bus and pub/sub
@@ -23,6 +23,14 @@ resources:
 # Container image management
 
 # ConfigMap generators
+
+# ConfigMap generators
+
+# ConfigMap generators
+
+# ConfigMap generators
+
+# ConfigMap generators
 configMapGenerator:
   - name: taskflow-ui-labels
     files:
@@ -33,6 +41,7 @@ configMapGenerator:
     files:
       - 01-init-complete.sql
     options:
+
 
 # Image transformations
 images:
@@ -55,6 +64,7 @@ labels:
       app.kubernetes.io/name: taskflow
       app.kubernetes.io/part-of: taskflow
       app.kubernetes.io/version: "1.0.0"
+
 
 
 # Namespace

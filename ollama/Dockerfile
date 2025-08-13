@@ -1,4 +1,4 @@
-FROM ollama/ollama:latest
+FROM ollama/ollama:0.11.4
 
 # Run as root to make system changes
 USER root

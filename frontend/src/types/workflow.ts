@@ -10,6 +10,7 @@ export interface WorkflowBlock {
   workflow_id: number
   name: string
   prompt: string
+  system_prompt?: string
   order: number
   block_type: 'CORE' | 'CUSTOM'
   output_schema?: Record<string, any>
@@ -50,6 +51,7 @@ export interface CreateWorkflowBlockInputRequest {
 export interface CreateWorkflowBlockRequest {
   name: string
   prompt: string
+  system_prompt?: string
   order: number
   block_type?: 'CORE' | 'CUSTOM'
   output_schema?: Record<string, any>

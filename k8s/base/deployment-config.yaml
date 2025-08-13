@@ -17,7 +17,7 @@ data:
   EXTERNAL_OLLAMA_HOST: "http://ollama-service:11434"
   
   # Model Configuration
-  DEFAULT_MODEL: "gemma2:2b"  # Using lighter model for demo (change to gemma3:27b for production)
+  DEFAULT_MODEL: "gemma3:1b"  # Using ultra-light model for limited resources
   
   # Resource Configuration
   POSTGRES_DEPLOYMENT_MODE: "internal"  # internal | external

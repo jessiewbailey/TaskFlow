@@ -35,6 +35,7 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
   const [showSchemaEditor, setShowSchemaEditor] = useState(false)
   const [showModelParameters, setShowModelParameters] = useState(false)
   const [showOutputSchema, setShowOutputSchema] = useState(false)
+  const [showSystemPrompt, setShowSystemPrompt] = useState(false)
   const [availableModels, setAvailableModels] = useState<OllamaModel[]>([])
   const [modelsLoading, setModelsLoading] = useState(false)
 
@@ -531,6 +532,46 @@ export const WorkflowBlockEditor: React.FC<WorkflowBlockEditorProps> = ({
             <p className="mt-1 text-sm text-gray-500">
               Use curly braces to reference inputs: {'{variable_name}'}
             </p>
+          </div>
+
+          {/* System Prompt */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                System Prompt
+              </label>
+              <button
+                onClick={() => setShowSystemPrompt(!showSystemPrompt)}
+                className="inline-flex items-center px-2 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 hover:bg-gray-50"
+                type="button"
+              >
+                {showSystemPrompt ? (
+                  <>
+                    <ChevronUpIcon className="h-3 w-3 mr-1" />
+                    Hide
+                  </>
+                ) : (
+                  <>
+                    <ChevronDownIcon className="h-3 w-3 mr-1" />
+                    Show
+                  </>
+                )}
+              </button>
+            </div>
+            {showSystemPrompt && (
+              <div>
+                <textarea
+                  rows={4}
+                  value={block.system_prompt || ''}
+                  onChange={(e) => updateBlock({ system_prompt: e.target.value })}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="Optional system prompt to guide the AI's behavior for this block..."
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  System prompts help set the AI's behavior, role, or context for this specific block.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Output Schema */}
