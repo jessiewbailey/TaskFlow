@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 import ollama
 import structlog
 import httpx
-from openai import AsyncOpenAI
+import shlex
 from config import settings
 
 logger = structlog.get_logger()
@@ -12,11 +12,6 @@ logger = structlog.get_logger()
 class WorkflowProcessor:
     def __init__(self):
         self.ollama_client = ollama.AsyncClient(host=settings.ollama_host)
-        # Initialize OpenAI client for models that need OpenAI-compatible API
-        self.openai_client = AsyncOpenAI(
-            base_url=f"{settings.ollama_host}/v1",  # Ollama's OpenAI-compatible endpoint
-            api_key="ollama"  # Dummy key for Ollama
-        )
         self.default_model = settings.model_name
         self.on_step_complete = None  # Callback for step completion
         self.on_progress = None  # Callback for progress updates
@@ -194,14 +189,37 @@ class WorkflowProcessor:
             'cot', 'chain', 'reasoning', 'think', 'step', 'openai', 'gpt'
         ])
         
-        # Detect if this model requires OpenAI-compatible API
-        is_openai_compatible = any(indicator in model_name.lower() for indicator in [
-            'gpt-oss', 'openai', 'gpt'
-        ])
-
-        print("Dealing with openAI-compatible model:", is_openai_compatible, "for model:", model_name)
+        # Detect if this is a Harmony format model (gpt-oss)
+        # These models don't support the format flag and need JSON via prompts
+        is_harmony_model = 'gpt-oss' in model_name.lower()
         
-        if is_reasoning_model:
+        if is_harmony_model:
+            # Harmony models (gpt-oss) require special handling
+            json_instructions = """
+# OUTPUT FORMAT REQUIREMENT
+
+You must output ONLY a valid JSON object. No other text, explanations, or formatting.
+
+Your ENTIRE response must be valid JSON that can be parsed directly.
+Do not include:
+- Markdown code blocks (```)
+- Explanatory text before or after
+- Comments in the JSON
+- Any non-JSON content
+
+Respond with the raw JSON object only."""
+            
+            # Log if user should consider adding reasoning instructions
+            if system_prompt and 'reasoning' not in system_prompt.lower():
+                logger.info(f"Harmony model {model_name} detected. Consider adding reasoning instructions to system prompt for better quality.")
+                print(f"\n💡 TIP: For better {model_name} performance, add reasoning instructions to your system prompt.")
+                print(f"   Example: 'Use HIGH reasoning effort. Think step-by-step before responding.'")
+            
+            # Don't modify the user's system prompt - it's their responsibility
+            # Just ensure we have a basic one if none provided
+            if not system_prompt:
+                system_prompt = "You are a helpful assistant that responds with valid JSON."
+        elif is_reasoning_model:
             json_instructions = """
 CRITICAL INSTRUCTIONS FOR JSON OUTPUT:
 - You MUST respond with ONLY a valid JSON object
@@ -270,98 +288,79 @@ IMPORTANT: You must respond with valid JSON only containing actual data values (
                            attempt=attempt + 1,
                            options=options)
                 
-                # Debug: Log the exact request being sent
-                if is_openai_compatible:
-                    openai_params = {}
-                    if options.get('temperature'):
-                        openai_params['temperature'] = options['temperature']
-                    if options.get('top_p'):
-                        openai_params['top_p'] = options['top_p']
-                    if options.get('num_predict'):
-                        openai_params['max_tokens'] = options['num_predict']
-                        
-                    request_data = {
-                        "model": model_name,
-                        "messages": [{"role": "user", "content": enhanced_prompt}],
-                        "response_format": {"type": "json_object"},
-                        **openai_params
-                    }
-                    print(f"=== OPENAI REQUEST FOR {block_name} ===")
-                    print(f"Model: {model_name}")
-                    print(f"Response format: json_object")
-                    print(f"Parameters: {openai_params}")
-                    print(f"Message length: {len(enhanced_prompt)} characters")
-                    print(f"Full request structure: {request_data}")
-                    print(f"=== END OPENAI REQUEST ===")
-                else:
-                    request_data = {
-                        "model": model_name,
-                        "messages": [{"role": "user", "content": enhanced_prompt}],
-                        "format": "json",
-                        "options": options
-                    }
-                    print(f"=== OLLAMA REQUEST FOR {block_name} ===")
-                    print(f"Model: {model_name}")
-                    print(f"Format: json")
-                    print(f"Options: {options}")
-                    print(f"Message length: {len(enhanced_prompt)} characters")
-                    print(f"Full request structure: {request_data}")
-                    print(f"=== END OLLAMA REQUEST ===")
+                # Build messages array with optional system prompt
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": enhanced_prompt})
                 
-                # Choose the appropriate API based on model type
-                if is_openai_compatible:
-                    # Use OpenAI-compatible API for GPT-OSS and similar models
-                    print(f"=== USING OPENAI API FOR {block_name} ===")
-                    print(f"Model: {model_name}")
-                    print(f"OpenAI client base_url: {self.openai_client.base_url}")
-                    print(f"=== END OPENAI API INFO ===")
-                    
-                    # Convert Ollama options to OpenAI parameters where possible
-                    openai_params = {}
-                    if options.get('temperature'):
-                        openai_params['temperature'] = options['temperature']
-                    if options.get('top_p'):
-                        openai_params['top_p'] = options['top_p']
-                    if options.get('num_predict'):
-                        openai_params['max_tokens'] = options['num_predict']
-                    
-                    # Build messages array with optional system prompt
-                    messages = []
-                    if system_prompt:
-                        messages.append({"role": "system", "content": system_prompt})
-                    messages.append({"role": "user", "content": enhanced_prompt})
-                    
-                    response = await self.openai_client.chat.completions.create(
-                        model=model_name,
-                        messages=messages,
-                        response_format={"type": "json_object"},
-                        **openai_params
-                    )
-                    
-                    # Convert OpenAI response to Ollama-like format for compatibility
-                    ollama_response = {
-                        'message': {
-                            'content': response.choices[0].message.content
-                        },
-                        'eval_count': response.usage.completion_tokens if response.usage else 0,
-                        'prompt_eval_count': response.usage.prompt_tokens if response.usage else 0,
-                        'total_duration': 0  # Not available in OpenAI API
+                # Build the complete request
+                # Harmony models (gpt-oss) don't support the format flag
+                if is_harmony_model:
+                    request_data = {
+                        "model": model_name,
+                        "messages": messages,
+                        "options": options,
+                        "stream": False
                     }
-                    response = ollama_response
+                    print(f"Note: Using Harmony model {model_name} - format flag omitted, JSON enforced via prompts")
                 else:
-                    # Use native Ollama API
-                    # Build messages array with optional system prompt
-                    messages = []
-                    if system_prompt:
-                        messages.append({"role": "system", "content": system_prompt})
-                    messages.append({"role": "user", "content": enhanced_prompt})
-                    
-                    response = await self.ollama_client.chat(
-                        model=model_name,
-                        messages=messages,
-                        format='json',
-                        options=options
-                    )
+                    request_data = {
+                        "model": model_name,
+                        "messages": messages,
+                        "format": "json",
+                        "options": options,
+                        "stream": False
+                    }
+                
+                # Log the full request for debugging
+                print(f"\n=== OLLAMA REQUEST FOR {block_name} ===")
+                print(f"Model: {model_name}")
+                print(f"Ollama Host: {settings.ollama_host}")
+                print(f"Model Type: {'Harmony (gpt-oss)' if is_harmony_model else 'Standard'}")
+                print(f"Format: {'none (using prompt-based JSON)' if is_harmony_model else 'json'}")
+                print(f"Options: {options}")
+                print(f"System prompt length: {len(system_prompt) if system_prompt else 0} characters")
+                print(f"User prompt length: {len(enhanced_prompt)} characters")
+                print(f"\nFull JSON Request:")
+                print(json.dumps(request_data, indent=2))
+                
+                # Generate curl command for debugging
+                curl_json = json.dumps(request_data)
+                curl_cmd = f"""\ncurl -X POST {settings.ollama_host}/api/chat \\
+  -H "Content-Type: application/json" \\
+  -d {shlex.quote(curl_json)}"""
+                
+                print(f"\nEquivalent curl command (copy and run this to debug):")
+                print(curl_cmd)
+                print(f"\n=== END OLLAMA REQUEST ===")
+                
+                # Use native Ollama API for all models
+                try:
+                    if is_harmony_model:
+                        # Harmony models don't support format flag
+                        response = await self.ollama_client.chat(
+                            model=model_name,
+                            messages=messages,
+                            options=options
+                        )
+                    else:
+                        # Standard models can use format flag
+                        response = await self.ollama_client.chat(
+                            model=model_name,
+                            messages=messages,
+                            format='json',
+                            options=options
+                        )
+                except Exception as api_error:
+                    print(f"\n=== OLLAMA API ERROR ===")
+                    print(f"Error type: {type(api_error).__name__}")
+                    print(f"Error message: {str(api_error)}")
+                    print(f"\nTry running the curl command above to debug the issue directly")
+                    print(f"\nAlso check if the model exists:")
+                    print(f"curl {settings.ollama_host}/api/tags")
+                    print(f"=== END ERROR ===")
+                    raise
                 
                 logger.info("Ollama API response received",
                            block_name=block_name,
