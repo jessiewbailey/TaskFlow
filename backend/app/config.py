@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     # AI Worker
     ai_worker_url: str = os.getenv("AI_WORKER_URL", "http://taskflow-ai:8001")
     
+    # Embedding Service (AI Worker handles embeddings)
+    embedding_service_url: str = os.getenv("EMBEDDING_SERVICE_URL", "http://taskflow-ai:8001")
+    
     # Redis for job queue
     redis_url: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
     

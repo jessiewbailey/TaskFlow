@@ -424,19 +424,21 @@ class JobService:
                         error=str(e))
     
     async def _send_to_embedding_service(self, request_id: str, text: str):
-        """Send text to embedding service for vector generation"""
+        """Create an embedding job for vector generation"""
         try:
+            # Create an embedding job instead of calling a non-existent endpoint
+            # The AI worker will process this through the job queue
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    f"{settings.embedding_service_url}/embed",
+                    f"{settings.ai_worker_url}/api/jobs",
                     json={
-                        "request_id": request_id,
-                        "text": text
+                        "request_id": int(request_id),
+                        "job_type": "EMBEDDING"
                     }
                 )
                 response.raise_for_status()
-                logger.info("Sent to embedding service", request_id=request_id)
+                logger.info("Created embedding job", request_id=request_id)
         except Exception as e:
-            logger.error("Failed to send to embedding service", 
+            logger.error("Failed to create embedding job", 
                         request_id=request_id, 
                         error=str(e))
