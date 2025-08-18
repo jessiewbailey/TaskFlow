@@ -158,6 +158,7 @@ export const WorkflowSettings: React.FC = () => {
         blocks: workflow.blocks.map(block => ({
           name: block.name,
           prompt: block.prompt,
+          system_prompt: block.system_prompt,
           order: block.order,
           block_type: block.block_type,
           output_schema: block.output_schema,
@@ -242,10 +243,12 @@ export const WorkflowSettings: React.FC = () => {
           return {
             name: block.name,
             prompt: block.prompt,
+            system_prompt: block.system_prompt,
             order: block.order || index + 1,
             block_type: block.block_type || 'CUSTOM',
             output_schema: block.output_schema,
             model_name: block.model_name || 'gemma3:1b',
+            model_parameters: block.model_parameters,
             inputs
           }
         })
