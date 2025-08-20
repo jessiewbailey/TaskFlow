@@ -6,10 +6,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import get_db
-from app.models.pydantic_models import (
-    CreateGroundTruthRequest,
-    GroundTruthResponse,
-)
+from app.models.pydantic_models import CreateGroundTruthRequest, GroundTruthResponse
 from app.models.schemas import GroundTruthData, User, WorkflowBlock
 
 logger = structlog.get_logger()

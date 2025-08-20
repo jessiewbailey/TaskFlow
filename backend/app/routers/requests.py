@@ -31,7 +31,10 @@ from app.models.pydantic_models import (
     UpdateRequestStatusRequest,
     UserResponse,
 )
-from app.models.schemas import AIOutput, CustomInstruction
+from app.models.schemas import (
+    AIOutput,
+    CustomInstruction,
+)
 from app.models.schemas import Exercise as ExerciseModel
 from app.models.schemas import (
     JobStatus,
@@ -420,7 +423,7 @@ async def create_request(
         raise HTTPException(
             status_code=400,
             detail="No workflow specified and no default workflow configured. "
-                   "Please create a default workflow.",
+            "Please create a default workflow.",
         )
 
     await db.commit()

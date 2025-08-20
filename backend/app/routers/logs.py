@@ -1,4 +1,3 @@
-
 import structlog
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse

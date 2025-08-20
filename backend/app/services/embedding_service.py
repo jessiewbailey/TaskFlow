@@ -119,9 +119,7 @@ class EmbeddingService:
             )
             raise
 
-    async def generate_embedding(
-        self, text: str, max_retries: int = 3
-    ) -> List[float]:
+    async def generate_embedding(self, text: str, max_retries: int = 3) -> List[float]:
         """Generate embedding for text using Ollama with retry logic and concurrency control."""
 
         # Use semaphore to limit concurrent requests

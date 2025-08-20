@@ -5,9 +5,9 @@ In production, this should be replaced with proper authentication.
 
 from datetime import datetime
 
-# Unused imports removed
-
 from app.models.pydantic_models import User, UserRole
+
+# Unused imports removed
 
 
 # Mock user for development - replace with proper auth in production

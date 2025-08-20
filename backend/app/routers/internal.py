@@ -8,12 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import get_db
 from app.models.pydantic_models import AIOutputResponse
-from app.models.schemas import (
-    AIOutput,
-    EmbeddingStatus,
-    JobType,
-    Request,
-)
+from app.models.schemas import AIOutput, EmbeddingStatus, JobType, Request
 from app.services.job_service import JobService
 
 logger = structlog.get_logger()

@@ -12,11 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.database import get_db
-from app.models.schemas import (
-    AIOutput,
-    Request,
-    Workflow,
-)
+from app.models.schemas import AIOutput, Request, Workflow
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/export", tags=["export"])

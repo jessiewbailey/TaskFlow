@@ -1,6 +1,5 @@
 """Test workflow similarity configuration functionality"""
 
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
