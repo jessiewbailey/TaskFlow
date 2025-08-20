@@ -96,7 +96,7 @@ async def perform_rag_search(
                 if similarity_config and similarity_config.fields:
                     # Build custom display based on configuration
                     custom_display = await _build_custom_display(
-                        request, similarity_config.fields, task["score"], db
+                        request, cast(list, similarity_config.fields), task["score"], db
                     )
                     display_data.update(custom_display)
 

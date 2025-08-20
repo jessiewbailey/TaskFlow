@@ -3,7 +3,7 @@ import logging
 import os
 import uuid
 from asyncio import Semaphore
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from ollama import Client as OllamaClient
 from qdrant_client import QdrantClient
@@ -263,7 +263,7 @@ class EmbeddingService:
                     )
 
                 if conditions:
-                    qdrant_filter = Filter(must=conditions)
+                    qdrant_filter = Filter(must=cast(List[FieldCondition], conditions))
 
             # Search in Qdrant
             logger.info(
@@ -353,7 +353,7 @@ class EmbeddingService:
                     )
 
                 if conditions:
-                    qdrant_filter = Filter(must=conditions)
+                    qdrant_filter = Filter(must=cast(List[FieldCondition], conditions))
 
             # Search for similar tasks
             similar_tasks = self.qdrant_client.search(

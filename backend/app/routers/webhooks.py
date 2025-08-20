@@ -193,7 +193,7 @@ async def test_webhook(
     service = WebhookService(db)
     result = await service.test_webhook(webhook, test_request.event_type, test_request.sample_data)
 
-    return WebhookTestResponse(**result)
+    return WebhookTestResponse(**cast(dict, result))
 
 
 @router.get("/{webhook_id}/deliveries", response_model=WebhookDeliveryListResponse)

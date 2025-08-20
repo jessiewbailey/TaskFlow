@@ -206,8 +206,8 @@ async def export_to_excel(
                 )
 
             # Add ground truth data if available
-            if includeGroundTruth and req.id in ground_truth_map:
-                for gt in ground_truth_map[req.id]:
+            if includeGroundTruth and cast(int, req.id) in ground_truth_map:
+                for gt in ground_truth_map[cast(int, req.id)]:
                     # Create column names for ground truth data
                     field_key = f"GT_{gt['block_name']}_{gt['field_path']}"
 

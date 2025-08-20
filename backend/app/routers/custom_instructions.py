@@ -79,7 +79,7 @@ async def create_custom_instruction(
     if existing:
         # Update existing instruction
         existing.instruction_text = instruction.instruction_text  # type: ignore[assignment]
-        existing.updated_at = func.current_timestamp()
+        existing.updated_at = func.current_timestamp()  # type: ignore[assignment]
         await db.commit()
         await db.refresh(existing)
 
