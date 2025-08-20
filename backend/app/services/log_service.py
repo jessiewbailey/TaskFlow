@@ -33,7 +33,7 @@ class LogStreamingService:
         else:
             self.k8s_client = None
 
-    async def stream_ollama_logs(self, websocket) -> AsyncGenerator[str, None]:
+    async def stream_ollama_logs(self, websocket) -> None:
         """Stream Ollama container logs in real-time"""
         self.active_streams.add(websocket)
 

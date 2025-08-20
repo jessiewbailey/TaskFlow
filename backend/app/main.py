@@ -32,7 +32,7 @@ from app.routers import user_preferences, webhooks, workflow_embedding, workflow
 try:
     from app.routers import config_api
 except ImportError:
-    config_api = None
+    config_api = None  # type: ignore
 
 # Configure structured logging
 structlog.configure(

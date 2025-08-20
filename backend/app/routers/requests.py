@@ -1,7 +1,7 @@
 import asyncio
 import io
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -47,10 +47,12 @@ from app.services.job_service import JobService
 
 # Conditional import to prevent startup failures
 try:
-    from app.services.embedding_service import embedding_service
+    from app.services.embedding_service import LazyEmbeddingService, embedding_service
+    embedding_service_instance: Union[LazyEmbeddingService, None] = embedding_service
 except Exception as e:
     print(f"WARNING: EmbeddingService failed to initialize: {e}")
-    embedding_service = None
+    from app.services.embedding_service import LazyEmbeddingService
+    embedding_service_instance = None
 import json
 
 import structlog
@@ -282,7 +284,7 @@ async def list_requests(
         active_job_request_ids = set(active_jobs_result.scalars().all())
 
     # Get latest failed jobs for all requests
-    failed_jobs_dict = {}
+    failed_jobs_dict: Dict[int, ProcessingJob] = {}
     if request_ids:
         # Subquery to get the latest job per request
 

@@ -1,3 +1,5 @@
+from typing import Any, Dict
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -31,7 +33,7 @@ async def get_user_preferences(db: AsyncSession = Depends(get_db)):
             raise HTTPException(status_code=404, detail="User not found")
 
         # Parse preferences from JSON column
-        preferences = user.preferences or {}
+        preferences: Dict[str, Any] = user.preferences or {}
 
         return UserPreferencesResponse(fine_tuning_mode=preferences.get("fine_tuning_mode", False))
 
@@ -58,7 +60,7 @@ async def update_user_preferences(
             raise HTTPException(status_code=404, detail="User not found")
 
         # Get existing preferences
-        current_preferences = user.preferences or {}
+        current_preferences: Dict[str, Any] = user.preferences or {}
 
         # Update with new values
         if preferences.fine_tuning_mode is not None:

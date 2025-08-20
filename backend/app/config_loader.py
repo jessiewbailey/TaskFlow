@@ -5,7 +5,7 @@ Loads configuration from YAML files in the config directory
 
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import yaml
 
@@ -15,8 +15,8 @@ class ConfigLoader:
 
     def __init__(self, config_dir: str = "/app/config"):
         self.config_dir = Path(config_dir)
-        self._ui_labels = None
-        self._domain_config = None
+        self._ui_labels: Optional[Dict[str, Any]] = None
+        self._domain_config: Optional[Dict[str, Any]] = None
 
     def get_ui_labels(self) -> Dict[str, Any]:
         """Load UI labels configuration."""
@@ -24,7 +24,8 @@ class ConfigLoader:
             labels_file = self.config_dir / "ui-labels" / "labels.yaml"
             if labels_file.exists():
                 with open(labels_file, "r") as f:
-                    self._ui_labels = yaml.safe_load(f)
+                    loaded_config = yaml.safe_load(f)
+                    self._ui_labels = loaded_config if loaded_config is not None else {}
             else:
                 self._ui_labels = self._get_default_ui_labels()
         return self._ui_labels
@@ -35,7 +36,8 @@ class ConfigLoader:
             config_file = self.config_dir / "domain-config.yaml"
             if config_file.exists():
                 with open(config_file, "r") as f:
-                    self._domain_config = yaml.safe_load(f)
+                    loaded_config = yaml.safe_load(f)
+                    self._domain_config = loaded_config if loaded_config is not None else {}
             else:
                 self._domain_config = self._get_default_domain_config()
         return self._domain_config

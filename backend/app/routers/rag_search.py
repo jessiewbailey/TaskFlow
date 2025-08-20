@@ -1,3 +1,5 @@
+from typing import Union
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,10 +9,12 @@ from app.routers.auth import get_current_user
 
 # Conditional import to prevent startup failures
 try:
-    from app.services.embedding_service import embedding_service
+    from app.services.embedding_service import LazyEmbeddingService, embedding_service
+    embedding_service_instance: Union[LazyEmbeddingService, None] = embedding_service
 except Exception as e:
     print(f"WARNING: EmbeddingService failed to initialize in rag_search: {e}")
-    embedding_service = None
+    from app.services.embedding_service import LazyEmbeddingService
+    embedding_service_instance = None
 import json
 import logging
 

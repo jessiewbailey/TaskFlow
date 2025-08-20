@@ -5,7 +5,7 @@ Event Bus service for real-time communication using Redis Pub/Sub
 import asyncio
 import json
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Callable, Dict, Set
+from typing import Any, AsyncGenerator, Callable, Dict, Optional, Set
 
 import redis.asyncio as redis
 import structlog
@@ -18,7 +18,7 @@ logger = structlog.get_logger()
 class EventBus:
     """Redis-based event bus for publishing and subscribing to events"""
 
-    def __init__(self, redis_url: str = None):
+    def __init__(self, redis_url: Optional[str] = None):
         self.redis_url = redis_url or settings.redis_url
         self._redis_client = None
         self._pubsub = None
@@ -46,6 +46,7 @@ class EventBus:
         if not self._redis_client:
             await self.connect()
 
+        assert self._redis_client is not None
         message = json.dumps(event)
         await self._redis_client.publish(channel, message)
 
@@ -74,6 +75,7 @@ class EventBus:
         if not self._pubsub:
             await self.connect()
 
+        assert self._pubsub is not None
         await self._pubsub.psubscribe(pattern)
         logger.info("Subscribed to pattern", pattern=pattern)
 
@@ -94,7 +96,8 @@ class EventBus:
                             data=message["data"],
                         )
         finally:
-            await self._pubsub.punsubscribe(pattern)
+            if self._pubsub:
+                await self._pubsub.punsubscribe(pattern)
 
 
 # Event types for type safety
@@ -127,7 +130,7 @@ class EventType:
 
 # Helper functions for standard event structure
 def create_event(
-    event_type: str, request_id: int, payload: Dict[str, Any] = None
+    event_type: str, request_id: int, payload: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Create a standardized event structure"""
     from datetime import datetime

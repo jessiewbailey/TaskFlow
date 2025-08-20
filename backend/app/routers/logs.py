@@ -17,9 +17,7 @@ async def ollama_logs_websocket(websocket: WebSocket):
         logger.info("New WebSocket connection for Ollama logs")
 
         # Start streaming logs
-        async for log_entry in log_streaming_service.stream_ollama_logs(websocket):
-            # The streaming is handled in the service
-            pass
+        await log_streaming_service.stream_ollama_logs(websocket)
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected for Ollama logs")

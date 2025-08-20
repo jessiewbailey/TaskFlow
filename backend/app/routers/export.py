@@ -88,7 +88,7 @@ async def export_to_excel(
             raise HTTPException(status_code=404, detail="No data found for export")
 
         # Fetch ground truth data if requested
-        ground_truth_map = {}
+        ground_truth_map: Dict[int, Any] = {}
         if includeGroundTruth:
             # Get all request IDs
             request_ids = [req.id for req in requests]

@@ -35,7 +35,7 @@ class WebhookCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     url: HttpUrl
     description: Optional[str] = None
-    events: List[WebhookEventType] = Field(..., min_items=1)
+    events: List[WebhookEventType] = Field(..., min_length=1)
     headers: Optional[Dict[str, str]] = {}
     is_active: bool = True
     secret_token: Optional[str] = Field(None, max_length=255)
@@ -47,7 +47,7 @@ class WebhookUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     url: Optional[HttpUrl] = None
     description: Optional[str] = None
-    events: Optional[List[WebhookEventType]] = Field(None, min_items=1)
+    events: Optional[List[WebhookEventType]] = Field(None, min_length=1)
     headers: Optional[Dict[str, str]] = None
     is_active: Optional[bool] = None
     secret_token: Optional[str] = Field(None, max_length=255)

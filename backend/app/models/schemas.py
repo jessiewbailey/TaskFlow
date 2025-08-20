@@ -118,7 +118,7 @@ class User(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     name = Column(String(128), nullable=False)
     email = Column(String(256), unique=True, nullable=False, index=True)
-    role = Column(Enum(UserRole, name="user_role"), nullable=False)
+    role: Column[UserRole] = Column(Enum(UserRole, name="user_role"), nullable=False)
     preferences = Column(JSON, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
 
@@ -139,8 +139,8 @@ class Request(Base):
     assigned_analyst_id = Column(BigInteger, ForeignKey("users.id"), nullable=True)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=True)
     exercise_id = Column(BigInteger, ForeignKey("exercises.id"), nullable=True)
-    status = Column(Enum(RequestStatus, name="request_status"), default=RequestStatus.NEW)
-    embedding_status = Column(
+    status: Column[RequestStatus] = Column(Enum(RequestStatus, name="request_status"), default=RequestStatus.NEW)
+    embedding_status: Column[EmbeddingStatus] = Column(
         Enum(EmbeddingStatus, name="embedding_status"), default=EmbeddingStatus.PENDING
     )
     # embedding_vector = Column(Vector(1536), nullable=True)  # For vector similarity
@@ -188,8 +188,8 @@ class ProcessingJob(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     request_id = Column(BigInteger, ForeignKey("requests.id"), nullable=False)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=True)
-    status = Column(Enum(JobStatus, name="job_status"), default=JobStatus.PENDING)
-    job_type = Column(Enum(JobType, name="job_type"), default=JobType.STANDARD)
+    status: Column[JobStatus] = Column(Enum(JobStatus, name="job_status"), default=JobStatus.PENDING)
+    job_type: Column[JobType] = Column(Enum(JobType, name="job_type"), default=JobType.STANDARD)
     custom_instructions = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     retry_count = Column(Integer, default=0)
@@ -208,7 +208,7 @@ class Workflow(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     name = Column(String(128), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(Enum(WorkflowStatus, name="workflow_status"), default=WorkflowStatus.DRAFT)
+    status: Column[WorkflowStatus] = Column(Enum(WorkflowStatus, name="workflow_status"), default=WorkflowStatus.DRAFT)
     is_default = Column(Boolean, default=False, nullable=False)
     created_by = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
@@ -246,7 +246,7 @@ class WorkflowBlock(Base):
     prompt = Column(Text, nullable=False)
     system_prompt = Column(Text, nullable=True)
     order = Column("order_index", Integer, nullable=False)
-    block_type = Column(
+    block_type: Column[BlockType] = Column(
         Enum(BlockType, name="block_type"), default=BlockType.CUSTOM, nullable=False
     )
     output_schema = Column(JSON, nullable=True)  # Pydantic schema as JSON
@@ -276,7 +276,7 @@ class WorkflowBlockInput(Base):
 
     id = Column(BigInteger, primary_key=True, index=True)
     block_id = Column(BigInteger, ForeignKey("workflow_blocks.id"), nullable=False)
-    input_type = Column(Enum(BlockInputType, name="block_input_type"), nullable=False)
+    input_type: Column[BlockInputType] = Column(Enum(BlockInputType, name="block_input_type"), nullable=False)
     source_block_id = Column(
         BigInteger, ForeignKey("workflow_blocks.id"), nullable=True
     )  # Only for BLOCK_OUTPUT type
@@ -294,7 +294,7 @@ class WorkflowDashboardConfig(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=False)
     fields = Column(JSON, nullable=False)
-    layout = Column(Enum(DashboardLayout, name="dashboard_layout"), default=DashboardLayout.grid)
+    layout: Column[DashboardLayout] = Column(Enum(DashboardLayout, name="dashboard_layout"), default=DashboardLayout.grid)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
