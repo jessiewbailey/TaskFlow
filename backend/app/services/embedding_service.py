@@ -413,7 +413,7 @@ class LazyEmbeddingService:
     """Lazy wrapper for EmbeddingService that initializes only when first accessed."""
 
     def __init__(self):
-        self._service = None
+        self._service: Optional[EmbeddingService] = None
         self._initialized = False
         self._disabled = os.getenv("DISABLE_EMBEDDING_SERVICE", "false").lower() == "true"
 
@@ -426,7 +426,7 @@ class LazyEmbeddingService:
 
         if self._disabled:
             logger.warning("EmbeddingService disabled by environment variable")
-            self._service = None
+            self._service = None  # type: ignore[assignment]
             return
 
         try:
@@ -436,7 +436,7 @@ class LazyEmbeddingService:
         except Exception as e:
             logger.warning(f"EmbeddingService initialization failed: {str(e)}")
             logger.warning("EmbeddingService will remain unavailable")
-            self._service = None
+            self._service = None  # type: ignore[assignment]
 
     def __getattr__(self, name):
         """Delegate attribute access to the underlying service after ensuring it's initialized."""

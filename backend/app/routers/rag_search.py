@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Any, Union, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -163,7 +163,7 @@ async def _build_custom_display(
     results_by_block = {}
     if ai_output and ai_output.summary:
         try:
-            summary_data = json.loads(ai_output.summary)
+            summary_data = json.loads(cast(str, ai_output.summary))
             results_by_block = summary_data
         except Exception as e:
             logger.warning(f"Failed to parse AI output summary: {str(e)}")
@@ -178,20 +178,20 @@ async def _build_custom_display(
             continue
 
         # Get value based on source
-        value = None
+        value: Any = None
 
         if field_source == "TASK_ID":
-            value = request.id
+            value = cast(int, request.id)
         elif field_source == "REQUEST_TEXT":
-            value = request.text
+            value = cast(str, request.text)
         elif field_source == "SIMILARITY_SCORE":
             value = similarity_score
         elif field_source == "STATUS":
-            value = request.status.value if request.status else ""
+            value = cast(str, request.status.value if request.status else "")
         elif field_source == "CREATED_AT":
-            value = request.created_at.isoformat() if request.created_at else ""
+            value = cast(str, request.created_at.isoformat() if request.created_at else "")
         elif field_source == "REQUESTER":
-            value = request.requester
+            value = cast(str, request.requester)
         elif "." in field_source:
             # Handle block output fields (e.g., "Summarize.executive_summary")
             block_name, field_path = field_source.split(".", 1)
@@ -222,7 +222,7 @@ async def _build_custom_display(
             custom_data[safe_field_name] = value
 
     # Always include these core fields
-    custom_data["task_id"] = request.id
+    custom_data["task_id"] = cast(int, request.id)
     custom_data["similarity_score"] = similarity_score
 
     return custom_data

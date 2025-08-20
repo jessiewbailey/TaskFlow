@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, cast
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -41,7 +41,7 @@ async def list_webhooks(
         query = query.where(Webhook.events.contains([event_type]))
 
     # Only admins can see all webhooks
-    if current_user.role != "ADMIN":
+    if cast(str, current_user.role) != "ADMIN":
         query = query.where(Webhook.created_by == current_user.id)
 
     result = await db.execute(query.order_by(Webhook.created_at.desc()))
@@ -64,7 +64,7 @@ async def create_webhook(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Webhook name already exists")
 
-    webhook = Webhook(**webhook_data.dict(), created_by=current_user.id)
+    webhook = Webhook(**webhook_data.dict(), created_by=cast(int, current_user.id))
 
     db.add(webhook)
     await db.commit()
@@ -85,7 +85,7 @@ async def get_webhook(
     query = select(Webhook).where(Webhook.id == webhook_id)
 
     # Only admins can see all webhooks
-    if current_user.role != "ADMIN":
+    if cast(str, current_user.role) != "ADMIN":
         query = query.where(Webhook.created_by == current_user.id)
 
     result = await db.execute(query)
@@ -108,7 +108,7 @@ async def update_webhook(
     query = select(Webhook).where(Webhook.id == webhook_id)
 
     # Only admins can update all webhooks
-    if current_user.role != "ADMIN":
+    if cast(str, current_user.role) != "ADMIN":
         query = query.where(Webhook.created_by == current_user.id)
 
     result = await db.execute(query)
@@ -118,7 +118,7 @@ async def update_webhook(
         raise HTTPException(status_code=404, detail="Webhook not found")
 
     # Check if new name already exists
-    if webhook_update.name and webhook_update.name != webhook.name:
+    if webhook_update.name and webhook_update.name != cast(str, webhook.name):
         existing = await db.execute(select(Webhook).where(Webhook.name == webhook_update.name))
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Webhook name already exists")
@@ -146,7 +146,7 @@ async def delete_webhook(
     query = select(Webhook).where(Webhook.id == webhook_id)
 
     # Only admins can delete all webhooks
-    if current_user.role != "ADMIN":
+    if cast(str, current_user.role) != "ADMIN":
         query = query.where(Webhook.created_by == current_user.id)
 
     result = await db.execute(query)
@@ -174,7 +174,7 @@ async def test_webhook(
     query = select(Webhook).where(Webhook.id == webhook_id)
 
     # Only admins can test all webhooks
-    if current_user.role != "ADMIN":
+    if cast(str, current_user.role) != "ADMIN":
         query = query.where(Webhook.created_by == current_user.id)
 
     result = await db.execute(query)
@@ -184,7 +184,7 @@ async def test_webhook(
         raise HTTPException(status_code=404, detail="Webhook not found")
 
     # Check if webhook is subscribed to this event
-    if test_request.event_type not in webhook.events:
+    if test_request.event_type not in cast(list, webhook.events):
         raise HTTPException(
             status_code=400,
             detail=f"Webhook is not subscribed to {test_request.event_type} events",
@@ -208,7 +208,7 @@ async def list_webhook_deliveries(
     """List delivery history for a webhook"""
     # First check if user has access to this webhook
     webhook_query = select(Webhook).where(Webhook.id == webhook_id)
-    if current_user.role != "ADMIN":
+    if cast(str, current_user.role) != "ADMIN":
         webhook_query = webhook_query.where(Webhook.created_by == current_user.id)
 
     webhook_result = await db.execute(webhook_query)
@@ -231,7 +231,7 @@ async def list_webhook_deliveries(
         count_query = count_query.where(WebhookDelivery.status == status)
 
     total_result = await db.execute(count_query)
-    total = total_result.scalar()
+    total = cast(int, total_result.scalar())
 
     # Apply pagination
     offset = (page - 1) * page_size

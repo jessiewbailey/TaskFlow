@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, cast
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -39,7 +39,7 @@ async def list_custom_instructions(request_id: int, db: AsyncSession = Depends(g
     instructions = []
     for instruction, block_name in result.all():
         instruction_data = CustomInstructionResponse.from_orm(instruction)
-        instruction_data.workflow_block_name = block_name
+        instruction_data.workflow_block_name = cast(str, block_name)
         instructions.append(instruction_data)
 
     return instructions
@@ -78,14 +78,14 @@ async def create_custom_instruction(
 
     if existing:
         # Update existing instruction
-        existing.instruction_text = instruction.instruction_text
+        existing.instruction_text = instruction.instruction_text  # type: ignore[assignment]
         existing.updated_at = func.current_timestamp()
         await db.commit()
         await db.refresh(existing)
 
         # Get the response with block name
         response_data = CustomInstructionResponse.from_orm(existing)
-        response_data.workflow_block_name = block.name
+        response_data.workflow_block_name = cast(str, block.name)
 
         logger.info(
             "Updated existing custom instruction",
@@ -109,7 +109,7 @@ async def create_custom_instruction(
 
         # Get the response with block name
         response_data = CustomInstructionResponse.from_orm(db_instruction)
-        response_data.workflow_block_name = block.name
+        response_data.workflow_block_name = cast(str, block.name)
 
         logger.info(
             "Created new custom instruction",
@@ -148,15 +148,15 @@ async def update_custom_instruction(
 
     # Update fields
     if update_data.instruction_text is not None:
-        instruction.instruction_text = update_data.instruction_text
+        instruction.instruction_text = update_data.instruction_text  # type: ignore[assignment]
     if update_data.is_active is not None:
-        instruction.is_active = update_data.is_active
+        instruction.is_active = update_data.is_active  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(instruction)
 
     response_data = CustomInstructionResponse.from_orm(instruction)
-    response_data.workflow_block_name = block_name
+    response_data.workflow_block_name = cast(str, block_name)
 
     logger.info(
         "Updated custom instruction",
@@ -185,7 +185,7 @@ async def delete_custom_instruction(
         raise HTTPException(status_code=404, detail="Custom instruction not found")
 
     # Soft delete by setting is_active to False
-    instruction.is_active = False
+    instruction.is_active = False  # type: ignore[assignment]
     await db.commit()
 
     logger.info(

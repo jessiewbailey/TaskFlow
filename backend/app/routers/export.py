@@ -1,7 +1,7 @@
 import io
 import json
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 import pandas as pd
 import structlog
@@ -145,14 +145,16 @@ async def export_to_excel(
 
             # Base row data
             row_data = {
-                "Task ID": req.id,
-                "Task Text": req.text,
-                "Submitter": req.requester or "",
+                "Task ID": cast(int, req.id),
+                "Task Text": cast(str, req.text),
+                "Submitter": cast(str, req.requester) or "",
                 "Date Submitted": (
                     req.date_received.strftime("%Y-%m-%d") if req.date_received else ""
                 ),
-                "Status": req.status.value if req.status else "",
-                "Assigned Analyst": (req.assigned_analyst.name if req.assigned_analyst else ""),
+                "Status": cast(str, req.status.value) if req.status else "",
+                "Assigned Analyst": (
+                    cast(str, req.assigned_analyst.name) if req.assigned_analyst else ""
+                ),
                 "Due Date": req.due_date.strftime("%Y-%m-%d") if req.due_date else "",
                 "Created At": (
                     req.created_at.strftime("%Y-%m-%d %H:%M:%S") if req.created_at else ""
@@ -181,13 +183,13 @@ async def export_to_excel(
                 # Parse and add dynamic AI analysis fields from workflow output
                 if latest_ai_output.summary:
                     try:
-                        summary_data = json.loads(latest_ai_output.summary)
+                        summary_data = json.loads(cast(str, latest_ai_output.summary))
                         # Flatten the nested JSON structure for Excel columns
                         flattened_data = _flatten_dict(summary_data, prefix="AI_")
                         row_data.update(flattened_data)
                     except (json.JSONDecodeError, TypeError):
                         # If it's not JSON, treat as plain text
-                        row_data["AI_Summary"] = latest_ai_output.summary
+                        row_data["AI_Summary"] = cast(str, latest_ai_output.summary)
             else:
                 # No AI output available
                 row_data.update(

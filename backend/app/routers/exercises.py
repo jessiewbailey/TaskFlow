@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select, update
@@ -149,9 +149,9 @@ async def delete_exercise(exercise_id: int, db: AsyncSession = Depends(get_db)):
     count_result = await db.execute(count_query)
     request_count = count_result.scalar()
 
-    if request_count > 0:
+    if request_count and request_count > 0:
         # Soft delete - just deactivate
-        exercise.is_active = False
+        exercise.is_active = False  # type: ignore[assignment]
         await db.commit()
         return {"message": f"Exercise deactivated (has {request_count} associated requests)"}
     else:
@@ -190,14 +190,14 @@ async def set_default_exercise(exercise_id: int, db: AsyncSession = Depends(get_
     if not exercise:
         raise HTTPException(status_code=404, detail="Exercise not found")
 
-    if not exercise.is_active:
+    if not cast(bool, exercise.is_active):
         raise HTTPException(status_code=400, detail="Cannot set an inactive exercise as default")
 
     # Unset any existing default
     await _unset_default_exercise(db)
 
     # Set this exercise as default
-    exercise.is_default = True
+    exercise.is_default = True  # type: ignore[assignment]
     await db.commit()
     await db.refresh(exercise)
 
