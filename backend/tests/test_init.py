@@ -41,10 +41,11 @@ class MockAsyncClient:
     async def get(self, *args, **kwargs):
         return MockResponse(200, {})
 
-# Mock httpx module
-mock_httpx = MagicMock()
-mock_httpx.AsyncClient = MockAsyncClient
-sys.modules['httpx'] = mock_httpx
+# Don't mock httpx globally - let tests that need it import the real module
+# Only mock it for services that make external calls
+# mock_httpx = MagicMock()
+# mock_httpx.AsyncClient = MockAsyncClient
+# sys.modules['httpx'] = mock_httpx
 
 # Mock qdrant_client before import
 class MockQdrantClient:
@@ -89,6 +90,38 @@ class MockRedis:
     
     async def publish(self, channel, message):
         return 1
+    
+    def pubsub(self):
+        """Return a mock pubsub object"""
+        return MockPubSub()
+    
+    async def close(self):
+        """Close the connection"""
+        pass
+
+class MockPubSub:
+    """Mock Redis PubSub object"""
+    async def subscribe(self, *channels):
+        pass
+    
+    async def unsubscribe(self, *channels):
+        pass
+    
+    async def psubscribe(self, *patterns):
+        """Pattern subscription"""
+        pass
+    
+    async def punsubscribe(self, *patterns):
+        """Pattern unsubscription"""
+        pass
+    
+    async def listen(self):
+        # Return empty generator
+        return
+        yield
+    
+    async def close(self):
+        pass
 
 mock_redis_module = MagicMock()
 mock_redis_module.from_url = lambda *args, **kwargs: MockRedis()

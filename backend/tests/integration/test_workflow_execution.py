@@ -80,7 +80,6 @@ class TestWorkflowExecution:
             requester="test@example.com",
             status=RequestStatus.NEW,
             embedding_status=EmbeddingStatus.PENDING,
-            priority="high",
             workflow_id=sample_workflow.id,
             exercise_id=1
         )

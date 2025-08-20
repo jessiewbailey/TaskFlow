@@ -32,20 +32,25 @@ from app.models.schemas import (
 )
 
 
-# Test database URL - using temporary SQLite file for tests
-# Using a file ensures all sessions/connections see the same database
-TEST_DATABASE_URL = "sqlite+aiosqlite:///test_db.sqlite"
+# Test database URL - using PostgreSQL for tests to match production
+# This requires a PostgreSQL instance running (docker or local)
+import os
+# Use environment variable if set (for GitHub Actions), otherwise use local test DB
+TEST_DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql+asyncpg://testuser:testpass@localhost:5433/testdb"
+).replace("postgresql://", "postgresql+asyncpg://")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def event_loop():
-    """Create an instance of the default event loop for the test session."""
+    """Create an instance of the default event loop for each test function."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 async def test_engine():
     """Create a test database engine."""
     import os
@@ -53,28 +58,29 @@ async def test_engine():
     engine = create_async_engine(
         TEST_DATABASE_URL,
         poolclass=NullPool,
+        echo=False,  # Set to True for SQL debugging
     )
     
     async with engine.begin() as conn:
+        # Drop all tables first to ensure clean state
+        await conn.run_sync(Base.metadata.drop_all)
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
         
-        # SQLite doesn't support enums natively, but SQLAlchemy handles this automatically
-        # No additional setup needed for SQLite compatibility with enums
-        
         # Add a test user for foreign key constraints
         await conn.execute(text("""
-            INSERT OR IGNORE INTO users (id, name, email, role, created_at)
-            VALUES (1, 'Test User', 'test@example.com', 'ANALYST', datetime('now'))
+            INSERT INTO users (id, name, email, role, created_at)
+            VALUES (1, 'Test User', 'test@example.com', 'ANALYST', NOW())
+            ON CONFLICT (id) DO NOTHING
         """))
         
     yield engine
     
-    await engine.dispose()
+    # Clean up
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
     
-    # Clean up test database file
-    if os.path.exists("test_db.sqlite"):
-        os.remove("test_db.sqlite")
+    await engine.dispose()
 
 
 @pytest.fixture(scope="function")
@@ -141,6 +147,15 @@ async def async_client(override_get_db, mock_current_user):
         from httpx import AsyncClient
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture
+def auth_headers(test_user):
+    """Create auth headers for test requests."""
+    return {
+        "Authorization": f"Bearer test-token",
+        "Content-Type": "application/json"
+    }
 
 
 @pytest.fixture
