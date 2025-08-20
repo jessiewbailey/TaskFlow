@@ -9,8 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.pydantic_models import RequestStatus
-from app.models.schemas import (JobStatus, JobType, ProcessingJob, Request,
-                                Workflow)
+from app.models.schemas import JobStatus, JobType, ProcessingJob, Request, Workflow
 from app.services.job_service import JobService
 
 
@@ -124,7 +123,7 @@ async def test_polling_window_race_condition(db_session: AsyncSession):
         return active_job is not None
 
     # Start polling
-    start_time = time.time()
+    _start_time = time.time()
 
     # Poll 1: Should see active job (PENDING)
     has_active = await check_active_jobs()

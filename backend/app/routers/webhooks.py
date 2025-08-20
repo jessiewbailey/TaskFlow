@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,12 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_current_user
 from app.models.database import get_db
 from app.models.schemas import User, Webhook, WebhookDelivery
-from app.models.webhook_models import (WebhookCreate,
-                                       WebhookDeliveryListResponse,
-                                       WebhookDeliveryResponse,
-                                       WebhookListResponse, WebhookResponse,
-                                       WebhookTestRequest, WebhookTestResponse,
-                                       WebhookUpdate)
+from app.models.webhook_models import (
+    WebhookCreate,
+    WebhookDeliveryListResponse,
+    WebhookDeliveryResponse,
+    WebhookListResponse,
+    WebhookResponse,
+    WebhookTestRequest,
+    WebhookTestResponse,
+    WebhookUpdate,
+)
 from app.services.webhook_service import WebhookService
 
 logger = structlog.get_logger()

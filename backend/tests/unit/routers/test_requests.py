@@ -8,14 +8,14 @@ Tests cover:
 - Authorization
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi import status
 from httpx import AsyncClient
 
 from app.models.pydantic_models import UserRole
-from app.models.schemas import EmbeddingStatus, RequestStatus
+from app.models.schemas import RequestStatus
 
 
 class TestRequestRoutes:
@@ -166,7 +166,7 @@ class TestRequestRoutes:
         assert len(data["requests"]) == 10
         assert data["total"] == 25
         assert data["total_pages"] == 3
-        assert data["has_next"] == True
+        assert data["has_next"] is True
 
         # Get second page
         response = await async_client.get("/api/requests?page=2&page_size=10")
@@ -178,7 +178,7 @@ class TestRequestRoutes:
         response = await async_client.get("/api/requests?page=3&page_size=10")
         data = response.json()
         assert len(data["requests"]) == 5
-        assert data["has_next"] == False
+        assert data["has_next"] is False
 
     @pytest.mark.asyncio
     async def test_get_requests_with_filters(self, async_client: AsyncClient):
@@ -289,9 +289,10 @@ class TestRequestRoutes:
             )
         request_id = create_response.json()["id"]
 
-        # Mock AI output
-        mock_ai_output = {
-            "summary": '{"Analysis": {"summary": "Test summary", "insights": ["Insight 1", "Insight 2"]}}',
+        # Mock AI output (unused in this test but kept for future)
+        _mock_ai_output = {
+            "summary": ('{"Analysis": {"summary": "Test summary", '
+                        '"insights": ["Insight 1", "Insight 2"]}}'),
             "created_at": "2024-01-15T10:00:00Z",
         }
 

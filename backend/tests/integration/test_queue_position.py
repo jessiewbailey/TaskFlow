@@ -9,8 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.pydantic_models import RequestStatus
-from app.models.schemas import (JobStatus, JobType, ProcessingJob, Request,
-                                Workflow)
+from app.models.schemas import JobStatus, JobType, ProcessingJob, Request, Workflow
 from app.services.job_service import JobService, job_queue_manager
 
 
@@ -147,7 +146,7 @@ async def test_queue_position_calculation_from_database(db_session: AsyncSession
     for i, job in enumerate(pending_jobs):
         # In a proper implementation, this would return the position
         # But currently it returns -1 because the queue is empty
-        position = job_queue_manager.get_queue_position(str(job.id))
+        _position = job_queue_manager.get_queue_position(str(job.id))
         # This assertion will fail, demonstrating the bug
         # assert position == i  # Should be 0, 1, 2, 3, 4
 
@@ -192,7 +191,6 @@ async def test_bulk_upload_queue_positions(db_session: AsyncSession):
     # - Remaining 16 to be queued (positions = 0 to 15)
 
     # Check positions through the actual API logic
-    from app.routers.requests import get_request
 
     for i, request in enumerate(requests):
         # Get active job

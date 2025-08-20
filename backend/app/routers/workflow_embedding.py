@@ -6,14 +6,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import get_db
-from app.models.pydantic_models import (WorkflowEmbeddingConfigCreate,
-                                        WorkflowEmbeddingConfigResponse,
-                                        WorkflowEmbeddingConfigUpdate,
-                                        WorkflowSimilarityConfigCreate,
-                                        WorkflowSimilarityConfigResponse,
-                                        WorkflowSimilarityConfigUpdate)
-from app.models.schemas import (Workflow, WorkflowEmbeddingConfig,
-                                WorkflowSimilarityConfig)
+from app.models.pydantic_models import (
+    WorkflowEmbeddingConfigCreate,
+    WorkflowEmbeddingConfigResponse,
+    WorkflowEmbeddingConfigUpdate,
+    WorkflowSimilarityConfigCreate,
+    WorkflowSimilarityConfigResponse,
+)
+from app.models.schemas import (
+    Workflow,
+    WorkflowEmbeddingConfig,
+    WorkflowSimilarityConfig,
+)
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/workflows", tags=["workflow-embedding"])

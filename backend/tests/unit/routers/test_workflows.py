@@ -224,7 +224,7 @@ class TestWorkflowEmbeddingConfig:
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["enabled"] == False
+        assert data["enabled"] is False
         assert "Updated:" in data["embedding_template"]
 
 

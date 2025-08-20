@@ -5,7 +5,7 @@ Loads configuration from YAML files in the config directory
 
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import yaml
 

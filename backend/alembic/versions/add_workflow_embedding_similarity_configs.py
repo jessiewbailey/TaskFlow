@@ -1,7 +1,7 @@
 """Add workflow embedding and similarity configuration tables
 
 Revision ID: add_workflow_configs_001
-Revises: 
+Revises:
 Create Date: 2025-08-05
 
 """
@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('workflow_id')
     )
-    
+
     # Create workflow_similarity_configs table
     op.create_table(
         'workflow_similarity_configs',
@@ -43,7 +43,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('workflow_id')
     )
-    
+
     # Create indexes
     op.create_index('idx_workflow_embedding_configs_workflow_id', 'workflow_embedding_configs', ['workflow_id'])
     op.create_index('idx_workflow_similarity_configs_workflow_id', 'workflow_similarity_configs', ['workflow_id'])
@@ -53,7 +53,7 @@ def downgrade() -> None:
     # Drop indexes
     op.drop_index('idx_workflow_similarity_configs_workflow_id', 'workflow_similarity_configs')
     op.drop_index('idx_workflow_embedding_configs_workflow_id', 'workflow_embedding_configs')
-    
+
     # Drop tables
     op.drop_table('workflow_similarity_configs')
     op.drop_table('workflow_embedding_configs')

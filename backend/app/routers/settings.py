@@ -1,12 +1,15 @@
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import get_db
-from app.models.pydantic_models import (SystemSettingResponse,
-                                        UpdateSystemSettingRequest, User)
+from app.models.pydantic_models import (
+    SystemSettingResponse,
+    UpdateSystemSettingRequest,
+    User,
+)
 from app.models.schemas import SystemSettings
 from app.routers.auth import get_current_user
 

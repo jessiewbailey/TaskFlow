@@ -10,9 +10,8 @@ Tests cover:
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import numpy as np
 import pytest
 
 from app.services.embedding_service import EmbeddingService
@@ -318,7 +317,7 @@ class TestEmbeddingService:
         ):
             with patch("app.services.embedding_service.OllamaClient"):
                 with patch("app.services.embedding_service.requests.Session"):
-                    service = EmbeddingService()
+                    _service = EmbeddingService()
 
         # Assert
         mock_qdrant_client.create_collection.assert_called_once()

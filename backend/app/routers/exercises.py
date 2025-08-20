@@ -15,9 +15,7 @@ router = APIRouter(prefix="/api/exercises", tags=["exercises"])
 async def _unset_default_exercise(db: AsyncSession):
     """Helper function to unset the current default exercise"""
     stmt = (
-        update(ExerciseModel)
-        .where(ExerciseModel.is_default == True)
-        .values(is_default=False)
+        update(ExerciseModel).where(ExerciseModel.is_default).values(is_default=False)
     )
     await db.execute(stmt)
 
@@ -44,7 +42,7 @@ async def list_exercises(
 @router.get("/default", response_model=Optional[Exercise])
 async def get_default_exercise(db: AsyncSession = Depends(get_db)):
     """Get the current default exercise"""
-    query = select(ExerciseModel).filter(ExerciseModel.is_default == True)
+    query = select(ExerciseModel).filter(ExerciseModel.is_default)
     result = await db.execute(query)
     exercise = result.scalar_one_or_none()
     return exercise

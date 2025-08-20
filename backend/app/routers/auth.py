@@ -5,7 +5,7 @@ In production, this should be replaced with proper authentication.
 
 from datetime import datetime
 
-from fastapi import Depends, HTTPException, status
+# Unused imports removed
 
 from app.models.pydantic_models import User, UserRole
 

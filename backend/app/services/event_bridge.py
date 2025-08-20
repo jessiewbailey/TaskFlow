@@ -6,8 +6,7 @@ import asyncio
 
 import structlog
 
-from app.services.event_bus import (event_bus,
-                                    get_channel_pattern_for_all_requests)
+from app.services.event_bus import event_bus, get_channel_pattern_for_all_requests
 from app.services.sse_manager import sse_manager
 
 logger = structlog.get_logger()

@@ -1,4 +1,3 @@
-import json
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,8 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.database import get_db
-from app.models.pydantic_models import (UpdateUserPreferencesRequest,
-                                        UserPreferencesResponse)
+from app.models.pydantic_models import (
+    UpdateUserPreferencesRequest,
+    UserPreferencesResponse,
+)
 from app.models.schemas import User
 
 logger = structlog.get_logger()

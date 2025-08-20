@@ -1,20 +1,22 @@
 import io
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import pandas as pd
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import and_, func, select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.database import get_db
-from app.models.pydantic_models import RequestResponse
-from app.models.schemas import (AIOutput, Request, RequestStatus, User,
-                                Workflow, WorkflowBlock)
+from app.models.schemas import (
+    AIOutput,
+    Request,
+    Workflow,
+)
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -98,7 +100,7 @@ async def export_to_excel(
             # Query ground truth data using the view
             ground_truth_query = text(
                 """
-                SELECT 
+                SELECT
                     request_id,
                     workflow_block_id,
                     block_name,
@@ -247,8 +249,7 @@ async def export_to_excel(
         with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
             df.to_excel(writer, sheet_name="Tasks and AI Analysis", index=False)
 
-            # Get the workbook and worksheet
-            workbook = writer.book
+            # Get the worksheet (workbook not used)
             worksheet = writer.sheets["Tasks and AI Analysis"]
 
             # Auto-adjust column widths
@@ -259,7 +260,7 @@ async def export_to_excel(
                     try:
                         if len(str(cell.value)) > max_length:
                             max_length = len(str(cell.value))
-                    except:
+                    except Exception:
                         pass
                 adjusted_width = min(max_length + 2, 50)  # Cap at 50 characters
                 worksheet.column_dimensions[column_letter].width = adjusted_width

@@ -6,30 +6,43 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.database import get_db
-from app.models.pydantic_models import (AIOutputResponse,
-                                        AssignWorkflowRequest,
-                                        BatchUploadError, BatchUploadResponse,
-                                        BulkRerunError, BulkRerunRequest,
-                                        BulkRerunResponse,
-                                        CreateRequestRequest,
-                                        CreateRequestResponse, Exercise,
-                                        JobProgressResponse,
-                                        ProcessJobResponse,
-                                        ProcessRequestRequest,
-                                        RequestListResponse, RequestResponse,
-                                        UpdateRequestRequest,
-                                        UpdateRequestStatusRequest,
-                                        UserResponse)
+from app.models.pydantic_models import (
+    AIOutputResponse,
+    AssignWorkflowRequest,
+    BatchUploadError,
+    BatchUploadResponse,
+    BulkRerunError,
+    BulkRerunRequest,
+    BulkRerunResponse,
+    CreateRequestRequest,
+    CreateRequestResponse,
+    Exercise,
+    JobProgressResponse,
+    ProcessJobResponse,
+    ProcessRequestRequest,
+    RequestListResponse,
+    RequestResponse,
+    UpdateRequestRequest,
+    UpdateRequestStatusRequest,
+    UserResponse,
+)
 from app.models.schemas import AIOutput, CustomInstruction
 from app.models.schemas import Exercise as ExerciseModel
-from app.models.schemas import (JobStatus, JobType, ProcessingJob, Request,
-                                RequestStatus, User, Workflow,
-                                WorkflowSimilarityConfig)
+from app.models.schemas import (
+    JobStatus,
+    JobType,
+    ProcessingJob,
+    Request,
+    RequestStatus,
+    User,
+    Workflow,
+    WorkflowSimilarityConfig,
+)
 from app.services.job_service import JobService
 
 # Conditional import to prevent startup failures
@@ -42,8 +55,6 @@ import json
 
 import structlog
 
-from app.services.event_bus import (EventType, create_event, event_bus,
-                                    get_channel_for_request)
 from app.services.sse_manager import create_sse_response, sse_manager
 
 logger = structlog.get_logger()
@@ -180,7 +191,7 @@ async def _build_similarity_display(
             elif field_type == "number":
                 try:
                     value = float(value)
-                except:
+                except ValueError:
                     value = 0
             elif field_type == "score":
                 value = round(similarity_score * 100, 1)  # Convert to percentage
@@ -218,8 +229,6 @@ async def list_requests(
     db: AsyncSession = Depends(get_db),
 ):
     """List and filter requests with pagination"""
-
-    from sqlalchemy import func
 
     # Build query
     query = select(Request).options(
@@ -286,7 +295,6 @@ async def list_requests(
     failed_jobs_dict = {}
     if request_ids:
         # Subquery to get the latest job per request
-        from sqlalchemy.sql import text
 
         failed_jobs_result = await db.execute(
             select(ProcessingJob)
@@ -382,7 +390,7 @@ async def create_request(
     workflow_id = request.workflow_id
     if not workflow_id:
         default_workflow_result = await db.execute(
-            select(Workflow).where(Workflow.is_default == True)
+            select(Workflow).where(Workflow.is_default)
         )
         default_workflow = default_workflow_result.scalar_one_or_none()
         if default_workflow:
@@ -411,7 +419,8 @@ async def create_request(
         # If no workflow found, this is an error - all requests must use workflows
         raise HTTPException(
             status_code=400,
-            detail="No workflow specified and no default workflow configured. Please create a default workflow.",
+            detail="No workflow specified and no default workflow configured. "
+                   "Please create a default workflow.",
         )
 
     await db.commit()
@@ -592,7 +601,7 @@ async def process_request(
     custom_instructions_result = await db.execute(
         select(CustomInstruction)
         .where(CustomInstruction.request_id == request_id)
-        .where(CustomInstruction.is_active == True)
+        .where(CustomInstruction.is_active)
     )
     has_custom_instructions = len(custom_instructions_result.scalars().all()) > 0
 
@@ -1057,7 +1066,7 @@ async def batch_upload_requests(
 
         # Get default workflow if available
         default_workflow_result = await db.execute(
-            select(Workflow).where(Workflow.is_default == True)
+            select(Workflow).where(Workflow.is_default)
         )
         default_workflow = default_workflow_result.scalar_one_or_none()
         default_workflow_id = default_workflow.id if default_workflow else None
@@ -1203,7 +1212,7 @@ async def batch_upload_requests(
 
                 # Create processing job if workflow is assigned
                 if workflow_id:
-                    job_id = await job_service.create_job(
+                    _job_id = await job_service.create_job(
                         request.id, job_type=JobType.WORKFLOW, workflow_id=workflow_id
                     )
 
@@ -1223,7 +1232,6 @@ async def batch_upload_requests(
         # Generate embeddings for all successfully created requests (after commit)
         # We need to query all requests created in this batch
         # Using exercise_id to filter if provided, otherwise use recent time window
-        from datetime import timedelta
 
         # Get all requests created in this batch
         if exercise_id:
@@ -1244,7 +1252,7 @@ async def batch_upload_requests(
                 select(Request).order_by(Request.created_at.desc()).limit(success_count)
             )
 
-        batch_requests = batch_requests_result.scalars().all()
+        _batch_requests = batch_requests_result.scalars().all()
 
         # NOTE: Embedding generation is now triggered after workflow completion
         # See the workflow completion handler in the ai-worker for embedding logic
@@ -1304,7 +1312,7 @@ async def bulk_rerun_requests(
                     req.workflow_id = request.workflow_id
 
                 # Create new processing job
-                job_id = await job_service.create_job(
+                _job_id = await job_service.create_job(
                     req.id, job_type=JobType.WORKFLOW, workflow_id=request.workflow_id
                 )
 

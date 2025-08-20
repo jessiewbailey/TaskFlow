@@ -1,5 +1,4 @@
-import json
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,9 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import get_db
 from app.models.pydantic_models import AIOutputResponse
-from app.models.pydantic_models import EmbeddingStatus as EmbeddingStatusEnum
-from app.models.schemas import (AIOutput, EmbeddingStatus, JobStatus, JobType,
-                                ProcessingJob, Request)
+from app.models.schemas import (
+    AIOutput,
+    EmbeddingStatus,
+    JobType,
+    Request,
+)
 from app.services.job_service import JobService
 
 logger = structlog.get_logger()

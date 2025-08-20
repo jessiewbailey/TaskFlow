@@ -11,12 +11,15 @@ from sqlalchemy import and_, delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.database import get_db_session
 from app.models.pydantic_models import JobProgressResponse
-from app.models.schemas import (AIOutput, JobStatus, JobType, ProcessingJob,
-                                Request, RequestStatus,
-                                WorkflowEmbeddingConfig)
-from app.services.event_bus import event_bus
+from app.models.schemas import (
+    AIOutput,
+    JobStatus,
+    JobType,
+    ProcessingJob,
+    Request,
+    WorkflowEmbeddingConfig,
+)
 
 logger = structlog.get_logger()
 
@@ -73,7 +76,7 @@ class JobQueueManager:
                 )
 
                 # Run job and remove from running set when done
-                task = asyncio.create_task(self._run_job(job_id, job_coro))
+                _task = asyncio.create_task(self._run_job(job_id, job_coro))
 
             except Exception as e:
                 logger.error(f"Error in queue processor: {str(e)}")
@@ -311,7 +314,8 @@ class JobService:
                         2**job.retry_count, 60
                     )  # Exponential backoff, max 60 seconds
                     logger.info(
-                        f"Job {job_id} will be retried after {delay} seconds (attempt {job.retry_count + 1})"
+                        f"Job {job_id} will be retried after {delay} seconds "
+                        f"(attempt {job.retry_count + 1})"
                     )
 
                     # Re-queue the job with delay
@@ -320,7 +324,8 @@ class JobService:
                         str(job_id), self._process_job(str(job_id))
                     )
                 else:
-                    # Max retries exceeded or job status changed, mark as FAILED only if still RUNNING
+                    # Max retries exceeded or job status changed, mark as FAILED
+                    # only if still RUNNING
                     if job and job.status == JobStatus.RUNNING:
                         await db.execute(
                             update(ProcessingJob)
@@ -341,7 +346,8 @@ class JobService:
                         )
                     else:
                         logger.warning(
-                            f"Job {job_id} status is {job.status if job else 'None'}, not updating to FAILED"
+                            f"Job {job_id} status is {job.status if job else 'None'}, "
+                            f"not updating to FAILED"
                         )
 
     async def _generate_workflow_embedding(

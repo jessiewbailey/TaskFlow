@@ -5,11 +5,16 @@ import uuid
 from asyncio import Semaphore
 from typing import Any, Dict, List, Optional
 
-import numpy as np
 from ollama import Client as OllamaClient
 from qdrant_client import QdrantClient
-from qdrant_client.models import (Distance, FieldCondition, Filter, MatchValue,
-                                  PointStruct, VectorParams)
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointStruct,
+    VectorParams,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +37,8 @@ class EmbeddingService:
         self.session.mount("http://", requests.adapters.HTTPAdapter(max_retries=3))
 
         logger.info(
-            f"Initializing EmbeddingService with Ollama at {self.ollama_host} and Qdrant at {self.qdrant_url}"
+            f"Initializing EmbeddingService with Ollama at {self.ollama_host} "
+            f"and Qdrant at {self.qdrant_url}"
         )
 
         try:
@@ -54,10 +60,12 @@ class EmbeddingService:
                     logger.warning(f"Available models: {models}")
             except Exception as e:
                 logger.warning(
-                    f"Ollama connection failed during startup (this is normal if Ollama is still starting): {str(e)}"
+                    f"Ollama connection failed during startup (this is normal if Ollama "
+                    f"is still starting): {str(e)}"
                 )
                 logger.info(
-                    "EmbeddingService will retry connections when embedding operations are requested"
+                    "EmbeddingService will retry connections when embedding "
+                    "operations are requested"
                 )
 
             # Initialize Qdrant collection (this usually works)
@@ -86,7 +94,8 @@ class EmbeddingService:
 
             if self.collection_name not in collection_names:
                 logger.info(
-                    f"Creating new collection '{self.collection_name}' in Qdrant at {self.qdrant_url}"
+                    f"Creating new collection '{self.collection_name}' in Qdrant at "
+                    f"{self.qdrant_url}"
                 )
 
                 self.qdrant_client.create_collection(
@@ -96,11 +105,13 @@ class EmbeddingService:
                     ),
                 )
                 logger.info(
-                    f"Successfully created Qdrant collection '{self.collection_name}' with vector size {self.vector_size}"
+                    f"Successfully created Qdrant collection '{self.collection_name}' "
+                    f"with vector size {self.vector_size}"
                 )
             else:
                 logger.info(
-                    f"Qdrant collection '{self.collection_name}' already exists at {self.qdrant_url}"
+                    f"Qdrant collection '{self.collection_name}' already exists at "
+                    f"{self.qdrant_url}"
                 )
         except Exception as e:
             logger.error(
@@ -108,9 +119,10 @@ class EmbeddingService:
             )
             raise
 
-    async def generate_embedding(self, text: str, max_retries: int = 3) -> List[float]:
-        """Generate embedding for the given text using Ollama with retry logic and concurrency control."""
-        import asyncio
+    async def generate_embedding(
+        self, text: str, max_retries: int = 3
+    ) -> List[float]:
+        """Generate embedding for text using Ollama with retry logic and concurrency control."""
 
         # Use semaphore to limit concurrent requests
         async with self._embedding_semaphore:
@@ -121,7 +133,8 @@ class EmbeddingService:
             for attempt in range(max_retries):
                 try:
                     logger.info(
-                        f"Generating embedding using Ollama at {self.ollama_host} with model {self.embedding_model} (attempt {attempt + 1})"
+                        f"Generating embedding using Ollama at {self.ollama_host} "
+                        f"with model {self.embedding_model} (attempt {attempt + 1})"
                     )
 
                     payload = {"model": self.embedding_model, "prompt": text}
@@ -164,11 +177,12 @@ class EmbeddingService:
                         await asyncio.sleep(wait_time)
                     else:
                         logger.error(
-                            f"All {max_retries} embedding generation attempts failed from Ollama at {self.ollama_host}: {str(e)}"
+                            f"All {max_retries} embedding generation attempts failed "
+                            f"from Ollama at {self.ollama_host}: {str(e)}"
                         )
                         # Return a zero vector as fallback to prevent crashes
                         logger.warning(
-                            f"Returning zero vector as fallback for failed embedding"
+                            "Returning zero vector as fallback for failed embedding"
                         )
                         return [0.0] * self.vector_size
 
@@ -200,7 +214,8 @@ class EmbeddingService:
 
             # Store in Qdrant
             logger.info(
-                f"Storing embedding in Qdrant at {self.qdrant_url}, collection: {self.collection_name}, point_id: {point_id}"
+                f"Storing embedding in Qdrant at {self.qdrant_url}, "
+                f"collection: {self.collection_name}, point_id: {point_id}"
             )
 
             self.qdrant_client.upsert(
@@ -271,7 +286,8 @@ class EmbeddingService:
 
             # Search in Qdrant
             logger.info(
-                f"Performing vector search in Qdrant at {self.qdrant_url}, collection: {self.collection_name}"
+                f"Performing vector search in Qdrant at {self.qdrant_url}, "
+                f"collection: {self.collection_name}"
             )
             logger.debug(f"Search filters: {filters if filters else 'None'}")
 
@@ -414,7 +430,6 @@ class EmbeddingService:
 
 
 # Lazy initialization implementation
-import os
 
 
 class LazyEmbeddingService:

@@ -8,18 +8,23 @@ Tests cover:
 - Embedding generation after completion
 """
 
-import asyncio
-from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.schemas import (AIOutput, EmbeddingStatus, JobStatus,
-                                ProcessingJob, Request, RequestStatus,
-                                Workflow, WorkflowBlock,
-                                WorkflowEmbeddingConfig)
+from app.models.schemas import (
+    AIOutput,
+    EmbeddingStatus,
+    JobStatus,
+    ProcessingJob,
+    Request,
+    RequestStatus,
+    Workflow,
+    WorkflowBlock,
+    WorkflowEmbeddingConfig,
+)
 from app.services.event_bus import event_bus
 from app.services.job_service import JobService
 

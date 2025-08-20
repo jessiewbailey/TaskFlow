@@ -14,24 +14,24 @@ import test_init
 # Now test the job queue manager directly
 def test_job_queue_manager():
     from app.services.job_service import JobQueueManager
-    
+
     manager = JobQueueManager(max_concurrent_jobs=5)
     assert manager.max_concurrent_jobs == 5
     assert len(manager.running_jobs) == 0
     print("✓ JobQueueManager initialized successfully")
-    
+
 def test_embedding_service_mocked():
     from app.services.embedding_service import embedding_service
-    
+
     # Should be our mock
     assert hasattr(embedding_service, 'generate_embedding')
     print("✓ Embedding service is mocked")
-    
+
 if __name__ == "__main__":
     print("Running simple tests...")
     try:
         test_job_queue_manager()
-        test_embedding_service_mocked() 
+        test_embedding_service_mocked()
         print("\nAll tests passed!")
     except Exception as e:
         print(f"\nTest failed: {e}")

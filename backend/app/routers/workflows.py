@@ -1,23 +1,33 @@
-from typing import List, Optional
+from typing import Optional
 
 import httpx
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.database import get_db
-from app.models.pydantic_models import (CreateWorkflowRequest,
-                                        DashboardConfigRequest,
-                                        DashboardConfigResponse,
-                                        UpdateWorkflowRequest,
-                                        WorkflowBlockInputResponse,
-                                        WorkflowBlockResponse,
-                                        WorkflowListResponse, WorkflowResponse)
-from app.models.schemas import (BlockInputType, BlockType, DashboardLayout,
-                                Workflow, WorkflowBlock, WorkflowBlockInput,
-                                WorkflowDashboardConfig, WorkflowStatus)
+from app.models.pydantic_models import (
+    CreateWorkflowRequest,
+    DashboardConfigRequest,
+    DashboardConfigResponse,
+    UpdateWorkflowRequest,
+    WorkflowBlockInputResponse,
+    WorkflowBlockResponse,
+    WorkflowListResponse,
+    WorkflowResponse,
+)
+from app.models.schemas import (
+    BlockInputType,
+    BlockType,
+    DashboardLayout,
+    Workflow,
+    WorkflowBlock,
+    WorkflowBlockInput,
+    WorkflowDashboardConfig,
+    WorkflowStatus,
+)
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/workflows", tags=["workflows"])
@@ -77,7 +87,7 @@ async def list_workflows(
         query = query.where(Workflow.status == status)
 
     if default_only:
-        query = query.where(Workflow.is_default == True)
+        query = query.where(Workflow.is_default)
 
     # Apply sorting
     query = query.order_by(Workflow.updated_at.desc())
@@ -87,7 +97,7 @@ async def list_workflows(
     if status is not None:
         count_query = count_query.where(Workflow.status == status)
     if default_only:
-        count_query = count_query.where(Workflow.is_default == True)
+        count_query = count_query.where(Workflow.is_default)
 
     total_result = await db.execute(count_query)
     total = total_result.scalar()
@@ -164,7 +174,7 @@ async def get_default_workflow(db: AsyncSession = Depends(get_db)):
     query = (
         select(Workflow)
         .options(selectinload(Workflow.blocks).selectinload(WorkflowBlock.inputs))
-        .where(Workflow.is_default == True)
+        .where(Workflow.is_default)
     )
 
     result = await db.execute(query)
@@ -229,9 +239,9 @@ async def create_workflow(
 
     # If setting as default, unset all other default workflows
     if workflow.is_default:
-        await db.execute(select(Workflow).where(Workflow.is_default == True))
+        await db.execute(select(Workflow).where(Workflow.is_default))
         existing_defaults = await db.execute(
-            select(Workflow).where(Workflow.is_default == True)
+            select(Workflow).where(Workflow.is_default)
         )
         for existing_default in existing_defaults.scalars():
             existing_default.is_default = False
@@ -290,12 +300,14 @@ async def create_workflow(
                     if 0 <= input_data.source_block_id < len(created_blocks):
                         source_block_id = created_blocks[input_data.source_block_id].id
                         logger.info(
-                            f"Mapped source_block_id {input_data.source_block_id} to database ID {source_block_id}"
+                            f"Mapped source_block_id {input_data.source_block_id} "
+                            f"to database ID {source_block_id}"
                         )
                     else:
                         # Invalid block index, skip this input
                         logger.warning(
-                            f"Invalid source_block_id {input_data.source_block_id} for block {block_index}"
+                            f"Invalid source_block_id {input_data.source_block_id} "
+                            f"for block {block_index}"
                         )
                         continue
 
@@ -443,12 +455,14 @@ async def update_workflow(
                     if 0 <= input_data.source_block_id < len(created_blocks):
                         source_block_id = created_blocks[input_data.source_block_id].id
                         logger.info(
-                            f"Update: Mapped source_block_id {input_data.source_block_id} to database ID {source_block_id}"
+                            f"Update: Mapped source_block_id {input_data.source_block_id} "
+                            f"to database ID {source_block_id}"
                         )
                     else:
                         # Invalid block index, skip this input
                         logger.warning(
-                            f"Update: Invalid source_block_id {input_data.source_block_id} for block {block_index}"
+                            f"Update: Invalid source_block_id {input_data.source_block_id} "
+                            f"for block {block_index}"
                         )
                         continue
 

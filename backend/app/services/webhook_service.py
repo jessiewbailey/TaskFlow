@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import httpx
 import structlog
@@ -11,7 +11,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.schemas import Webhook, WebhookDelivery
-from app.models.webhook_models import WebhookDeliveryStatus, WebhookEventType
+from app.models.webhook_models import WebhookDeliveryStatus
 
 logger = structlog.get_logger()
 
@@ -25,7 +25,7 @@ class WebhookService:
         # Find all active webhooks subscribed to this event
         result = await self.db.execute(
             select(Webhook)
-            .where(Webhook.is_active == True)
+            .where(Webhook.is_active)
             .where(Webhook.events.contains([event_type]))
         )
         webhooks = result.scalars().all()
@@ -99,7 +99,8 @@ class WebhookService:
                         await self._update_delivery(delivery)
 
                         logger.info(
-                            f"Successfully delivered webhook {webhook.id} for event {delivery.event_type}"
+                            f"Successfully delivered webhook {webhook.id} "
+                            f"for event {delivery.event_type}"
                         )
                         return
                     else:

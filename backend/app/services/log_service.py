@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 import re
-import subprocess
 from datetime import datetime
 from typing import AsyncGenerator, List
 
@@ -58,7 +57,7 @@ class LogStreamingService:
             if websocket in self.active_streams:
                 try:
                     await websocket.send_text(json.dumps(error_entry))
-                except:
+                except Exception:
                     pass
 
         finally:
@@ -165,7 +164,7 @@ class LogStreamingService:
             if websocket in self.active_streams:
                 try:
                     await websocket.send_text(json.dumps(error_entry))
-                except:
+                except Exception:
                     pass
 
     async def _stream_docker_logs(self, websocket):
@@ -230,7 +229,7 @@ class LogStreamingService:
             if websocket in self.active_streams:
                 try:
                     await websocket.send_text(json.dumps(error_entry))
-                except:
+                except Exception:
                     pass
 
     def _extract_log_level(self, log_line: str) -> str:

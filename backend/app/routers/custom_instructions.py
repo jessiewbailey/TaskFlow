@@ -4,12 +4,13 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.models.database import get_db
-from app.models.pydantic_models import (CustomInstructionRequest,
-                                        CustomInstructionResponse,
-                                        CustomInstructionUpdateRequest)
+from app.models.pydantic_models import (
+    CustomInstructionRequest,
+    CustomInstructionResponse,
+    CustomInstructionUpdateRequest,
+)
 from app.models.schemas import CustomInstruction, Request, WorkflowBlock
 
 logger = structlog.get_logger()
@@ -33,7 +34,7 @@ async def list_custom_instructions(request_id: int, db: AsyncSession = Depends(g
         select(CustomInstruction, WorkflowBlock.name.label("workflow_block_name"))
         .join(WorkflowBlock, CustomInstruction.workflow_block_id == WorkflowBlock.id)
         .where(CustomInstruction.request_id == request_id)
-        .where(CustomInstruction.is_active == True)
+        .where(CustomInstruction.is_active)
         .order_by(CustomInstruction.created_at.desc())
     )
 
@@ -75,7 +76,7 @@ async def create_custom_instruction(
         select(CustomInstruction)
         .where(CustomInstruction.request_id == request_id)
         .where(CustomInstruction.workflow_block_id == instruction.workflow_block_id)
-        .where(CustomInstruction.is_active == True)
+        .where(CustomInstruction.is_active)
     )
     existing = existing_result.scalar_one_or_none()
 

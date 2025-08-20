@@ -1,4 +1,3 @@
-from typing import List
 
 import structlog
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect

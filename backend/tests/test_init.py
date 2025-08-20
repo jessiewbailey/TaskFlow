@@ -5,7 +5,7 @@ Initial test setup to mock external services before any imports
 import asyncio
 import os
 import sys
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 # Set test environment variables before any imports
 os.environ["TESTING"] = "true"

@@ -1,13 +1,11 @@
 """Test workflow similarity configuration functionality"""
 
-import json
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.pydantic_models import WorkflowSimilarityConfigCreate
 from app.models.schemas import Workflow, WorkflowSimilarityConfig
 
 

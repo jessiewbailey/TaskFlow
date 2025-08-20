@@ -1,6 +1,5 @@
 """Test job lifecycle and queue behavior"""
 
-import asyncio
 import uuid
 from datetime import datetime, timezone
 
@@ -9,8 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.pydantic_models import RequestStatus
-from app.models.schemas import (JobStatus, JobType, ProcessingJob, Request,
-                                Workflow)
+from app.models.schemas import JobStatus, JobType, ProcessingJob, Request, Workflow
 from app.services.job_service import JobService
 
 
@@ -258,7 +256,7 @@ async def test_embedding_job_after_workflow_completion(db_session: AsyncSession)
 
     # Create workflow job
     job_service = JobService(db_session)
-    workflow_job_id = await job_service.create_job(
+    _workflow_job_id = await job_service.create_job(
         request_id=request.id, job_type=JobType.WORKFLOW, workflow_id=workflow.id
     )
 
@@ -282,7 +280,7 @@ async def test_embedding_job_after_workflow_completion(db_session: AsyncSession)
 
     # In real scenario, the worker would create embedding job
     # Here we simulate it
-    embedding_job_id = await job_service.create_job(
+    _embedding_job_id = await job_service.create_job(
         request_id=request.id, job_type=JobType.EMBEDDING
     )
 
@@ -302,7 +300,8 @@ async def test_embedding_job_after_workflow_completion(db_session: AsyncSession)
     assert all_jobs[1].job_type == JobType.EMBEDDING
     assert all_jobs[1].status == JobStatus.PENDING
 
-    # Verify basic job creation order and types (timing precision not critical for infrastructure tests)
+    # Verify basic job creation order and types
+    # (timing precision not critical for infrastructure tests)
     assert len(all_jobs) == 2
     assert all_jobs[0].job_type == JobType.WORKFLOW
     assert all_jobs[1].job_type == JobType.EMBEDDING

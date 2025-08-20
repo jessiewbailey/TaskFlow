@@ -6,15 +6,28 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from prometheus_client import (CONTENT_TYPE_LATEST, Counter, Histogram,
-                               generate_latest, start_http_server)
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Histogram,
+    generate_latest,
+    start_http_server,
+)
 
 from app.config import settings
-from app.routers import (custom_instructions, exercises, export, ground_truth,
-                         internal, jobs, logs, rag_search, requests)
+from app.routers import (
+    custom_instructions,
+    exercises,
+    export,
+    ground_truth,
+    internal,
+    jobs,
+    logs,
+    rag_search,
+    requests,
+)
 from app.routers import settings as settings_router
-from app.routers import (user_preferences, webhooks, workflow_embedding,
-                         workflows)
+from app.routers import user_preferences, webhooks, workflow_embedding, workflows
 
 try:
     from app.routers import config_api
@@ -54,7 +67,7 @@ async def check_stuck_jobs():
     """Periodically check for stuck PENDING jobs and retry them"""
     from datetime import datetime, timedelta
 
-    from sqlalchemy import and_, or_, select
+    from sqlalchemy import and_, select
 
     from app.models.database import get_db_session
     from app.models.schemas import JobStatus, ProcessingJob
@@ -98,14 +111,17 @@ async def check_stuck_jobs():
                         if current_job and current_job.status == JobStatus.PENDING:
                             # Re-queue the job
                             logger.info(
-                                f"Re-queuing stuck job {job.id} (created {job.created_at}, never started)"
+                                f"Re-queuing stuck job {job.id} "
+                                f"(created {job.created_at}, never started)"
                             )
                             await job_queue_manager.add_job(
                                 str(job.id), job_service._process_job(str(job.id))
                             )
                         else:
                             logger.info(
-                                f"Job {job.id} status changed to {current_job.status if current_job else 'deleted'}, skipping re-queue"
+                                f"Job {job.id} status changed to "
+                                f"{current_job.status if current_job else 'deleted'}, "
+                                f"skipping re-queue"
                             )
 
         except Exception as e:

@@ -1,7 +1,7 @@
 """
 Database test utilities for TaskFlow integration tests
 
-This module provides helper functions for setting up test data and 
+This module provides helper functions for setting up test data and
 handling SQLite compatibility issues in the test environment.
 """
 
@@ -11,11 +11,19 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.schemas import (EmbeddingStatus, JobStatus, JobType,
-                                ProcessingJob, Request, RequestStatus, User,
-                                UserRole, Workflow, WorkflowBlock,
-                                WorkflowEmbeddingConfig,
-                                WorkflowSimilarityConfig, WorkflowStatus)
+from app.models.schemas import (
+    EmbeddingStatus,
+    JobStatus,
+    JobType,
+    ProcessingJob,
+    Request,
+    RequestStatus,
+    User,
+    UserRole,
+    Workflow,
+    WorkflowBlock,
+    WorkflowStatus,
+)
 
 
 class DatabaseTestHelper:

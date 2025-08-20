@@ -5,17 +5,15 @@ This module provides common fixtures used across all test modules.
 """
 
 import asyncio
-from typing import AsyncGenerator, Generator
-from unittest.mock import AsyncMock, Mock, patch
+from typing import AsyncGenerator
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
-                                    create_async_engine)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 # Import test initialization first
-from . import test_init
 
 # Lazy imports to avoid metaclass conflict
 TestClient = None
@@ -29,16 +27,9 @@ import os
 from app.main import app
 from app.models.database import Base, get_db
 from app.models.pydantic_models import User, UserRole
+
 # Import all models to ensure they're registered with Base.metadata
-from app.models.schemas import (AIOutput, CustomInstruction, Exercise,
-                                ExercisePermission, GroundTruthData,
-                                ProcessingJob, Request, SystemSettings)
-from app.models.schemas import User as UserModel
-from app.models.schemas import (Webhook, WebhookDelivery, Workflow,
-                                WorkflowBlock, WorkflowBlockInput,
-                                WorkflowDashboardConfig,
-                                WorkflowEmbeddingConfig,
-                                WorkflowSimilarityConfig)
+# Note: These imports are needed for SQLAlchemy to register the models
 from app.routers.auth import get_current_user
 
 # Use environment variable if set (for GitHub Actions), otherwise use local test DB
@@ -58,7 +49,6 @@ def event_loop():
 @pytest.fixture(scope="function")
 async def test_engine():
     """Create a test database engine."""
-    import os
 
     engine = create_async_engine(
         TEST_DATABASE_URL,
@@ -163,7 +153,7 @@ async def async_client(override_get_db, mock_current_user):
 @pytest.fixture
 def auth_headers(test_user):
     """Create auth headers for test requests."""
-    return {"Authorization": f"Bearer test-token", "Content-Type": "application/json"}
+    return {"Authorization": "Bearer test-token", "Content-Type": "application/json"}
 
 
 @pytest.fixture

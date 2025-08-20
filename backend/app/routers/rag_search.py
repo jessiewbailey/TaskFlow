@@ -1,11 +1,14 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import get_db
-from app.models.pydantic_models import (RAGSearchRequest, RAGSearchResponse,
-                                        RAGSearchResult, User)
+from app.models.pydantic_models import (
+    RAGSearchRequest,
+    RAGSearchResponse,
+    RAGSearchResult,
+    User,
+)
 from app.routers.auth import get_current_user
 
 # Conditional import to prevent startup failures
@@ -19,8 +22,7 @@ import logging
 
 from sqlalchemy import select
 
-from app.models.schemas import (AIOutput, Request, Workflow,
-                                WorkflowSimilarityConfig)
+from app.models.schemas import AIOutput, Request, WorkflowSimilarityConfig
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,8 @@ async def perform_rag_search(
     The search is performed using vector embeddings and returns the most similar tasks.
     """
     logger.info(
-        f"RAG search request received - Query: '{search_request.query}', Limit: {search_request.limit}, Filters: {search_request.filters}"
+        f"RAG search request received - Query: '{search_request.query}', "
+        f"Limit: {search_request.limit}, Filters: {search_request.filters}"
     )
 
     try:
@@ -219,7 +222,7 @@ async def _build_custom_display(
             elif field_type == "number":
                 try:
                     value = float(value)
-                except:
+                except ValueError:
                     value = 0
             elif field_type == "score":
                 value = round(similarity_score * 100, 1)  # Convert to percentage
