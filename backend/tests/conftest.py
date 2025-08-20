@@ -3,42 +3,47 @@ Shared pytest fixtures for TaskFlow tests
 
 This module provides common fixtures used across all test modules.
 """
-# Import test initialization first
-from . import test_init
 
-import pytest
 import asyncio
 from typing import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, Mock, patch
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import NullPool
+
+import pytest
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
+                                    create_async_engine)
+from sqlalchemy.pool import NullPool
+
+# Import test initialization first
+from . import test_init
+
 # Lazy imports to avoid metaclass conflict
 TestClient = None
 AsyncClient = None
+
+# Test database URL - using PostgreSQL for tests to match production
+# This requires a PostgreSQL instance running (docker or local)
+import os
 
 # Now we can safely import the app
 from app.main import app
 from app.models.database import Base, get_db
 from app.models.pydantic_models import User, UserRole
+# Import all models to ensure they're registered with Base.metadata
+from app.models.schemas import (AIOutput, CustomInstruction, Exercise,
+                                ExercisePermission, GroundTruthData,
+                                ProcessingJob, Request, SystemSettings)
+from app.models.schemas import User as UserModel
+from app.models.schemas import (Webhook, WebhookDelivery, Workflow,
+                                WorkflowBlock, WorkflowBlockInput,
+                                WorkflowDashboardConfig,
+                                WorkflowEmbeddingConfig,
+                                WorkflowSimilarityConfig)
 from app.routers.auth import get_current_user
 
-# Import all models to ensure they're registered with Base.metadata
-from app.models.schemas import (
-    Exercise, ExercisePermission, User as UserModel, Request, AIOutput, 
-    ProcessingJob, Workflow, WorkflowBlock, WorkflowBlockInput, 
-    WorkflowDashboardConfig, WorkflowEmbeddingConfig, WorkflowSimilarityConfig,
-    CustomInstruction, GroundTruthData, SystemSettings, Webhook, WebhookDelivery
-)
-
-
-# Test database URL - using PostgreSQL for tests to match production
-# This requires a PostgreSQL instance running (docker or local)
-import os
 # Use environment variable if set (for GitHub Actions), otherwise use local test DB
 TEST_DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql+asyncpg://testuser:testpass@localhost:5433/testdb"
+    "DATABASE_URL", "postgresql+asyncpg://testuser:testpass@localhost:5433/testdb"
 ).replace("postgresql://", "postgresql+asyncpg://")
 
 
@@ -54,32 +59,36 @@ def event_loop():
 async def test_engine():
     """Create a test database engine."""
     import os
-    
+
     engine = create_async_engine(
         TEST_DATABASE_URL,
         poolclass=NullPool,
         echo=False,  # Set to True for SQL debugging
     )
-    
+
     async with engine.begin() as conn:
         # Drop all tables first to ensure clean state
         await conn.run_sync(Base.metadata.drop_all)
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
-        
+
         # Add a test user for foreign key constraints
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             INSERT INTO users (id, name, email, role, created_at)
             VALUES (1, 'Test User', 'test@example.com', 'ANALYST', NOW())
             ON CONFLICT (id) DO NOTHING
-        """))
-        
+        """
+            )
+        )
+
     yield engine
-    
+
     # Clean up
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     await engine.dispose()
 
 
@@ -89,7 +98,7 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     async_session = async_sessionmaker(
         test_engine, class_=AsyncSession, expire_on_commit=False
     )
-    
+
     async with async_session() as session:
         yield session
         # Rollback any uncommitted changes
@@ -100,9 +109,10 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture(scope="function")
 def override_get_db(db_session):
     """Override the get_db dependency with test session."""
+
     async def _override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = _override_get_db
     yield
     app.dependency_overrides.clear()
@@ -112,12 +122,13 @@ def override_get_db(db_session):
 def test_user() -> User:
     """Create a test user."""
     from datetime import datetime
+
     return User(
         id=1,
         name="Test User",
         email="test@example.com",
         role=UserRole.ANALYST,
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
     )
 
 
@@ -152,10 +163,7 @@ async def async_client(override_get_db, mock_current_user):
 @pytest.fixture
 def auth_headers(test_user):
     """Create auth headers for test requests."""
-    return {
-        "Authorization": f"Bearer test-token",
-        "Content-Type": "application/json"
-    }
+    return {"Authorization": f"Bearer test-token", "Content-Type": "application/json"}
 
 
 @pytest.fixture
@@ -209,7 +217,7 @@ def sample_request_data():
         "text": "Please analyze this document and provide key insights.",
         "requester": "test@example.com",
         "priority": "high",
-        "workflow_id": 1
+        "workflow_id": 1,
     }
 
 
@@ -224,9 +232,9 @@ def sample_workflow_data():
                 "name": "Summarize",
                 "prompt": "Summarize the following text: {{REQUEST_TEXT}}",
                 "order": 1,
-                "block_type": "CUSTOM"
+                "block_type": "CUSTOM",
             }
-        ]
+        ],
     }
 
 
@@ -235,7 +243,7 @@ def sample_embedding_config():
     """Sample embedding configuration."""
     return {
         "enabled": True,
-        "embedding_template": "Summary: {{Summarize.summary}}\nRequest: {{REQUEST_TEXT}}"
+        "embedding_template": "Summary: {{Summarize.summary}}\nRequest: {{REQUEST_TEXT}}",
     }
 
 

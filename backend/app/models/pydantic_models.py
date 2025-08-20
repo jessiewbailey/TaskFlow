@@ -1,13 +1,16 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+import enum
 from datetime import date, datetime
 from decimal import Decimal
-import enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
 
 class UserRole(str, enum.Enum):
     ANALYST = "ANALYST"
     SUPERVISOR = "SUPERVISOR"
     ADMIN = "ADMIN"
+
 
 class RequestStatus(str, enum.Enum):
     NEW = "NEW"
@@ -15,17 +18,20 @@ class RequestStatus(str, enum.Enum):
     PENDING = "PENDING"
     CLOSED = "CLOSED"
 
+
 class EmbeddingStatus(str, enum.Enum):
     PENDING = "PENDING"
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
+
 class JobStatus(str, enum.Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+
 
 # Exercise Models
 class ExerciseBase(BaseModel):
@@ -34,8 +40,10 @@ class ExerciseBase(BaseModel):
     is_active: bool = True
     is_default: bool = False
 
+
 class ExerciseCreate(ExerciseBase):
     pass
+
 
 class ExerciseUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=128)
@@ -43,14 +51,16 @@ class ExerciseUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_default: Optional[bool] = None
 
+
 class Exercise(ExerciseBase):
     id: int
     created_by: Optional[int] = None
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 # User Models
 class User(BaseModel):
@@ -60,6 +70,7 @@ class User(BaseModel):
     role: UserRole
     created_at: datetime
 
+
 # Request Models
 class CreateRequestRequest(BaseModel):
     text: str = Field(..., min_length=10, max_length=50000)
@@ -68,9 +79,11 @@ class CreateRequestRequest(BaseModel):
     workflow_id: Optional[int] = None
     exercise_id: Optional[int] = None
 
+
 class UpdateRequestStatusRequest(BaseModel):
     status: RequestStatus
     assigned_analyst_id: Optional[int] = None
+
 
 class UpdateRequestRequest(BaseModel):
     text: Optional[str] = Field(None, min_length=10, max_length=50000)
@@ -81,12 +94,15 @@ class UpdateRequestRequest(BaseModel):
     exercise_id: Optional[int] = None
     due_date: Optional[str] = None  # ISO date string
 
+
 class ProcessRequestRequest(BaseModel):
     instructions: Optional[str] = Field(None, max_length=2000)
+
 
 class AssignWorkflowRequest(BaseModel):
     workflow_id: int
     reprocess: bool = False
+
 
 # Response Models
 class UserResponse(BaseModel):
@@ -98,6 +114,7 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class AIOutputResponse(BaseModel):
     id: int
@@ -112,6 +129,7 @@ class AIOutputResponse(BaseModel):
         from_attributes = True
         protected_namespaces = ()
 
+
 class JobProgressResponse(BaseModel):
     job_id: str
     request_id: int
@@ -120,6 +138,7 @@ class JobProgressResponse(BaseModel):
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
     created_at: datetime
+
 
 class RequestResponse(BaseModel):
     id: int
@@ -145,6 +164,7 @@ class RequestResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class RequestListResponse(BaseModel):
     requests: List[RequestResponse]
     total: int
@@ -153,17 +173,21 @@ class RequestListResponse(BaseModel):
     total_pages: int
     has_next: bool = False  # For pagination
 
+
 class CreateRequestResponse(BaseModel):
     id: int
     job_id: str
 
+
 class ProcessJobResponse(BaseModel):
     job_id: str
+
 
 # Batch Upload Models
 class BatchUploadError(BaseModel):
     row: int
     message: str
+
 
 class BatchUploadResponse(BaseModel):
     success: bool
@@ -171,19 +195,23 @@ class BatchUploadResponse(BaseModel):
     success_count: int
     errors: List[BatchUploadError]
 
+
 # Bulk Rerun Models
 class BulkRerunRequest(BaseModel):
     workflow_id: int
 
+
 class BulkRerunError(BaseModel):
     task_id: int
     message: str
+
 
 class BulkRerunResponse(BaseModel):
     success: bool
     total_tasks: int
     success_count: int
     errors: List[BulkRerunError]
+
 
 # AI Pipeline Models
 class BasicMetadata(BaseModel):
@@ -192,20 +220,24 @@ class BasicMetadata(BaseModel):
     document_type: str
     urgency_level: str
 
+
 class TopicClassification(BaseModel):
     primary_topic: str
     secondary_topics: List[str]
     confidence_score: float
+
 
 class RequestSummary(BaseModel):
     executive_summary: str
     key_points: List[str]
     requested_records: List[str]
 
+
 class SensitivityAssessment(BaseModel):
     score: float
     risk_factors: List[str]
     explanation: str
+
 
 class RedactionSuggestion(BaseModel):
     text_span: str
@@ -215,6 +247,7 @@ class RedactionSuggestion(BaseModel):
     exemption_code: str
     confidence: float
 
+
 class AIProcessingResult(BaseModel):
     basic_metadata: BasicMetadata
     topic_classification: TopicClassification
@@ -222,11 +255,13 @@ class AIProcessingResult(BaseModel):
     sensitivity_assessment: SensitivityAssessment
     redaction_suggestions: List[RedactionSuggestion]
 
+
 # Workflow Models
 class WorkflowBlockInputRequest(BaseModel):
     input_type: str  # "REQUEST_TEXT" or "BLOCK_OUTPUT"
     source_block_id: Optional[int] = None
     variable_name: str = Field(..., min_length=1, max_length=64)
+
 
 class WorkflowBlockRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
@@ -238,15 +273,17 @@ class WorkflowBlockRequest(BaseModel):
     model_name: Optional[str] = Field(None, max_length=128)
     model_parameters: Optional[Dict[str, Any]] = None
     inputs: List[WorkflowBlockInputRequest] = []
-    
+
     class Config:
         protected_namespaces = ()
+
 
 class CreateWorkflowRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
     description: Optional[str] = None
     is_default: bool = False
     blocks: List[WorkflowBlockRequest] = []
+
 
 class UpdateWorkflowRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=128)
@@ -255,14 +292,16 @@ class UpdateWorkflowRequest(BaseModel):
     is_default: Optional[bool] = None
     blocks: Optional[List[WorkflowBlockRequest]] = None
 
+
 class WorkflowBlockInputResponse(BaseModel):
     id: int
     input_type: str
     source_block_id: Optional[int]
     variable_name: str
-    
+
     class Config:
         from_attributes = True
+
 
 class WorkflowBlockResponse(BaseModel):
     id: int
@@ -278,10 +317,11 @@ class WorkflowBlockResponse(BaseModel):
     inputs: List[WorkflowBlockInputResponse]
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
         protected_namespaces = ()
+
 
 class WorkflowResponse(BaseModel):
     id: int
@@ -293,9 +333,10 @@ class WorkflowResponse(BaseModel):
     blocks: List[WorkflowBlockResponse]
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 class WorkflowListResponse(BaseModel):
     workflows: List[WorkflowResponse]
@@ -303,6 +344,7 @@ class WorkflowListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
 
 # Dashboard Configuration Models
 class DashboardFieldConfigRequest(BaseModel):
@@ -315,10 +357,12 @@ class DashboardFieldConfigRequest(BaseModel):
     width: str  # 'full', 'half', 'third', 'quarter'
     visible: bool
 
+
 class DashboardConfigRequest(BaseModel):
     workflow_id: int
     fields: List[DashboardFieldConfigRequest]
     layout: str  # 'grid', 'list'
+
 
 class DashboardConfigResponse(BaseModel):
     id: int
@@ -327,14 +371,16 @@ class DashboardConfigResponse(BaseModel):
     layout: str
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 # Custom Instructions Models
 class CustomInstructionRequest(BaseModel):
     workflow_block_id: int
     instruction_text: str = Field(..., min_length=1, max_length=5000)
+
 
 class CustomInstructionResponse(BaseModel):
     id: int
@@ -345,16 +391,18 @@ class CustomInstructionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_active: bool
-    
+
     # Related data
     workflow_block_name: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
+
 
 class CustomInstructionUpdateRequest(BaseModel):
     instruction_text: Optional[str] = Field(None, min_length=1, max_length=5000)
     is_active: Optional[bool] = None
+
 
 # Ground Truth Models
 class CreateGroundTruthRequest(BaseModel):
@@ -365,9 +413,11 @@ class CreateGroundTruthRequest(BaseModel):
     ground_truth_value: Any
     notes: Optional[str] = None
 
+
 class UpdateGroundTruthRequest(BaseModel):
     ground_truth_value: Optional[Any] = None
     notes: Optional[str] = None
+
 
 class GroundTruthResponse(BaseModel):
     id: int
@@ -380,22 +430,25 @@ class GroundTruthResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     notes: Optional[str]
-    
+
     # Related data
     workflow_block_name: Optional[str] = None
     created_by_name: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
+
 
 # User Preferences Models
 class UpdateUserPreferencesRequest(BaseModel):
     fine_tuning_mode: Optional[bool] = None
     # Add other preferences as needed
 
+
 class UserPreferencesResponse(BaseModel):
     fine_tuning_mode: bool = False
     # Add other preferences as needed
+
 
 # System Settings Models
 class SystemSettingResponse(BaseModel):
@@ -405,12 +458,14 @@ class SystemSettingResponse(BaseModel):
     description: Optional[str]
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
+
 class UpdateSystemSettingRequest(BaseModel):
     value: Any
+
 
 # RAG Search Models
 class RAGSearchRequest(BaseModel):
@@ -419,6 +474,7 @@ class RAGSearchRequest(BaseModel):
     filters: Optional[Dict[str, Any]] = None
     temperature: float = Field(default=0.7, ge=0.0, le=1.0)
     include_scores: bool = True
+
 
 class RAGSearchResult(BaseModel):
     task_id: int
@@ -430,24 +486,28 @@ class RAGSearchResult(BaseModel):
     priority: Optional[str] = None
     created_at: Optional[datetime] = None
     exercise_id: Optional[int] = None
-    
+
     class Config:
         extra = "allow"  # Allow additional fields from custom display config
+
 
 class RAGSearchResponse(BaseModel):
     results: List[RAGSearchResult]
     query: str
     total_results: int
 
+
 # Workflow Embedding Configuration Models
 class WorkflowEmbeddingConfigCreate(BaseModel):
     enabled: bool = True
     embedding_template: str = Field(..., min_length=1, max_length=5000)
-    
+
+
 class WorkflowEmbeddingConfigUpdate(BaseModel):
     enabled: Optional[bool] = None
     embedding_template: Optional[str] = Field(None, min_length=1, max_length=5000)
-    
+
+
 class WorkflowEmbeddingConfigResponse(BaseModel):
     id: int
     workflow_id: int
@@ -455,9 +515,10 @@ class WorkflowEmbeddingConfigResponse(BaseModel):
     embedding_template: str
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
+
 
 # Workflow Similarity Configuration Models
 class SimilarityDisplayField(BaseModel):
@@ -466,18 +527,21 @@ class SimilarityDisplayField(BaseModel):
     source: str  # Block_Name.field_path
     display_options: Optional[Dict[str, Any]] = None  # formatting options
 
+
 class WorkflowSimilarityConfigCreate(BaseModel):
     fields: List[SimilarityDisplayField]
-    
+
+
 class WorkflowSimilarityConfigUpdate(BaseModel):
     fields: Optional[List[SimilarityDisplayField]] = None
-    
+
+
 class WorkflowSimilarityConfigResponse(BaseModel):
     id: int
     workflow_id: int
     fields: List[SimilarityDisplayField]
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
