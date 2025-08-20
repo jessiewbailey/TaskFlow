@@ -31,10 +31,7 @@ from app.models.pydantic_models import (
     UpdateRequestStatusRequest,
     UserResponse,
 )
-from app.models.schemas import (
-    AIOutput,
-    CustomInstruction,
-)
+from app.models.schemas import AIOutput, CustomInstruction
 from app.models.schemas import Exercise as ExerciseModel
 from app.models.schemas import (
     JobStatus,
