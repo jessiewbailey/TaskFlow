@@ -18,9 +18,7 @@ async def test_queue_position_after_restart(db_session: AsyncSession):
     """Test that queue position works correctly even after API restart"""
 
     # Create a default workflow
-    workflow = Workflow(
-        name="Test Workflow", description="Test", is_default=True, created_by=1
-    )
+    workflow = Workflow(name="Test Workflow", description="Test", is_default=True, created_by=1)
     db_session.add(workflow)
     await db_session.flush()
 
@@ -76,9 +74,7 @@ async def test_queue_position_calculation_from_database(db_session: AsyncSession
     """Test that queue position should be calculated from database state"""
 
     # Create a workflow
-    workflow = Workflow(
-        name="Test Workflow", description="Test", is_default=True, created_by=1
-    )
+    workflow = Workflow(name="Test Workflow", description="Test", is_default=True, created_by=1)
     db_session.add(workflow)
     await db_session.flush()
 
@@ -156,9 +152,7 @@ async def test_bulk_upload_queue_positions(db_session: AsyncSession):
     """Test queue positions after bulk upload"""
 
     # Create a workflow
-    workflow = Workflow(
-        name="Test Workflow", description="Test", is_default=True, created_by=1
-    )
+    workflow = Workflow(name="Test Workflow", description="Test", is_default=True, created_by=1)
     db_session.add(workflow)
     await db_session.flush()
 
@@ -206,9 +200,7 @@ async def test_bulk_upload_queue_positions(db_session: AsyncSession):
 
             if i < 4:
                 # First 4 should be running
-                assert (
-                    position == -1 or position >= 0
-                )  # Could be queued if not picked up yet
+                assert position == -1 or position >= 0  # Could be queued if not picked up yet
             else:
                 # Rest should be queued
                 # But this will fail because queue is not persistent

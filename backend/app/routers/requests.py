@@ -110,9 +110,7 @@ async def _build_similarity_display(
             "similarity_score": similarity_score,
             "status": task_request.status.value if task_request.status else "",
             "priority": "normal",  # Default since not in schema
-            "created_at": (
-                task_request.created_at.isoformat() if task_request.created_at else ""
-            ),
+            "created_at": (task_request.created_at.isoformat() if task_request.created_at else ""),
             "exercise_id": task_request.exercise_id,
         }
 
@@ -157,9 +155,7 @@ async def _build_similarity_display(
         elif field_source == "STATUS":
             value = task_request.status.value if task_request.status else ""
         elif field_source == "CREATED_AT":
-            value = (
-                task_request.created_at.isoformat() if task_request.created_at else ""
-            )
+            value = task_request.created_at.isoformat() if task_request.created_at else ""
         elif field_source == "REQUESTER":
             value = task_request.requester
         elif "." in field_source:
@@ -212,9 +208,7 @@ async def _build_similarity_display(
         custom_data["title"] = f"Request #{task_request.id}"
     if "description" not in custom_data:
         custom_data["description"] = (
-            task_request.text[:200] + "..."
-            if len(task_request.text) > 200
-            else task_request.text
+            task_request.text[:200] + "..." if len(task_request.text) > 200 else task_request.text
         )
 
     return custom_data
@@ -286,11 +280,7 @@ async def list_requests(
             select(ProcessingJob.request_id)
             .where(ProcessingJob.request_id.in_(request_ids))
             .where(ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
-            .where(
-                ProcessingJob.job_type.in_(
-                    [JobType.WORKFLOW, JobType.STANDARD, JobType.CUSTOM]
-                )
-            )
+            .where(ProcessingJob.job_type.in_([JobType.WORKFLOW, JobType.STANDARD, JobType.CUSTOM]))
         )
         active_job_request_ids = set(active_jobs_result.scalars().all())
 
@@ -355,15 +345,11 @@ async def list_requests(
                 created_at=req.created_at,
                 updated_at=req.updated_at,
                 assigned_analyst=(
-                    UserResponse.from_orm(req.assigned_analyst)
-                    if req.assigned_analyst
-                    else None
+                    UserResponse.from_orm(req.assigned_analyst) if req.assigned_analyst else None
                 ),
                 exercise=Exercise.from_orm(req.exercise) if req.exercise else None,
                 latest_ai_output=(
-                    AIOutputResponse.from_orm(latest_ai_output)
-                    if latest_ai_output
-                    else None
+                    AIOutputResponse.from_orm(latest_ai_output) if latest_ai_output else None
                 ),
                 has_active_jobs=has_active_jobs,
                 latest_failed_job=latest_failed_job,
@@ -384,17 +370,13 @@ async def list_requests(
 
 
 @router.post("", response_model=CreateRequestResponse)
-async def create_request(
-    request: CreateRequestRequest, db: AsyncSession = Depends(get_db)
-):
+async def create_request(request: CreateRequestRequest, db: AsyncSession = Depends(get_db)):
     """Create a new TaskFlow request and trigger AI processing"""
 
     # If no workflow specified, use default workflow
     workflow_id = request.workflow_id
     if not workflow_id:
-        default_workflow_result = await db.execute(
-            select(Workflow).where(Workflow.is_default)
-        )
+        default_workflow_result = await db.execute(select(Workflow).where(Workflow.is_default))
         default_workflow = default_workflow_result.scalar_one_or_none()
         if default_workflow:
             workflow_id = default_workflow.id
@@ -428,9 +410,7 @@ async def create_request(
 
     await db.commit()
 
-    logger.info(
-        "Created TaskFlow request", request_id=taskflow_request.id, job_id=job_id
-    )
+    logger.info("Created TaskFlow request", request_id=taskflow_request.id, job_id=job_id)
 
     # NOTE: Embedding generation is now triggered after workflow completion
     # See the workflow completion handler in the ai-worker for embedding logic
@@ -469,11 +449,7 @@ async def get_request(request_id: int, db: AsyncSession = Depends(get_db)):
         select(ProcessingJob)
         .where(ProcessingJob.request_id == request_id)
         .where(ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]))
-        .where(
-            ProcessingJob.job_type.in_(
-                [JobType.WORKFLOW, JobType.STANDARD, JobType.CUSTOM]
-            )
-        )
+        .where(ProcessingJob.job_type.in_([JobType.WORKFLOW, JobType.STANDARD, JobType.CUSTOM]))
         .order_by(ProcessingJob.created_at.desc())
         .limit(1)
     )
@@ -531,9 +507,7 @@ async def get_request(request_id: int, db: AsyncSession = Depends(get_db)):
         created_at=request.created_at,
         updated_at=request.updated_at,
         assigned_analyst=(
-            UserResponse.from_orm(request.assigned_analyst)
-            if request.assigned_analyst
-            else None
+            UserResponse.from_orm(request.assigned_analyst) if request.assigned_analyst else None
         ),
         exercise=Exercise.from_orm(request.exercise) if request.exercise else None,
         latest_ai_output=(
@@ -633,9 +607,7 @@ async def process_request(
             job_type=JobType.CUSTOM,
             custom_instructions=process_request.instructions,
         )
-        logger.info(
-            "Created legacy custom processing job", request_id=request_id, job_id=job_id
-        )
+        logger.info("Created legacy custom processing job", request_id=request_id, job_id=job_id)
 
     return ProcessJobResponse(job_id=job_id)
 
@@ -768,9 +740,7 @@ async def update_request(
     # Fetch updated request with relationships
     query = (
         select(Request)
-        .options(
-            selectinload(Request.assigned_analyst), selectinload(Request.ai_outputs)
-        )
+        .options(selectinload(Request.assigned_analyst), selectinload(Request.ai_outputs))
         .where(Request.id == request_id)
     )
 
@@ -851,9 +821,7 @@ async def search_similar_tasks_by_text(
     try:
         # Search similar tasks
         if not embedding_service or not embedding_service.is_available():
-            raise HTTPException(
-                status_code=503, detail="Embedding service not available"
-            )
+            raise HTTPException(status_code=503, detail="Embedding service not available")
 
         similar_tasks = await embedding_service.search_similar_tasks(
             query_text=search_request.query,
@@ -882,9 +850,7 @@ async def search_similar_tasks_by_text(
 
     except Exception as e:
         logger.error("Similarity search failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Similarity search failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Similarity search failed: {str(e)}")
 
 
 @router.post("/{request_id}/similar", response_model=SimilaritySearchResponse)
@@ -910,9 +876,7 @@ async def search_similar_tasks_by_id(
 
         # Search similar tasks
         if not embedding_service or not embedding_service.is_available():
-            raise HTTPException(
-                status_code=503, detail="Embedding service not available"
-            )
+            raise HTTPException(status_code=503, detail="Embedding service not available")
 
         similar_tasks = await embedding_service.search_similar_by_task_id(
             task_id=request_id,
@@ -970,18 +934,14 @@ async def search_similar_tasks_by_id(
 
     except Exception as e:
         logger.error("Similarity search failed", request_id=request_id, error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Similarity search failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Similarity search failed: {str(e)}")
 
 
 @router.get("/test-exercise-assignment")
 async def test_exercise_assignment(db: AsyncSession = Depends(get_db)):
     """Test endpoint to debug exercise assignment"""
     # Get exercises
-    exercise_result = await db.execute(
-        select(ExerciseModel).where(Exercise.name == "FOIA")
-    )
+    exercise_result = await db.execute(select(ExerciseModel).where(Exercise.name == "FOIA"))
     exercise = exercise_result.scalar_one_or_none()
 
     if not exercise:
@@ -999,9 +959,7 @@ async def test_exercise_assignment(db: AsyncSession = Depends(get_db)):
     await db.flush()
 
     # Check if it persisted
-    check_result = await db.execute(
-        select(Request).where(Request.id == test_request.id)
-    )
+    check_result = await db.execute(select(Request).where(Request.id == test_request.id))
     saved_request = check_result.scalar_one()
 
     await db.rollback()  # Don't actually save
@@ -1035,9 +993,7 @@ async def batch_upload_requests(
         )
         exercise = exercise_result.scalar_one_or_none()
         if not exercise:
-            raise HTTPException(
-                status_code=404, detail=f"Exercise with ID {exercise_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Exercise with ID {exercise_id} not found")
         logger.info(f"Found exercise: {exercise.name} with ID {exercise.id}")
 
     # Validate file type
@@ -1068,9 +1024,7 @@ async def batch_upload_requests(
             )
 
         # Get default workflow if available
-        default_workflow_result = await db.execute(
-            select(Workflow).where(Workflow.is_default)
-        )
+        default_workflow_result = await db.execute(select(Workflow).where(Workflow.is_default))
         default_workflow = default_workflow_result.scalar_one_or_none()
         default_workflow_id = default_workflow.id if default_workflow else None
 
@@ -1097,9 +1051,7 @@ async def batch_upload_requests(
                 # Prepare request data
                 text = str(row["text"]).strip()
                 requester = (
-                    str(row["requester"]).strip()
-                    if not pd.isna(row.get("requester"))
-                    else None
+                    str(row["requester"]).strip() if not pd.isna(row.get("requester")) else None
                 )
                 assigned_analyst_id = (
                     int(row["assigned_analyst_id"])
@@ -1223,9 +1175,7 @@ async def batch_upload_requests(
 
             except Exception as e:
                 errors.append(
-                    BatchUploadError(
-                        row=row_number, message=f"Error processing row: {str(e)}"
-                    )
+                    BatchUploadError(row=row_number, message=f"Error processing row: {str(e)}")
                 )
                 continue
 
@@ -1242,10 +1192,7 @@ async def batch_upload_requests(
             batch_requests_result = await db.execute(
                 select(Request)
                 .where(Request.exercise_id == exercise_id)
-                .where(
-                    Request.created_at
-                    >= datetime.now(timezone.utc) - timedelta(minutes=5)
-                )
+                .where(Request.created_at >= datetime.now(timezone.utc) - timedelta(minutes=5))
                 .order_by(Request.created_at.desc())
                 .limit(success_count)
             )
@@ -1284,9 +1231,7 @@ async def batch_upload_requests(
 
 
 @router.post("/bulk-rerun", response_model=BulkRerunResponse)
-async def bulk_rerun_requests(
-    request: BulkRerunRequest, db: AsyncSession = Depends(get_db)
-):
+async def bulk_rerun_requests(request: BulkRerunRequest, db: AsyncSession = Depends(get_db)):
     """Re-run all requests with a specified workflow"""
 
     try:
@@ -1324,9 +1269,7 @@ async def bulk_rerun_requests(
 
             except Exception as e:
                 errors.append(
-                    BulkRerunError(
-                        task_id=req.id, message=f"Error creating job: {str(e)}"
-                    )
+                    BulkRerunError(task_id=req.id, message=f"Error creating job: {str(e)}")
                 )
                 continue
 

@@ -102,9 +102,7 @@ class TestWorkflowExecution:
         # Mock AI worker response
         mock_ai_response = {
             "Extract": {"points": ["Important information", "Needs analysis"]},
-            "Analyze": {
-                "summary": "Document contains critical data requiring immediate attention"
-            },
+            "Analyze": {"summary": "Document contains critical data requiring immediate attention"},
         }
 
         with patch("httpx.AsyncClient") as mock_client_class:
@@ -198,9 +196,7 @@ class TestWorkflowExecution:
             assert "AI Worker Error" in job.error_message
 
     @pytest.mark.asyncio
-    async def test_concurrent_job_processing(
-        self, db_session: AsyncSession, sample_workflow
-    ):
+    async def test_concurrent_job_processing(self, db_session: AsyncSession, sample_workflow):
         """Test concurrent job processing with queue limits."""
         # Create multiple requests
         requests = []
@@ -360,9 +356,7 @@ class TestWorkflowWithCustomInstructions:
         # For now, we just verify the instruction exists
 
         result = await db_session.execute(
-            select(CustomInstruction).where(
-                CustomInstruction.request_id == sample_request.id
-            )
+            select(CustomInstruction).where(CustomInstruction.request_id == sample_request.id)
         )
         instructions = result.scalars().all()
         assert len(instructions) == 1

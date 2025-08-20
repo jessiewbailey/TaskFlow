@@ -152,19 +152,13 @@ async def export_to_excel(
                     req.date_received.strftime("%Y-%m-%d") if req.date_received else ""
                 ),
                 "Status": req.status.value if req.status else "",
-                "Assigned Analyst": (
-                    req.assigned_analyst.name if req.assigned_analyst else ""
-                ),
+                "Assigned Analyst": (req.assigned_analyst.name if req.assigned_analyst else ""),
                 "Due Date": req.due_date.strftime("%Y-%m-%d") if req.due_date else "",
                 "Created At": (
-                    req.created_at.strftime("%Y-%m-%d %H:%M:%S")
-                    if req.created_at
-                    else ""
+                    req.created_at.strftime("%Y-%m-%d %H:%M:%S") if req.created_at else ""
                 ),
                 "Updated At": (
-                    req.updated_at.strftime("%Y-%m-%d %H:%M:%S")
-                    if req.updated_at
-                    else ""
+                    req.updated_at.strftime("%Y-%m-%d %H:%M:%S") if req.updated_at else ""
                 ),
             }
 
@@ -230,9 +224,7 @@ async def export_to_excel(
                     # Add metadata
                     row_data[f"{field_key}_UpdatedBy"] = gt["created_by"]
                     row_data[f"{field_key}_UpdatedAt"] = (
-                        gt["updated_at"].strftime("%Y-%m-%d %H:%M:%S")
-                        if gt["updated_at"]
-                        else ""
+                        gt["updated_at"].strftime("%Y-%m-%d %H:%M:%S") if gt["updated_at"] else ""
                     )
 
             export_data.append(row_data)
@@ -279,9 +271,7 @@ async def export_to_excel(
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
-def _flatten_dict(
-    data: Dict[str, Any], prefix: str = "", separator: str = "_"
-) -> Dict[str, Any]:
+def _flatten_dict(data: Dict[str, Any], prefix: str = "", separator: str = "_") -> Dict[str, Any]:
     """
     Flatten a nested dictionary for Excel export
     """
@@ -300,9 +290,7 @@ def _flatten_dict(
                 for i, item in enumerate(value[:10]):  # Limit to first 10 items
                     if isinstance(item, dict):
                         flattened.update(
-                            _flatten_dict(
-                                item, f"{new_key}_{i+1}{separator}", separator
-                            )
+                            _flatten_dict(item, f"{new_key}_{i+1}{separator}", separator)
                         )
             else:
                 # Simple list - join as string

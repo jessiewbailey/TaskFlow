@@ -60,9 +60,7 @@ async def create_webhook(
 ):
     """Create a new webhook"""
     # Check if name already exists
-    existing = await db.execute(
-        select(Webhook).where(Webhook.name == webhook_data.name)
-    )
+    existing = await db.execute(select(Webhook).where(Webhook.name == webhook_data.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Webhook name already exists")
 
@@ -121,9 +119,7 @@ async def update_webhook(
 
     # Check if new name already exists
     if webhook_update.name and webhook_update.name != webhook.name:
-        existing = await db.execute(
-            select(Webhook).where(Webhook.name == webhook_update.name)
-        )
+        existing = await db.execute(select(Webhook).where(Webhook.name == webhook_update.name))
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Webhook name already exists")
 
@@ -195,9 +191,7 @@ async def test_webhook(
         )
 
     service = WebhookService(db)
-    result = await service.test_webhook(
-        webhook, test_request.event_type, test_request.sample_data
-    )
+    result = await service.test_webhook(webhook, test_request.event_type, test_request.sample_data)
 
     return WebhookTestResponse(**result)
 
@@ -241,11 +235,7 @@ async def list_webhook_deliveries(
 
     # Apply pagination
     offset = (page - 1) * page_size
-    query = (
-        query.order_by(WebhookDelivery.created_at.desc())
-        .offset(offset)
-        .limit(page_size)
-    )
+    query = query.order_by(WebhookDelivery.created_at.desc()).offset(offset).limit(page_size)
 
     result = await db.execute(query)
     deliveries = result.scalars().all()

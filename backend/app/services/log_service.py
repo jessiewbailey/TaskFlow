@@ -16,9 +16,7 @@ class LogStreamingService:
     def __init__(self):
         self.active_streams = set()
         # Detect environment - Kubernetes vs Docker Compose
-        self.is_kubernetes = os.path.exists(
-            "/var/run/secrets/kubernetes.io/serviceaccount"
-        )
+        self.is_kubernetes = os.path.exists("/var/run/secrets/kubernetes.io/serviceaccount")
         self.ollama_container_name = "taskflow-ollama"  # For Docker Compose
         self.ollama_pod_selector = "app=ollama"  # For Kubernetes
         self.namespace = "taskflow"  # Kubernetes namespace
@@ -183,9 +181,7 @@ class LogStreamingService:
             )
 
             # Stream logs from the container
-            log_stream = container.logs(
-                stream=True, follow=True, tail=50, stdout=True, stderr=True
-            )
+            log_stream = container.logs(stream=True, follow=True, tail=50, stdout=True, stderr=True)
 
             for log_chunk in log_stream:
                 if websocket not in self.active_streams:
@@ -208,9 +204,7 @@ class LogStreamingService:
                                 try:
                                     await websocket.send_text(json.dumps(log_entry))
                                 except Exception as e:
-                                    logger.error(
-                                        "Failed to send log to WebSocket", error=str(e)
-                                    )
+                                    logger.error("Failed to send log to WebSocket", error=str(e))
                                     break
                             else:
                                 break
@@ -346,9 +340,7 @@ class LogStreamingService:
                     namespace=self.namespace, label_selector=self.ollama_pod_selector
                 )
                 return [
-                    pod.metadata.name
-                    for pod in pod_list.items
-                    if pod.status.phase == "Running"
+                    pod.metadata.name for pod in pod_list.items if pod.status.phase == "Running"
                 ]
 
             return await loop.run_in_executor(None, _list_pods)

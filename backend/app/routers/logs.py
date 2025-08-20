@@ -37,9 +37,7 @@ async def get_recent_ollama_logs(lines: int = Query(100, ge=1, le=1000)):
         return {"logs": logs, "total": len(logs), "container": "taskflow-ollama"}
     except Exception as e:
         logger.error("Error fetching recent Ollama logs", error=str(e))
-        return JSONResponse(
-            status_code=500, content={"detail": "Failed to fetch recent logs"}
-        )
+        return JSONResponse(status_code=500, content={"detail": "Failed to fetch recent logs"})
 
 
 @router.get("/ollama/status")
@@ -78,6 +76,4 @@ async def get_ollama_status():
         }
     except Exception as e:
         logger.error("Error checking Ollama status", error=str(e))
-        return JSONResponse(
-            status_code=500, content={"detail": "Failed to check container status"}
-        )
+        return JSONResponse(status_code=500, content={"detail": "Failed to check container status"})

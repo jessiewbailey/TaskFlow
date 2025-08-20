@@ -32,18 +32,14 @@ router = APIRouter(prefix="/api/workflows", tags=["workflow-embedding"])
 async def get_embedding_config(workflow_id: int, db: AsyncSession = Depends(get_db)):
     """Get embedding configuration for a workflow"""
     # Verify workflow exists
-    workflow_result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id)
-    )
+    workflow_result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
     workflow = workflow_result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     # Get embedding config
     result = await db.execute(
-        select(WorkflowEmbeddingConfig).where(
-            WorkflowEmbeddingConfig.workflow_id == workflow_id
-        )
+        select(WorkflowEmbeddingConfig).where(WorkflowEmbeddingConfig.workflow_id == workflow_id)
     )
     config = result.scalar_one_or_none()
 
@@ -52,9 +48,7 @@ async def get_embedding_config(workflow_id: int, db: AsyncSession = Depends(get_
     return None
 
 
-@router.post(
-    "/{workflow_id}/embedding-config", response_model=WorkflowEmbeddingConfigResponse
-)
+@router.post("/{workflow_id}/embedding-config", response_model=WorkflowEmbeddingConfigResponse)
 async def create_or_update_embedding_config(
     workflow_id: int,
     config_data: WorkflowEmbeddingConfigCreate,
@@ -62,18 +56,14 @@ async def create_or_update_embedding_config(
 ):
     """Create or update embedding configuration for a workflow"""
     # Verify workflow exists
-    workflow_result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id)
-    )
+    workflow_result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
     workflow = workflow_result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     # Check if config exists
     result = await db.execute(
-        select(WorkflowEmbeddingConfig).where(
-            WorkflowEmbeddingConfig.workflow_id == workflow_id
-        )
+        select(WorkflowEmbeddingConfig).where(WorkflowEmbeddingConfig.workflow_id == workflow_id)
     )
     existing_config = result.scalar_one_or_none()
 
@@ -93,15 +83,11 @@ async def create_or_update_embedding_config(
     await db.commit()
     await db.refresh(existing_config)
 
-    logger.info(
-        "Embedding config saved", workflow_id=workflow_id, config_id=existing_config.id
-    )
+    logger.info("Embedding config saved", workflow_id=workflow_id, config_id=existing_config.id)
     return WorkflowEmbeddingConfigResponse.from_orm(existing_config)
 
 
-@router.patch(
-    "/{workflow_id}/embedding-config", response_model=WorkflowEmbeddingConfigResponse
-)
+@router.patch("/{workflow_id}/embedding-config", response_model=WorkflowEmbeddingConfigResponse)
 async def update_embedding_config(
     workflow_id: int,
     config_data: WorkflowEmbeddingConfigUpdate,
@@ -110,9 +96,7 @@ async def update_embedding_config(
     """Update embedding configuration for a workflow"""
     # Get existing config
     result = await db.execute(
-        select(WorkflowEmbeddingConfig).where(
-            WorkflowEmbeddingConfig.workflow_id == workflow_id
-        )
+        select(WorkflowEmbeddingConfig).where(WorkflowEmbeddingConfig.workflow_id == workflow_id)
     )
     config = result.scalar_one_or_none()
 
@@ -135,9 +119,7 @@ async def update_embedding_config(
 async def delete_embedding_config(workflow_id: int, db: AsyncSession = Depends(get_db)):
     """Delete embedding configuration for a workflow"""
     result = await db.execute(
-        select(WorkflowEmbeddingConfig).where(
-            WorkflowEmbeddingConfig.workflow_id == workflow_id
-        )
+        select(WorkflowEmbeddingConfig).where(WorkflowEmbeddingConfig.workflow_id == workflow_id)
     )
     config = result.scalar_one_or_none()
 
@@ -160,18 +142,14 @@ async def delete_embedding_config(workflow_id: int, db: AsyncSession = Depends(g
 async def get_similarity_config(workflow_id: int, db: AsyncSession = Depends(get_db)):
     """Get similarity display configuration for a workflow"""
     # Verify workflow exists
-    workflow_result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id)
-    )
+    workflow_result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
     workflow = workflow_result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     # Get similarity config
     result = await db.execute(
-        select(WorkflowSimilarityConfig).where(
-            WorkflowSimilarityConfig.workflow_id == workflow_id
-        )
+        select(WorkflowSimilarityConfig).where(WorkflowSimilarityConfig.workflow_id == workflow_id)
     )
     config = result.scalar_one_or_none()
 
@@ -180,9 +158,7 @@ async def get_similarity_config(workflow_id: int, db: AsyncSession = Depends(get
     return None
 
 
-@router.post(
-    "/{workflow_id}/similarity-config", response_model=WorkflowSimilarityConfigResponse
-)
+@router.post("/{workflow_id}/similarity-config", response_model=WorkflowSimilarityConfigResponse)
 async def create_or_update_similarity_config(
     workflow_id: int,
     config_data: WorkflowSimilarityConfigCreate,
@@ -190,18 +166,14 @@ async def create_or_update_similarity_config(
 ):
     """Create or update similarity display configuration for a workflow"""
     # Verify workflow exists
-    workflow_result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id)
-    )
+    workflow_result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
     workflow = workflow_result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     # Check if config exists
     result = await db.execute(
-        select(WorkflowSimilarityConfig).where(
-            WorkflowSimilarityConfig.workflow_id == workflow_id
-        )
+        select(WorkflowSimilarityConfig).where(WorkflowSimilarityConfig.workflow_id == workflow_id)
     )
     existing_config = result.scalar_one_or_none()
 
@@ -219,28 +191,20 @@ async def create_or_update_similarity_config(
     await db.commit()
     await db.refresh(existing_config)
 
-    logger.info(
-        "Similarity config saved", workflow_id=workflow_id, config_id=existing_config.id
-    )
+    logger.info("Similarity config saved", workflow_id=workflow_id, config_id=existing_config.id)
     return WorkflowSimilarityConfigResponse.from_orm(existing_config)
 
 
 @router.delete("/{workflow_id}/similarity-config")
-async def delete_similarity_config(
-    workflow_id: int, db: AsyncSession = Depends(get_db)
-):
+async def delete_similarity_config(workflow_id: int, db: AsyncSession = Depends(get_db)):
     """Delete similarity display configuration for a workflow"""
     result = await db.execute(
-        select(WorkflowSimilarityConfig).where(
-            WorkflowSimilarityConfig.workflow_id == workflow_id
-        )
+        select(WorkflowSimilarityConfig).where(WorkflowSimilarityConfig.workflow_id == workflow_id)
     )
     config = result.scalar_one_or_none()
 
     if not config:
-        raise HTTPException(
-            status_code=404, detail="Similarity configuration not found"
-        )
+        raise HTTPException(status_code=404, detail="Similarity configuration not found")
 
     await db.delete(config)
     await db.commit()

@@ -90,17 +90,13 @@ class TestJobService:
         request_id = 123
         job_type = JobType.STANDARD
 
-        with patch(
-            "uuid.uuid4", return_value=uuid.UUID("12345678-1234-5678-1234-567812345678")
-        ):
+        with patch("uuid.uuid4", return_value=uuid.UUID("12345678-1234-5678-1234-567812345678")):
             with patch(
                 "app.services.job_service.job_queue_manager.add_job",
                 new_callable=AsyncMock,
             ) as mock_add:
                 # Act
-                job_id = await job_service.create_job(
-                    request_id=request_id, job_type=job_type
-                )
+                job_id = await job_service.create_job(request_id=request_id, job_type=job_type)
 
         # Assert
         assert job_id == "12345678-1234-5678-1234-567812345678"
@@ -124,9 +120,7 @@ class TestJobService:
         custom_instructions = "Use a formal tone"
         workflow_id = 789
 
-        with patch(
-            "uuid.uuid4", return_value=uuid.UUID("87654321-4321-8765-4321-876543218765")
-        ):
+        with patch("uuid.uuid4", return_value=uuid.UUID("87654321-4321-8765-4321-876543218765")):
             with patch(
                 "app.services.job_service.job_queue_manager.add_job",
                 new_callable=AsyncMock,
@@ -246,9 +240,7 @@ class TestJobService:
             job_service, "_send_to_embedding_service", new_callable=AsyncMock
         ) as mock_send:
             # Act
-            await job_service._generate_workflow_embedding(
-                request_id, workflow_id, mock_db
-            )
+            await job_service._generate_workflow_embedding(request_id, workflow_id, mock_db)
 
             # Assert
             mock_send.assert_called_once()

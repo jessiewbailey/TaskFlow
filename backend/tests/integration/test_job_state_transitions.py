@@ -18,9 +18,7 @@ async def test_rapid_job_state_transitions(db_session: AsyncSession):
     """Test how quickly jobs transition through states"""
 
     # Create a workflow
-    workflow = Workflow(
-        name="Test Workflow", description="Test", is_default=True, created_by=1
-    )
+    workflow = Workflow(name="Test Workflow", description="Test", is_default=True, created_by=1)
     db_session.add(workflow)
     await db_session.flush()
 
@@ -51,9 +49,7 @@ async def test_rapid_job_state_transitions(db_session: AsyncSession):
 
     # Simulate job being picked up quickly (RUNNING)
     await asyncio.sleep(0.1)  # 100ms delay
-    job_result = await db_session.execute(
-        select(ProcessingJob).where(ProcessingJob.id == job_id)
-    )
+    job_result = await db_session.execute(select(ProcessingJob).where(ProcessingJob.id == job_id))
     job = job_result.scalar_one()
     job.status = JobStatus.RUNNING
     job.started_at = datetime.now(timezone.utc)
@@ -86,9 +82,7 @@ async def test_polling_window_race_condition(db_session: AsyncSession):
     """Test potential race conditions with frontend polling"""
 
     # Create workflow and request
-    workflow = Workflow(
-        name="Test Workflow", description="Test", is_default=True, created_by=1
-    )
+    workflow = Workflow(name="Test Workflow", description="Test", is_default=True, created_by=1)
     db_session.add(workflow)
     await db_session.flush()
 
@@ -132,9 +126,7 @@ async def test_polling_window_race_condition(db_session: AsyncSession):
 
     # Start processing after 200ms
     await asyncio.sleep(0.2)
-    job_result = await db_session.execute(
-        select(ProcessingJob).where(ProcessingJob.id == job_id)
-    )
+    job_result = await db_session.execute(select(ProcessingJob).where(ProcessingJob.id == job_id))
     job = job_result.scalar_one()
     job.status = JobStatus.RUNNING
     job.started_at = datetime.now(timezone.utc)
@@ -169,9 +161,7 @@ async def test_concurrent_job_completion_visibility(db_session: AsyncSession):
     """Test visibility of job completion with concurrent requests"""
 
     # Create workflow
-    workflow = Workflow(
-        name="Test Workflow", description="Test", is_default=True, created_by=1
-    )
+    workflow = Workflow(name="Test Workflow", description="Test", is_default=True, created_by=1)
     db_session.add(workflow)
     await db_session.flush()
 
@@ -235,9 +225,7 @@ async def test_concurrent_job_completion_visibility(db_session: AsyncSession):
         )
         active_count = len(active_result.scalars().all())
 
-        print(
-            f"Completed job for request {request_id}, {active_count} jobs still active"
-        )
+        print(f"Completed job for request {request_id}, {active_count} jobs still active")
 
     # Verify all jobs completed
     final_result = await db_session.execute(
@@ -245,9 +233,7 @@ async def test_concurrent_job_completion_visibility(db_session: AsyncSession):
     )
     completed_jobs = final_result.scalars().all()
 
-    assert (
-        len(completed_jobs) == 5
-    ), f"Expected 5 completed jobs, got {len(completed_jobs)}"
+    assert len(completed_jobs) == 5, f"Expected 5 completed jobs, got {len(completed_jobs)}"
 
     # Verify no jobs are stuck
     stuck_result = await db_session.execute(

@@ -66,18 +66,14 @@ class TestEmbeddingService:
                     return service
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_success(
-        self, embedding_service, mock_ollama_response
-    ):
+    async def test_generate_embedding_success(self, embedding_service, mock_ollama_response):
         """Test successful embedding generation."""
         # Setup mock response
         mock_response = Mock()
         mock_response.json.return_value = mock_ollama_response
         mock_response.raise_for_status = Mock()
 
-        with patch.object(
-            embedding_service.session, "post", return_value=mock_response
-        ):
+        with patch.object(embedding_service.session, "post", return_value=mock_response):
             # Act
             embedding = await embedding_service.generate_embedding("Test text")
 
@@ -102,30 +98,22 @@ class TestEmbeddingService:
             side_effect=[mock_response_fail, mock_response_fail, mock_response_success],
         ):
             # Act
-            embedding = await embedding_service.generate_embedding(
-                "Test text", max_retries=3
-            )
+            embedding = await embedding_service.generate_embedding("Test text", max_retries=3)
 
             # Assert - should succeed on third attempt
             assert len(embedding) == 768
             assert all(val == 0.2 for val in embedding)
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_fallback_on_total_failure(
-        self, embedding_service
-    ):
+    async def test_generate_embedding_fallback_on_total_failure(self, embedding_service):
         """Test fallback to zero vector when all retries fail."""
         # Setup mock to always fail
         mock_response = Mock()
         mock_response.raise_for_status.side_effect = Exception("Persistent API Error")
 
-        with patch.object(
-            embedding_service.session, "post", return_value=mock_response
-        ):
+        with patch.object(embedding_service.session, "post", return_value=mock_response):
             # Act
-            embedding = await embedding_service.generate_embedding(
-                "Test text", max_retries=2
-            )
+            embedding = await embedding_service.generate_embedding("Test text", max_retries=2)
 
             # Assert - should return zero vector
             assert len(embedding) == 768
@@ -152,9 +140,7 @@ class TestEmbeddingService:
         ) as mock_generate:
             # Act
             with patch("uuid.uuid4", return_value="test-uuid"):
-                point_id = await embedding_service.store_task_embedding(
-                    task_id, task_data
-                )
+                point_id = await embedding_service.store_task_embedding(task_id, task_data)
 
             # Assert
             assert point_id == "test-uuid"
@@ -214,9 +200,7 @@ class TestEmbeddingService:
         mock_qdrant_client.search.return_value = [mock_hit1, mock_hit2]
 
         # Mock embedding generation
-        with patch.object(
-            embedding_service, "generate_embedding", return_value=[0.1] * 768
-        ):
+        with patch.object(embedding_service, "generate_embedding", return_value=[0.1] * 768):
             # Act
             results = await embedding_service.search_similar_tasks(
                 query_text, limit=5, filters={"exercise_id": 1}
@@ -238,9 +222,7 @@ class TestEmbeddingService:
             assert search_args[1]["query_filter"] is not None
 
     @pytest.mark.asyncio
-    async def test_search_similar_by_task_id(
-        self, embedding_service, mock_qdrant_client
-    ):
+    async def test_search_similar_by_task_id(self, embedding_service, mock_qdrant_client):
         """Test searching similar tasks by task ID."""
         # Arrange
         task_id = 123
@@ -353,9 +335,7 @@ class TestEmbeddingService:
 
         with patch.object(embedding_service.session, "post", side_effect=mock_post):
             # Create multiple concurrent requests
-            tasks = [
-                embedding_service.generate_embedding(f"Text {i}") for i in range(5)
-            ]
+            tasks = [embedding_service.generate_embedding(f"Text {i}") for i in range(5)]
 
             # Wait for all to complete
             results = await asyncio.gather(*tasks)
@@ -371,9 +351,7 @@ class TestEmbeddingServiceIntegration:
     """Integration tests for EmbeddingService with real-ish behavior."""
 
     @pytest.mark.asyncio
-    async def test_end_to_end_task_workflow(
-        self, embedding_service, mock_qdrant_client
-    ):
+    async def test_end_to_end_task_workflow(self, embedding_service, mock_qdrant_client):
         """Test complete workflow: create embedding, search, and delete."""
         # Mock embedding generation to return consistent vectors
         with patch.object(
@@ -398,9 +376,7 @@ class TestEmbeddingServiceIntegration:
                 Mock(score=0.95, payload={"task_id": task_id, "title": "Original Task"})
             ]
 
-            results = await embedding_service.search_similar_tasks(
-                "Find tasks about original work"
-            )
+            results = await embedding_service.search_similar_tasks("Find tasks about original work")
 
             assert len(results) > 0
             assert results[0]["task_id"] == task_id

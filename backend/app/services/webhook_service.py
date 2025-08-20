@@ -24,9 +24,7 @@ class WebhookService:
         """Trigger all active webhooks subscribed to the given event type"""
         # Find all active webhooks subscribed to this event
         result = await self.db.execute(
-            select(Webhook)
-            .where(Webhook.is_active)
-            .where(Webhook.events.contains([event_type]))
+            select(Webhook).where(Webhook.is_active).where(Webhook.events.contains([event_type]))
         )
         webhooks = result.scalars().all()
 
@@ -87,9 +85,7 @@ class WebhookService:
                     )
 
                     delivery.response_status = response.status_code
-                    delivery.response_body = response.text[
-                        :1000
-                    ]  # Limit stored response size
+                    delivery.response_body = response.text[:1000]  # Limit stored response size
 
                     if response.is_success:
                         delivery.status = WebhookDeliveryStatus.SUCCESS

@@ -53,14 +53,10 @@ async def stream_job_progress(job_id: str, db: AsyncSession = Depends(get_db)):
                         "status": job_status.status.value,
                         "error_message": job_status.error_message,
                         "started_at": (
-                            job_status.started_at.isoformat()
-                            if job_status.started_at
-                            else None
+                            job_status.started_at.isoformat() if job_status.started_at else None
                         ),
                         "completed_at": (
-                            job_status.completed_at.isoformat()
-                            if job_status.completed_at
-                            else None
+                            job_status.completed_at.isoformat() if job_status.completed_at else None
                         ),
                         "created_at": job_status.created_at.isoformat(),
                     }
@@ -76,9 +72,7 @@ async def stream_job_progress(job_id: str, db: AsyncSession = Depends(get_db)):
                 await asyncio.sleep(2)
 
             except Exception as e:
-                logger.error(
-                    "Error streaming job progress", job_id=job_id, error=str(e)
-                )
+                logger.error("Error streaming job progress", job_id=job_id, error=str(e))
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
                 break
 

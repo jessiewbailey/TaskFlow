@@ -25,9 +25,7 @@ class CreateAIOutputRequest(BaseModel):
 
 
 @router.post("/ai-outputs", response_model=AIOutputResponse)
-async def create_ai_output(
-    ai_output: CreateAIOutputRequest, db: AsyncSession = Depends(get_db)
-):
+async def create_ai_output(ai_output: CreateAIOutputRequest, db: AsyncSession = Depends(get_db)):
     """Create AI output record (internal API for AI worker)"""
 
     # Verify request exists
@@ -134,15 +132,11 @@ class CreateJobRequest(BaseModel):
 
 
 @router.post("/jobs")
-async def create_internal_job(
-    job_request: CreateJobRequest, db: AsyncSession = Depends(get_db)
-):
+async def create_internal_job(job_request: CreateJobRequest, db: AsyncSession = Depends(get_db)):
     """Create a processing job (internal API for AI worker)"""
 
     # Verify request exists
-    result = await db.execute(
-        select(Request).where(Request.id == job_request.request_id)
-    )
+    result = await db.execute(select(Request).where(Request.id == job_request.request_id))
     request = result.scalar_one_or_none()
 
     if not request:

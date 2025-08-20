@@ -196,9 +196,7 @@ class MockEmbeddingService:
     async def store_task_embedding(self, task_id: int, task_data: dict):
         return "test-uuid"
 
-    async def search_similar_tasks(
-        self, query_text: str, limit: int = 5, filters: dict = None
-    ):
+    async def search_similar_tasks(self, query_text: str, limit: int = 5, filters: dict = None):
         return []
 
     async def search_similar_by_task_id(

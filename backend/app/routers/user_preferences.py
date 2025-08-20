@@ -36,9 +36,7 @@ async def get_user_preferences(db: AsyncSession = Depends(get_db)):
         # Parse preferences from JSON column
         preferences = user.preferences or {}
 
-        return UserPreferencesResponse(
-            fine_tuning_mode=preferences.get("fine_tuning_mode", False)
-        )
+        return UserPreferencesResponse(fine_tuning_mode=preferences.get("fine_tuning_mode", False))
 
     except HTTPException:
         raise

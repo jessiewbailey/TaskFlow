@@ -228,9 +228,7 @@ async def get_default_workflow(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", response_model=WorkflowResponse)
-async def create_workflow(
-    workflow: CreateWorkflowRequest, db: AsyncSession = Depends(get_db)
-):
+async def create_workflow(workflow: CreateWorkflowRequest, db: AsyncSession = Depends(get_db)):
     """Create a new workflow"""
 
     # For now, use a default user ID of 1
@@ -240,9 +238,7 @@ async def create_workflow(
     # If setting as default, unset all other default workflows
     if workflow.is_default:
         await db.execute(select(Workflow).where(Workflow.is_default))
-        existing_defaults = await db.execute(
-            select(Workflow).where(Workflow.is_default)
-        )
+        existing_defaults = await db.execute(select(Workflow).where(Workflow.is_default))
         for existing_default in existing_defaults.scalars():
             existing_default.is_default = False
         await db.flush()
@@ -273,9 +269,7 @@ async def create_workflow(
             system_prompt=block_data.system_prompt,
             order=block_data.order,
             block_type=(
-                BlockType(block_data.block_type)
-                if block_data.block_type
-                else BlockType.CORE
+                BlockType(block_data.block_type) if block_data.block_type else BlockType.CORE
             ),
             output_schema=block_data.output_schema,
             model_name=block_data.model_name,
@@ -394,9 +388,7 @@ async def update_workflow(
             from sqlalchemy import update
 
             await db.execute(
-                update(Workflow)
-                .where(Workflow.id != workflow_id)
-                .values(is_default=False)
+                update(Workflow).where(Workflow.id != workflow_id).values(is_default=False)
             )
             await db.flush()
         db_workflow.is_default = workflow_update.is_default
@@ -407,14 +399,10 @@ async def update_workflow(
         existing_blocks_result = await db.execute(
             select(WorkflowBlock).where(WorkflowBlock.workflow_id == workflow_id)
         )
-        existing_blocks = {
-            block.name: block for block in existing_blocks_result.scalars().all()
-        }
+        existing_blocks = {block.name: block for block in existing_blocks_result.scalars().all()}
 
         # Delete existing blocks
-        await db.execute(
-            delete(WorkflowBlock).where(WorkflowBlock.workflow_id == workflow_id)
-        )
+        await db.execute(delete(WorkflowBlock).where(WorkflowBlock.workflow_id == workflow_id))
 
         # Create new blocks - first pass to create all blocks
         created_blocks = []
@@ -496,9 +484,7 @@ async def get_dashboard_config(workflow_id: int, db: AsyncSession = Depends(get_
     """Get dashboard configuration for a workflow"""
 
     result = await db.execute(
-        select(WorkflowDashboardConfig).where(
-            WorkflowDashboardConfig.workflow_id == workflow_id
-        )
+        select(WorkflowDashboardConfig).where(WorkflowDashboardConfig.workflow_id == workflow_id)
     )
     config = result.scalar_one_or_none()
 
@@ -517,9 +503,7 @@ async def create_or_update_dashboard_config(
     """Create or update dashboard configuration for a workflow"""
 
     # Check if workflow exists
-    workflow_result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id)
-    )
+    workflow_result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
     workflow = workflow_result.scalar_one_or_none()
 
     if not workflow:
@@ -527,9 +511,7 @@ async def create_or_update_dashboard_config(
 
     # Check if config already exists
     existing_result = await db.execute(
-        select(WorkflowDashboardConfig).where(
-            WorkflowDashboardConfig.workflow_id == workflow_id
-        )
+        select(WorkflowDashboardConfig).where(WorkflowDashboardConfig.workflow_id == workflow_id)
     )
     existing_config = existing_result.scalar_one_or_none()
 

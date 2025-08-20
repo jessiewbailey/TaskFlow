@@ -37,16 +37,10 @@ class TestRequestRoutes:
         assert data["page"] == 1
 
     @pytest.mark.asyncio
-    async def test_create_request_success(
-        self, async_client: AsyncClient, sample_request_data
-    ):
+    async def test_create_request_success(self, async_client: AsyncClient, sample_request_data):
         """Test successful request creation."""
-        with patch(
-            "app.services.job_service.JobService.create_job", return_value="job-123"
-        ):
-            response = await async_client.post(
-                "/api/requests", json=sample_request_data
-            )
+        with patch("app.services.job_service.JobService.create_job", return_value="job-123"):
+            response = await async_client.post("/api/requests", json=sample_request_data)
 
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
@@ -69,17 +63,11 @@ class TestRequestRoutes:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     @pytest.mark.asyncio
-    async def test_get_request_by_id(
-        self, async_client: AsyncClient, sample_request_data
-    ):
+    async def test_get_request_by_id(self, async_client: AsyncClient, sample_request_data):
         """Test getting a specific request."""
         # Create request first
-        with patch(
-            "app.services.job_service.JobService.create_job", return_value="job-123"
-        ):
-            create_response = await async_client.post(
-                "/api/requests", json=sample_request_data
-            )
+        with patch("app.services.job_service.JobService.create_job", return_value="job-123"):
+            create_response = await async_client.post("/api/requests", json=sample_request_data)
         request_id = create_response.json()["id"]
 
         # Get the request
@@ -97,25 +85,17 @@ class TestRequestRoutes:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.asyncio
-    async def test_update_request_status(
-        self, async_client: AsyncClient, sample_request_data
-    ):
+    async def test_update_request_status(self, async_client: AsyncClient, sample_request_data):
         """Test updating request status."""
         # Create request
-        with patch(
-            "app.services.job_service.JobService.create_job", return_value="job-123"
-        ):
-            create_response = await async_client.post(
-                "/api/requests", json=sample_request_data
-            )
+        with patch("app.services.job_service.JobService.create_job", return_value="job-123"):
+            create_response = await async_client.post("/api/requests", json=sample_request_data)
         request_id = create_response.json()["id"]
 
         # Update status
         update_data = {"status": RequestStatus.IN_REVIEW.value}
 
-        response = await async_client.patch(
-            f"/api/requests/{request_id}", json=update_data
-        )
+        response = await async_client.patch(f"/api/requests/{request_id}", json=update_data)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -125,12 +105,8 @@ class TestRequestRoutes:
     async def test_delete_request(self, async_client: AsyncClient, sample_request_data):
         """Test deleting a request."""
         # Create request
-        with patch(
-            "app.services.job_service.JobService.create_job", return_value="job-123"
-        ):
-            create_response = await async_client.post(
-                "/api/requests", json=sample_request_data
-            )
+        with patch("app.services.job_service.JobService.create_job", return_value="job-123"):
+            create_response = await async_client.post("/api/requests", json=sample_request_data)
         request_id = create_response.json()["id"]
 
         # Delete request
@@ -145,9 +121,7 @@ class TestRequestRoutes:
     async def test_get_requests_with_pagination(self, async_client: AsyncClient):
         """Test request pagination."""
         # Create multiple requests
-        with patch(
-            "app.services.job_service.JobService.create_job", return_value="job-123"
-        ):
+        with patch("app.services.job_service.JobService.create_job", return_value="job-123"):
             for i in range(25):
                 await async_client.post(
                     "/api/requests",
@@ -184,9 +158,7 @@ class TestRequestRoutes:
     async def test_get_requests_with_filters(self, async_client: AsyncClient):
         """Test request filtering."""
         # Create requests with different properties
-        with patch(
-            "app.services.job_service.JobService.create_job", return_value="job-123"
-        ):
+        with patch("app.services.job_service.JobService.create_job", return_value="job-123"):
             # High priority request
             await async_client.post(
                 "/api/requests",
@@ -240,9 +212,7 @@ class TestRequestRoutes:
             "workflow_id": 1,
         }
 
-        with patch(
-            "app.services.job_service.JobService.create_job", return_value="job-123"
-        ):
+        with patch("app.services.job_service.JobService.create_job", return_value="job-123"):
             response = await async_client.post("/api/requests/bulk", json=bulk_data)
 
         assert response.status_code == status.HTTP_201_CREATED
@@ -256,9 +226,7 @@ class TestRequestRoutes:
     ):
         """Test that analysts can only update their assigned requests."""
         # Create request assigned to different analyst
-        with patch(
-            "app.services.job_service.JobService.create_job", return_value="job-123"
-        ):
+        with patch("app.services.job_service.JobService.create_job", return_value="job-123"):
             create_response = await async_client.post(
                 "/api/requests",
                 json={**sample_request_data, "assigned_analyst_id": 999},
@@ -267,26 +235,18 @@ class TestRequestRoutes:
 
         # Try to update as different analyst
         update_data = {"status": RequestStatus.CLOSED.value}
-        response = await async_client.patch(
-            f"/api/requests/{request_id}", json=update_data
-        )
+        response = await async_client.patch(f"/api/requests/{request_id}", json=update_data)
 
         # Should be forbidden for analyst role
         if test_user.role == UserRole.ANALYST:
             assert response.status_code == status.HTTP_403_FORBIDDEN
 
     @pytest.mark.asyncio
-    async def test_get_request_ai_analysis(
-        self, async_client: AsyncClient, sample_request_data
-    ):
+    async def test_get_request_ai_analysis(self, async_client: AsyncClient, sample_request_data):
         """Test getting AI analysis for a request."""
         # Create request with AI output
-        with patch(
-            "app.services.job_service.JobService.create_job", return_value="job-123"
-        ):
-            create_response = await async_client.post(
-                "/api/requests", json=sample_request_data
-            )
+        with patch("app.services.job_service.JobService.create_job", return_value="job-123"):
+            create_response = await async_client.post("/api/requests", json=sample_request_data)
         request_id = create_response.json()["id"]
 
         # Mock AI output (placeholder for future test expansion)

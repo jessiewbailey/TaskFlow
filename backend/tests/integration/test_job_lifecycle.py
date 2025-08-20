@@ -44,9 +44,7 @@ async def test_job_lifecycle_transitions(db_session: AsyncSession):
 
     # Verify job is created in PENDING status
     job_uuid = uuid.UUID(job_id) if isinstance(job_id, str) else job_id
-    job_result = await db_session.execute(
-        select(ProcessingJob).where(ProcessingJob.id == job_uuid)
-    )
+    job_result = await db_session.execute(select(ProcessingJob).where(ProcessingJob.id == job_uuid))
     job = job_result.scalar_one()
 
     assert job.status == JobStatus.PENDING
@@ -188,9 +186,7 @@ async def test_job_retry_after_failure(db_session: AsyncSession):
 
     # Simulate job failure
     job_uuid = uuid.UUID(job_id)
-    job_result = await db_session.execute(
-        select(ProcessingJob).where(ProcessingJob.id == job_uuid)
-    )
+    job_result = await db_session.execute(select(ProcessingJob).where(ProcessingJob.id == job_uuid))
     job = job_result.scalar_one()
 
     job.status = JobStatus.RUNNING

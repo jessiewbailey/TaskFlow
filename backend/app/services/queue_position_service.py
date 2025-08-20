@@ -27,9 +27,7 @@ class QueuePositionService:
         - 0+ for position in queue (0 = next to run)
         """
         # Get the job
-        result = await self.db.execute(
-            select(ProcessingJob).where(ProcessingJob.id == job_id)
-        )
+        result = await self.db.execute(select(ProcessingJob).where(ProcessingJob.id == job_id))
         job = result.scalar_one_or_none()
 
         if not job:
@@ -53,18 +51,14 @@ class QueuePositionService:
     async def get_running_job_count(self) -> int:
         """Get the number of currently running jobs"""
         result = await self.db.execute(
-            select(func.count(ProcessingJob.id)).where(
-                ProcessingJob.status == JobStatus.RUNNING
-            )
+            select(func.count(ProcessingJob.id)).where(ProcessingJob.status == JobStatus.RUNNING)
         )
         return result.scalar() or 0
 
     async def get_pending_job_count(self) -> int:
         """Get the number of pending jobs"""
         result = await self.db.execute(
-            select(func.count(ProcessingJob.id)).where(
-                ProcessingJob.status == JobStatus.PENDING
-            )
+            select(func.count(ProcessingJob.id)).where(ProcessingJob.status == JobStatus.PENDING)
         )
         return result.scalar() or 0
 
@@ -86,9 +80,7 @@ class QueuePositionService:
         avg_time_result = await self.db.execute(
             select(
                 func.avg(
-                    func.extract(
-                        "epoch", ProcessingJob.completed_at - ProcessingJob.started_at
-                    )
+                    func.extract("epoch", ProcessingJob.completed_at - ProcessingJob.started_at)
                 )
             )
             .where(ProcessingJob.status == JobStatus.COMPLETED)

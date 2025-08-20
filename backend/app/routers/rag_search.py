@@ -53,9 +53,7 @@ async def perform_rag_search(
         # For now, we'll search across all exercises the user has access to
 
         if not embedding_service or not embedding_service.is_available():
-            raise HTTPException(
-                status_code=503, detail="Embedding service not available"
-            )
+            raise HTTPException(status_code=503, detail="Embedding service not available")
 
         logger.info("About to call embedding_service.search_similar_tasks...")
 
@@ -64,17 +62,13 @@ async def perform_rag_search(
             query_text=search_request.query, limit=search_request.limit, filters=filters
         )
 
-        logger.info(
-            f"Search completed successfully, found {len(similar_tasks)} results"
-        )
+        logger.info(f"Search completed successfully, found {len(similar_tasks)} results")
 
         # Convert to response format with custom display configuration
         results = []
         for task in similar_tasks:
             # Get the request and its workflow configuration
-            request_result = await db.execute(
-                select(Request).where(Request.id == task["task_id"])
-            )
+            request_result = await db.execute(select(Request).where(Request.id == task["task_id"]))
             request = request_result.scalar_one_or_none()
 
             # Default display data
@@ -114,9 +108,7 @@ async def perform_rag_search(
 
     except Exception as e:
         logger.error(f"Error performing RAG search: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Error performing search: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error performing search: {str(e)}")
 
 
 @router.get("/parameters")
@@ -162,9 +154,7 @@ async def _build_custom_display(
 
     # Get AI output for this request
     output_query = await db.execute(
-        select(AIOutput)
-        .where(AIOutput.request_id == request.id)
-        .order_by(AIOutput.version.desc())
+        select(AIOutput).where(AIOutput.request_id == request.id).order_by(AIOutput.version.desc())
     )
     ai_output = output_query.scalars().first()
 

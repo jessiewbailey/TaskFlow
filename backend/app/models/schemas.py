@@ -86,9 +86,7 @@ class Exercise(Base):
     is_active = Column(Boolean, default=True)
     is_default = Column(Boolean, default=False)
     created_by = Column(BigInteger, ForeignKey("users.id"), nullable=True)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -107,9 +105,7 @@ class ExercisePermission(Base):
     exercise_id = Column(BigInteger, ForeignKey("exercises.id"), nullable=False)
     user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     permission_level = Column(String(32), nullable=False, default="read")
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
 
     # Relationships
     exercise = relationship("Exercise", back_populates="permissions")
@@ -124,9 +120,7 @@ class User(Base):
     email = Column(String(256), unique=True, nullable=False, index=True)
     role = Column(Enum(UserRole, name="user_role"), nullable=False)
     preferences = Column(JSON, nullable=True)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
 
     # Relationships
     assigned_requests = relationship("Request", back_populates="assigned_analyst")
@@ -145,18 +139,14 @@ class Request(Base):
     assigned_analyst_id = Column(BigInteger, ForeignKey("users.id"), nullable=True)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=True)
     exercise_id = Column(BigInteger, ForeignKey("exercises.id"), nullable=True)
-    status = Column(
-        Enum(RequestStatus, name="request_status"), default=RequestStatus.NEW
-    )
+    status = Column(Enum(RequestStatus, name="request_status"), default=RequestStatus.NEW)
     embedding_status = Column(
         Enum(EmbeddingStatus, name="embedding_status"), default=EmbeddingStatus.PENDING
     )
     # embedding_vector = Column(Vector(1536), nullable=True)  # For vector similarity
     # search - requires pgvector extension
     due_date = Column(Date, nullable=True)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -167,9 +157,7 @@ class Request(Base):
     assigned_analyst = relationship("User", back_populates="assigned_requests")
     workflow = relationship("Workflow")
     exercise = relationship("Exercise", back_populates="requests")
-    ai_outputs = relationship(
-        "AIOutput", back_populates="request", cascade="all, delete-orphan"
-    )
+    ai_outputs = relationship("AIOutput", back_populates="request", cascade="all, delete-orphan")
     processing_jobs = relationship(
         "ProcessingJob", back_populates="request", cascade="all, delete-orphan"
     )
@@ -188,9 +176,7 @@ class AIOutput(Base):
     model_name = Column(String(64), nullable=True)
     tokens_used = Column(Integer, nullable=True)
     duration_ms = Column(Integer, nullable=True)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
 
     # Relationships
     request = relationship("Request", back_populates="ai_outputs")
@@ -209,9 +195,7 @@ class ProcessingJob(Base):
     retry_count = Column(Integer, default=0)
     started_at = Column(TIMESTAMP(timezone=True), nullable=True)
     completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
 
     # Relationships
     request = relationship("Request", back_populates="processing_jobs")
@@ -224,14 +208,10 @@ class Workflow(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     name = Column(String(128), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(
-        Enum(WorkflowStatus, name="workflow_status"), default=WorkflowStatus.DRAFT
-    )
+    status = Column(Enum(WorkflowStatus, name="workflow_status"), default=WorkflowStatus.DRAFT)
     is_default = Column(Boolean, default=False, nullable=False)
     created_by = Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -274,9 +254,7 @@ class WorkflowBlock(Base):
     model_parameters = Column(
         JSON, nullable=True
     )  # Model-specific parameters (temperature, max_tokens, etc.)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -303,17 +281,11 @@ class WorkflowBlockInput(Base):
         BigInteger, ForeignKey("workflow_blocks.id"), nullable=True
     )  # Only for BLOCK_OUTPUT type
     variable_name = Column(String(64), nullable=False)  # Name to use in prompt template
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
 
     # Relationships
-    block = relationship(
-        "WorkflowBlock", back_populates="inputs", foreign_keys=[block_id]
-    )
-    source_block = relationship(
-        "WorkflowBlock", foreign_keys=[source_block_id], post_update=True
-    )
+    block = relationship("WorkflowBlock", back_populates="inputs", foreign_keys=[block_id])
+    source_block = relationship("WorkflowBlock", foreign_keys=[source_block_id], post_update=True)
 
 
 class WorkflowDashboardConfig(Base):
@@ -322,12 +294,8 @@ class WorkflowDashboardConfig(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=False)
     fields = Column(JSON, nullable=False)
-    layout = Column(
-        Enum(DashboardLayout, name="dashboard_layout"), default=DashboardLayout.grid
-    )
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    layout = Column(Enum(DashboardLayout, name="dashboard_layout"), default=DashboardLayout.grid)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -344,12 +312,8 @@ class WorkflowEmbeddingConfig(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=False)
     enabled = Column(Boolean, default=True, nullable=False)
-    embedding_template = Column(
-        Text, nullable=False
-    )  # Template using {{block_name.field}} syntax
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    embedding_template = Column(Text, nullable=False)  # Template using {{block_name.field}} syntax
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -366,9 +330,7 @@ class WorkflowSimilarityConfig(Base):
     id = Column(BigInteger, primary_key=True, index=True)
     workflow_id = Column(BigInteger, ForeignKey("workflows.id"), nullable=False)
     fields = Column(JSON, nullable=False)  # Similar to dashboard config fields
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -384,14 +346,10 @@ class CustomInstruction(Base):
 
     id = Column(BigInteger, primary_key=True, index=True)
     request_id = Column(BigInteger, ForeignKey("requests.id"), nullable=False)
-    workflow_block_id = Column(
-        BigInteger, ForeignKey("workflow_blocks.id"), nullable=False
-    )
+    workflow_block_id = Column(BigInteger, ForeignKey("workflow_blocks.id"), nullable=False)
     instruction_text = Column(Text, nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True, default=1)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -410,16 +368,12 @@ class GroundTruthData(Base):
 
     id = Column(BigInteger, primary_key=True, index=True)
     request_id = Column(BigInteger, ForeignKey("requests.id"), nullable=False)
-    workflow_block_id = Column(
-        BigInteger, ForeignKey("workflow_blocks.id"), nullable=False
-    )
+    workflow_block_id = Column(BigInteger, ForeignKey("workflow_blocks.id"), nullable=False)
     field_path = Column(String(255), nullable=False)
     ai_value = Column(JSON, nullable=True)
     ground_truth_value = Column(JSON, nullable=False)
     created_by = Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -440,9 +394,7 @@ class SystemSettings(Base):
     key = Column(String(128), nullable=False, unique=True)
     value = Column(JSON, nullable=False)
     description = Column(Text, nullable=True)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -465,9 +417,7 @@ class Webhook(Base):
     retry_count = Column(Integer, default=3)
     timeout_seconds = Column(Integer, default=30)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP(timezone=True),
         server_default=func.current_timestamp(),
@@ -486,22 +436,16 @@ class WebhookDelivery(Base):
     __tablename__ = "webhook_deliveries"
 
     id = Column(Integer, primary_key=True, index=True)
-    webhook_id = Column(
-        Integer, ForeignKey("webhooks.id", ondelete="CASCADE"), nullable=False
-    )
+    webhook_id = Column(Integer, ForeignKey("webhooks.id", ondelete="CASCADE"), nullable=False)
     event_type = Column(String(100), nullable=False)
     event_data = Column(JSON, nullable=False)
-    status = Column(
-        String(20), nullable=False, default="pending"
-    )  # pending, success, failed
+    status = Column(String(20), nullable=False, default="pending")  # pending, success, failed
     attempts = Column(Integer, default=0)
     response_status = Column(Integer, nullable=True)
     response_body = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     delivered_at = Column(TIMESTAMP(timezone=True), nullable=True)
-    created_at = Column(
-        TIMESTAMP(timezone=True), server_default=func.current_timestamp()
-    )
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp())
 
     # Relationships
     webhook = relationship("Webhook", back_populates="deliveries")

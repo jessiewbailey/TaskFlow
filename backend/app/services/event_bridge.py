@@ -42,9 +42,7 @@ class EventBridge:
     async def _bridge_events(self):
         """Subscribe to Redis events and forward to SSE clients"""
         try:
-            async for message in event_bus.subscribe(
-                get_channel_pattern_for_all_requests()
-            ):
+            async for message in event_bus.subscribe(get_channel_pattern_for_all_requests()):
                 if not self._running:
                     break
 
@@ -74,9 +72,7 @@ class EventBridge:
                         error=str(e),
                     )
                 except Exception as e:
-                    logger.error(
-                        "Failed to bridge event", error=str(e), message=message
-                    )
+                    logger.error("Failed to bridge event", error=str(e), message=message)
 
         except asyncio.CancelledError:
             logger.info("Event bridge cancelled")

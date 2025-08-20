@@ -44,9 +44,7 @@ async def test_create_embedding_config(
 
     # Verify in database
     result = await db_session.execute(
-        select(WorkflowEmbeddingConfig).where(
-            WorkflowEmbeddingConfig.workflow_id == workflow.id
-        )
+        select(WorkflowEmbeddingConfig).where(WorkflowEmbeddingConfig.workflow_id == workflow.id)
     )
     config = result.scalar_one()
     assert config is not None
@@ -95,9 +93,7 @@ async def test_update_embedding_config(
 
     # Verify only one config exists
     result = await db_session.execute(
-        select(WorkflowEmbeddingConfig).where(
-            WorkflowEmbeddingConfig.workflow_id == workflow.id
-        )
+        select(WorkflowEmbeddingConfig).where(WorkflowEmbeddingConfig.workflow_id == workflow.id)
     )
     configs = result.scalars().all()
     assert len(configs) == 1
@@ -260,9 +256,7 @@ async def test_embedding_config_cascade_delete(db_session: AsyncSession):
 
     # Verify config exists
     result = await db_session.execute(
-        select(WorkflowEmbeddingConfig).where(
-            WorkflowEmbeddingConfig.workflow_id == workflow.id
-        )
+        select(WorkflowEmbeddingConfig).where(WorkflowEmbeddingConfig.workflow_id == workflow.id)
     )
     assert result.scalar_one_or_none() is not None
 
@@ -272,9 +266,7 @@ async def test_embedding_config_cascade_delete(db_session: AsyncSession):
 
     # Verify config was deleted
     result = await db_session.execute(
-        select(WorkflowEmbeddingConfig).where(
-            WorkflowEmbeddingConfig.workflow_id == workflow.id
-        )
+        select(WorkflowEmbeddingConfig).where(WorkflowEmbeddingConfig.workflow_id == workflow.id)
     )
     assert result.scalar_one_or_none() is None
 

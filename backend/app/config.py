@@ -14,9 +14,7 @@ class Settings(BaseSettings):
     ai_worker_url: str = os.getenv("AI_WORKER_URL", "http://taskflow-ai:8001")
 
     # Embedding Service (AI Worker handles embeddings)
-    embedding_service_url: str = os.getenv(
-        "EMBEDDING_SERVICE_URL", "http://taskflow-ai:8001"
-    )
+    embedding_service_url: str = os.getenv("EMBEDDING_SERVICE_URL", "http://taskflow-ai:8001")
 
     # Redis for job queue
     redis_url: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -28,9 +26,7 @@ class Settings(BaseSettings):
 
     # Security
     secret_key: str = os.getenv("SECRET_KEY", "CHANGE-THIS-SECRET-KEY-IN-PRODUCTION")
-    access_token_expire_minutes: int = int(
-        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
-    )
+    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
     # Observability
     jaeger_endpoint: Optional[str] = None

@@ -19,9 +19,7 @@ async def get_ui_labels() -> Dict[str, Any]:
         config_loader = get_config_loader()
         return config_loader.get_ui_labels()
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error loading UI labels: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error loading UI labels: {str(e)}")
 
 
 @router.get("/terminology")
@@ -31,9 +29,7 @@ async def get_terminology() -> Dict[str, str]:
         config_loader = get_config_loader()
         return config_loader.get_terminology()
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error loading terminology: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error loading terminology: {str(e)}")
 
 
 @router.get("/app-info")
@@ -56,9 +52,7 @@ async def get_dashboard_config() -> Dict[str, Any]:
         config_loader = get_config_loader()
         return config_loader.get_dashboard_config()
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error loading dashboard config: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error loading dashboard config: {str(e)}")
 
 
 @router.get("/workflow")
@@ -68,9 +62,7 @@ async def get_workflow_config() -> Dict[str, Any]:
         config_loader = get_config_loader()
         return config_loader.get_workflow_config()
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error loading workflow config: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error loading workflow config: {str(e)}")
 
 
 @router.post("/refresh")
@@ -81,9 +73,7 @@ async def refresh_config() -> Dict[str, str]:
         config_loader.refresh_config()
         return {"status": "success", "message": "Configuration refreshed"}
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error refreshing config: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error refreshing config: {str(e)}")
 
 
 @router.get("/domain")
@@ -93,9 +83,7 @@ async def get_domain_config() -> Dict[str, Any]:
         config_loader = get_config_loader()
         return config_loader.get_domain_config()
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error loading domain config: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error loading domain config: {str(e)}")
 
 
 @router.get("/security")
@@ -112,12 +100,8 @@ async def get_security_config() -> Dict[str, Any]:
                 "mask_sensitive_data": security_config.get("privacy", {}).get(
                     "mask_sensitive_data", True
                 ),
-                "audit_trail": security_config.get("privacy", {}).get(
-                    "audit_trail", True
-                ),
+                "audit_trail": security_config.get("privacy", {}).get("audit_trail", True),
             },
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error loading security config: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error loading security config: {str(e)}")

@@ -30,9 +30,7 @@ class TestWorkflowRoutes:
         assert len(data) == 0
 
     @pytest.mark.asyncio
-    async def test_create_workflow_success(
-        self, async_client: AsyncClient, sample_workflow_data
-    ):
+    async def test_create_workflow_success(self, async_client: AsyncClient, sample_workflow_data):
         """Test successful workflow creation."""
         response = await async_client.post("/api/workflows", json=sample_workflow_data)
 
@@ -89,14 +87,10 @@ class TestWorkflowRoutes:
         assert data["blocks"][1]["inputs"][0]["source_block_name"] == "Extract"
 
     @pytest.mark.asyncio
-    async def test_get_workflow_by_id(
-        self, async_client: AsyncClient, sample_workflow_data
-    ):
+    async def test_get_workflow_by_id(self, async_client: AsyncClient, sample_workflow_data):
         """Test getting a specific workflow."""
         # Create workflow first
-        create_response = await async_client.post(
-            "/api/workflows", json=sample_workflow_data
-        )
+        create_response = await async_client.post("/api/workflows", json=sample_workflow_data)
         workflow_id = create_response.json()["id"]
 
         # Get the workflow
@@ -114,14 +108,10 @@ class TestWorkflowRoutes:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.asyncio
-    async def test_update_workflow(
-        self, async_client: AsyncClient, sample_workflow_data
-    ):
+    async def test_update_workflow(self, async_client: AsyncClient, sample_workflow_data):
         """Test updating a workflow."""
         # Create workflow
-        create_response = await async_client.post(
-            "/api/workflows", json=sample_workflow_data
-        )
+        create_response = await async_client.post("/api/workflows", json=sample_workflow_data)
         workflow_id = create_response.json()["id"]
 
         # Update workflow
@@ -131,9 +121,7 @@ class TestWorkflowRoutes:
             "status": WorkflowStatus.ACTIVE.value,
         }
 
-        response = await async_client.put(
-            f"/api/workflows/{workflow_id}", json=update_data
-        )
+        response = await async_client.put(f"/api/workflows/{workflow_id}", json=update_data)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -142,14 +130,10 @@ class TestWorkflowRoutes:
         assert data["status"] == WorkflowStatus.ACTIVE.value
 
     @pytest.mark.asyncio
-    async def test_delete_workflow(
-        self, async_client: AsyncClient, sample_workflow_data
-    ):
+    async def test_delete_workflow(self, async_client: AsyncClient, sample_workflow_data):
         """Test deleting a workflow."""
         # Create workflow
-        create_response = await async_client.post(
-            "/api/workflows", json=sample_workflow_data
-        )
+        create_response = await async_client.post("/api/workflows", json=sample_workflow_data)
         workflow_id = create_response.json()["id"]
 
         # Delete workflow
@@ -176,9 +160,7 @@ class TestWorkflowEmbeddingConfig:
     ):
         """Test creating embedding configuration."""
         # Create workflow first
-        workflow_response = await async_client.post(
-            "/api/workflows", json=sample_workflow_data
-        )
+        workflow_response = await async_client.post("/api/workflows", json=sample_workflow_data)
         workflow_id = workflow_response.json()["id"]
 
         # Create embedding config
@@ -190,9 +172,7 @@ class TestWorkflowEmbeddingConfig:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["enabled"] == sample_embedding_config["enabled"]
-        assert (
-            data["embedding_template"] == sample_embedding_config["embedding_template"]
-        )
+        assert data["embedding_template"] == sample_embedding_config["embedding_template"]
         assert data["workflow_id"] == workflow_id
 
     @pytest.mark.asyncio
@@ -201,9 +181,7 @@ class TestWorkflowEmbeddingConfig:
     ):
         """Test updating embedding configuration."""
         # Create workflow
-        workflow_response = await async_client.post(
-            "/api/workflows", json=sample_workflow_data
-        )
+        workflow_response = await async_client.post("/api/workflows", json=sample_workflow_data)
         workflow_id = workflow_response.json()["id"]
 
         # Create initial config
@@ -232,14 +210,10 @@ class TestWorkflowSimilarityConfig:
     """Test workflow similarity configuration endpoints."""
 
     @pytest.mark.asyncio
-    async def test_create_similarity_config(
-        self, async_client: AsyncClient, sample_workflow_data
-    ):
+    async def test_create_similarity_config(self, async_client: AsyncClient, sample_workflow_data):
         """Test creating similarity configuration."""
         # Create workflow
-        workflow_response = await async_client.post(
-            "/api/workflows", json=sample_workflow_data
-        )
+        workflow_response = await async_client.post("/api/workflows", json=sample_workflow_data)
         workflow_id = workflow_response.json()["id"]
 
         # Create similarity config

@@ -93,9 +93,7 @@ async def create_ground_truth(
 
 
 @router.get("/request/{request_id}", response_model=List[GroundTruthResponse])
-async def get_ground_truth_for_request(
-    request_id: int, db: AsyncSession = Depends(get_db)
-):
+async def get_ground_truth_for_request(request_id: int, db: AsyncSession = Depends(get_db)):
     """Get all ground truth data for a specific request"""
     try:
         stmt = select(GroundTruthData).where(GroundTruthData.request_id == request_id)
@@ -105,9 +103,7 @@ async def get_ground_truth_for_request(
         response_data = []
         for gt in ground_truths:
             # Get related data
-            block_stmt = select(WorkflowBlock).where(
-                WorkflowBlock.id == gt.workflow_block_id
-            )
+            block_stmt = select(WorkflowBlock).where(WorkflowBlock.id == gt.workflow_block_id)
             block_result = await db.execute(block_stmt)
             block = block_result.scalar_one_or_none()
 
@@ -162,9 +158,7 @@ async def get_ground_truth_for_field(
             return None
 
         # Get related data
-        block_stmt = select(WorkflowBlock).where(
-            WorkflowBlock.id == ground_truth.workflow_block_id
-        )
+        block_stmt = select(WorkflowBlock).where(WorkflowBlock.id == ground_truth.workflow_block_id)
         block_result = await db.execute(block_stmt)
         block = block_result.scalar_one_or_none()
 

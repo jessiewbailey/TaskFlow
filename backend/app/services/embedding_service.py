@@ -72,15 +72,11 @@ class EmbeddingService:
             try:
                 self._ensure_collection()
             except Exception as e:
-                logger.warning(
-                    f"Qdrant collection initialization failed during startup: {str(e)}"
-                )
+                logger.warning(f"Qdrant collection initialization failed during startup: {str(e)}")
                 logger.info("EmbeddingService will retry Qdrant connection when needed")
         except Exception as e:
             logger.warning(f"EmbeddingService initialization had issues: {str(e)}")
-            logger.info(
-                "EmbeddingService will continue startup and retry connections when needed"
-            )
+            logger.info("EmbeddingService will continue startup and retry connections when needed")
 
     def _ensure_collection(self):
         """Ensure the Qdrant collection exists with proper configuration."""
@@ -100,9 +96,7 @@ class EmbeddingService:
 
                 self.qdrant_client.create_collection(
                     collection_name=self.collection_name,
-                    vectors_config=VectorParams(
-                        size=self.vector_size, distance=Distance.COSINE
-                    ),
+                    vectors_config=VectorParams(size=self.vector_size, distance=Distance.COSINE),
                 )
                 logger.info(
                     f"Successfully created Qdrant collection '{self.collection_name}' "
@@ -114,9 +108,7 @@ class EmbeddingService:
                     f"{self.qdrant_url}"
                 )
         except Exception as e:
-            logger.error(
-                f"Error ensuring collection at Qdrant {self.qdrant_url}: {str(e)}"
-            )
+            logger.error(f"Error ensuring collection at Qdrant {self.qdrant_url}: {str(e)}")
             raise
 
     async def generate_embedding(self, text: str, max_retries: int = 3) -> List[float]:
@@ -164,9 +156,7 @@ class EmbeddingService:
                     return embedding
 
                 except Exception as e:
-                    logger.warning(
-                        f"Embedding generation attempt {attempt + 1} failed: {str(e)}"
-                    )
+                    logger.warning(f"Embedding generation attempt {attempt + 1} failed: {str(e)}")
 
                     if attempt < max_retries - 1:
                         # Wait with exponential backoff before retry
@@ -179,14 +169,10 @@ class EmbeddingService:
                             f"from Ollama at {self.ollama_host}: {str(e)}"
                         )
                         # Return a zero vector as fallback to prevent crashes
-                        logger.warning(
-                            "Returning zero vector as fallback for failed embedding"
-                        )
+                        logger.warning("Returning zero vector as fallback for failed embedding")
                         return [0.0] * self.vector_size
 
-    async def store_task_embedding(
-        self, task_id: int, task_data: Dict[str, Any]
-    ) -> str:
+    async def store_task_embedding(self, task_id: int, task_data: Dict[str, Any]) -> str:
         """Store task embedding in Qdrant."""
         try:
             # Create text representation of the task
@@ -248,9 +234,7 @@ class EmbeddingService:
     ) -> List[Dict[str, Any]]:
         """Search for similar tasks based on query text."""
         try:
-            logger.info(
-                f"Searching for similar tasks using query: '{query_text}' (limit: {limit})"
-            )
+            logger.info(f"Searching for similar tasks using query: '{query_text}' (limit: {limit})")
 
             # Generate embedding for query
             query_embedding = await self.generate_embedding(query_text)
@@ -268,15 +252,11 @@ class EmbeddingService:
                     )
                 if filters.get("priority"):
                     conditions.append(
-                        FieldCondition(
-                            key="priority", match=MatchValue(value=filters["priority"])
-                        )
+                        FieldCondition(key="priority", match=MatchValue(value=filters["priority"]))
                     )
                 if filters.get("status"):
                     conditions.append(
-                        FieldCondition(
-                            key="status", match=MatchValue(value=filters["status"])
-                        )
+                        FieldCondition(key="status", match=MatchValue(value=filters["status"]))
                     )
 
                 if conditions:
@@ -333,9 +313,7 @@ class EmbeddingService:
             search_result = self.qdrant_client.scroll(
                 collection_name=self.collection_name,
                 scroll_filter=Filter(
-                    must=[
-                        FieldCondition(key="task_id", match=MatchValue(value=task_id))
-                    ]
+                    must=[FieldCondition(key="task_id", match=MatchValue(value=task_id))]
                 ),
                 limit=1,
             )
@@ -416,9 +394,7 @@ class EmbeddingService:
             self.qdrant_client.delete(
                 collection_name=self.collection_name,
                 points_selector=Filter(
-                    must=[
-                        FieldCondition(key="task_id", match=MatchValue(value=task_id))
-                    ]
+                    must=[FieldCondition(key="task_id", match=MatchValue(value=task_id))]
                 ),
             )
             logger.info(f"Deleted embedding for task {task_id}")
@@ -436,9 +412,7 @@ class LazyEmbeddingService:
     def __init__(self):
         self._service = None
         self._initialized = False
-        self._disabled = (
-            os.getenv("DISABLE_EMBEDDING_SERVICE", "false").lower() == "true"
-        )
+        self._disabled = os.getenv("DISABLE_EMBEDDING_SERVICE", "false").lower() == "true"
 
     def _ensure_initialized(self):
         """Initialize the service if not already done."""

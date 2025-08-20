@@ -41,9 +41,7 @@ class JobQueueManager:
     async def add_job(self, job_id: str, job_coro):
         """Add a job to the queue"""
         await self.job_queue.put((job_id, job_coro))
-        logger.info(
-            f"Added job {job_id} to queue. Queue size: {self.job_queue.qsize()}"
-        )
+        logger.info(f"Added job {job_id} to queue. Queue size: {self.job_queue.qsize()}")
 
     def get_queue_position(self, job_id: str) -> int:
         """Get the position of a job in the queue (0-based, -1 if not found or running)"""
@@ -71,9 +69,7 @@ class JobQueueManager:
 
                 # Start the job
                 self.running_jobs.add(job_id)
-                logger.info(
-                    f"Starting job {job_id}. Running jobs: {len(self.running_jobs)}"
-                )
+                logger.info(f"Starting job {job_id}. Running jobs: {len(self.running_jobs)}")
 
                 # Run job and remove from running set when done
                 asyncio.create_task(self._run_job(job_id, job_coro))
@@ -88,9 +84,7 @@ class JobQueueManager:
             await job_coro
         finally:
             self.running_jobs.discard(job_id)
-            logger.info(
-                f"Completed job {job_id}. Running jobs: {len(self.running_jobs)}"
-            )
+            logger.info(f"Completed job {job_id}. Running jobs: {len(self.running_jobs)}")
 
 
 # Initialize global job queue manager
@@ -133,9 +127,7 @@ class JobService:
 
     async def get_job_status(self, job_id: str) -> Optional[JobProgressResponse]:
         """Get job status and progress"""
-        result = await self.db.execute(
-            select(ProcessingJob).where(ProcessingJob.id == job_id)
-        )
+        result = await self.db.execute(select(ProcessingJob).where(ProcessingJob.id == job_id))
         job = result.scalar_one_or_none()
 
         if not job:
@@ -174,9 +166,7 @@ class JobService:
             # Use a new database session for background processing
             async with get_db_session() as db:
                 # First check if job is still PENDING before processing
-                result = await db.execute(
-                    select(ProcessingJob).where(ProcessingJob.id == job_id)
-                )
+                result = await db.execute(select(ProcessingJob).where(ProcessingJob.id == job_id))
                 job = result.scalar_one_or_none()
 
                 if not job:
@@ -194,12 +184,9 @@ class JobService:
                     update(ProcessingJob)
                     .where(
                         ProcessingJob.id == job_id,
-                        ProcessingJob.status
-                        == JobStatus.PENDING,  # Ensure it's still PENDING
+                        ProcessingJob.status == JobStatus.PENDING,  # Ensure it's still PENDING
                     )
-                    .values(
-                        status=JobStatus.RUNNING, started_at=datetime.now(timezone.utc)
-                    )
+                    .values(status=JobStatus.RUNNING, started_at=datetime.now(timezone.utc))
                     .returning(ProcessingJob.id)
                 )
                 await db.commit()
@@ -212,9 +199,7 @@ class JobService:
                     return
 
                 # Get job details
-                result = await db.execute(
-                    select(ProcessingJob).where(ProcessingJob.id == job_id)
-                )
+                result = await db.execute(select(ProcessingJob).where(ProcessingJob.id == job_id))
                 job = result.scalar_one_or_none()
 
                 if not job:
@@ -245,14 +230,10 @@ class JobService:
                         payload=payload,
                     )
 
-                    response = await client.post(
-                        f"{settings.ai_worker_url}/process", json=payload
-                    )
+                    response = await client.post(f"{settings.ai_worker_url}/process", json=payload)
                     response.raise_for_status()
 
-                    logger.info(
-                        "AI worker response received", status_code=response.status_code
-                    )
+                    logger.info("AI worker response received", status_code=response.status_code)
 
                 # Update job status to COMPLETED
                 await db.execute(
@@ -268,9 +249,7 @@ class JobService:
                 logger.info("Job completed successfully", job_id=job_id)
 
                 # Generate embedding after successful workflow completion
-                await self._generate_workflow_embedding(
-                    job.request_id, job.workflow_id, db
-                )
+                await self._generate_workflow_embedding(job.request_id, job.workflow_id, db)
 
                 # Clean up old completed jobs to prevent status confusion
                 await self._cleanup_old_jobs(job.request_id, db)
@@ -281,9 +260,7 @@ class JobService:
             # Handle retry logic
             async with get_db_session() as db:
                 # Get current job details
-                result = await db.execute(
-                    select(ProcessingJob).where(ProcessingJob.id == job_id)
-                )
+                result = await db.execute(select(ProcessingJob).where(ProcessingJob.id == job_id))
                 job = result.scalar_one_or_none()
 
                 if (
@@ -297,8 +274,7 @@ class JobService:
                         update(ProcessingJob)
                         .where(
                             ProcessingJob.id == job_id,
-                            ProcessingJob.status
-                            == JobStatus.RUNNING,  # Ensure it's still RUNNING
+                            ProcessingJob.status == JobStatus.RUNNING,  # Ensure it's still RUNNING
                         )
                         .values(
                             status=JobStatus.PENDING,
@@ -310,9 +286,7 @@ class JobService:
                     await db.commit()
 
                     # Calculate backoff delay
-                    delay = min(
-                        2**job.retry_count, 60
-                    )  # Exponential backoff, max 60 seconds
+                    delay = min(2**job.retry_count, 60)  # Exponential backoff, max 60 seconds
                     logger.info(
                         f"Job {job_id} will be retried after {delay} seconds "
                         f"(attempt {job.retry_count + 1})"
@@ -320,9 +294,7 @@ class JobService:
 
                     # Re-queue the job with delay
                     await asyncio.sleep(delay)
-                    await job_queue_manager.add_job(
-                        str(job_id), self._process_job(str(job_id))
-                    )
+                    await job_queue_manager.add_job(str(job_id), self._process_job(str(job_id)))
                 else:
                     # Max retries exceeded or job status changed, mark as FAILED
                     # only if still RUNNING
@@ -341,9 +313,7 @@ class JobService:
                             )
                         )
                         await db.commit()
-                        logger.error(
-                            f"Job {job_id} failed after {job.retry_count + 1} attempts"
-                        )
+                        logger.error(f"Job {job_id} failed after {job.retry_count + 1} attempts")
                     else:
                         logger.warning(
                             f"Job {job_id} status is {job.status if job else 'None'}, "
@@ -373,14 +343,10 @@ class JobService:
                 return
 
             # Get request data
-            request_result = await db.execute(
-                select(Request).where(Request.id == request_id)
-            )
+            request_result = await db.execute(select(Request).where(Request.id == request_id))
             request = request_result.scalar_one_or_none()
             if not request:
-                logger.error(
-                    "Request not found for embedding generation", request_id=request_id
-                )
+                logger.error("Request not found for embedding generation", request_id=request_id)
                 return
 
             # Get AI output for this request
@@ -475,9 +441,7 @@ class JobService:
                 delete(ProcessingJob).where(
                     and_(
                         ProcessingJob.request_id == request_id,
-                        ProcessingJob.status.in_(
-                            [JobStatus.COMPLETED, JobStatus.FAILED]
-                        ),
+                        ProcessingJob.status.in_([JobStatus.COMPLETED, JobStatus.FAILED]),
                         ProcessingJob.created_at < cutoff_time,
                         ProcessingJob.id.notin_(keep_jobs_subquery),
                     )
@@ -494,9 +458,7 @@ class JobService:
                 )
 
         except Exception as e:
-            logger.error(
-                "Failed to cleanup old jobs", request_id=request_id, error=str(e)
-            )
+            logger.error("Failed to cleanup old jobs", request_id=request_id, error=str(e))
 
     async def _send_to_embedding_service(self, request_id: str, text: str):
         """Create an embedding job for vector generation"""
@@ -511,6 +473,4 @@ class JobService:
                 response.raise_for_status()
                 logger.info("Created embedding job", request_id=request_id)
         except Exception as e:
-            logger.error(
-                "Failed to create embedding job", request_id=request_id, error=str(e)
-            )
+            logger.error("Failed to create embedding job", request_id=request_id, error=str(e))

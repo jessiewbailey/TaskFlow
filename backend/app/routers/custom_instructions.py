@@ -17,9 +17,7 @@ logger = structlog.get_logger()
 router = APIRouter(prefix="/api/requests", tags=["custom-instructions"])
 
 
-@router.get(
-    "/{request_id}/custom-instructions", response_model=List[CustomInstructionResponse]
-)
+@router.get("/{request_id}/custom-instructions", response_model=List[CustomInstructionResponse])
 async def list_custom_instructions(request_id: int, db: AsyncSession = Depends(get_db)):
     """Get all custom instructions for a request"""
 
@@ -47,9 +45,7 @@ async def list_custom_instructions(request_id: int, db: AsyncSession = Depends(g
     return instructions
 
 
-@router.post(
-    "/{request_id}/custom-instructions", response_model=CustomInstructionResponse
-)
+@router.post("/{request_id}/custom-instructions", response_model=CustomInstructionResponse)
 async def create_custom_instruction(
     request_id: int,
     instruction: CustomInstructionRequest,

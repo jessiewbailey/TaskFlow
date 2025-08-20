@@ -14,9 +14,7 @@ router = APIRouter(prefix="/api/exercises", tags=["exercises"])
 
 async def _unset_default_exercise(db: AsyncSession):
     """Helper function to unset the current default exercise"""
-    stmt = (
-        update(ExerciseModel).where(ExerciseModel.is_default).values(is_default=False)
-    )
+    stmt = update(ExerciseModel).where(ExerciseModel.is_default).values(is_default=False)
     await db.execute(stmt)
 
 
@@ -61,9 +59,7 @@ async def get_exercise(exercise_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/", response_model=Exercise)
-async def create_exercise(
-    exercise_data: ExerciseCreate, db: AsyncSession = Depends(get_db)
-):
+async def create_exercise(exercise_data: ExerciseCreate, db: AsyncSession = Depends(get_db)):
     """Create a new exercise"""
     # Check if exercise with same name already exists
     query = select(ExerciseModel).filter(
@@ -157,9 +153,7 @@ async def delete_exercise(exercise_id: int, db: AsyncSession = Depends(get_db)):
         # Soft delete - just deactivate
         exercise.is_active = False
         await db.commit()
-        return {
-            "message": f"Exercise deactivated (has {request_count} associated requests)"
-        }
+        return {"message": f"Exercise deactivated (has {request_count} associated requests)"}
     else:
         # Hard delete if no associated requests
         await db.delete(exercise)
@@ -168,9 +162,7 @@ async def delete_exercise(exercise_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{exercise_id}/requests/count")
-async def get_exercise_request_count(
-    exercise_id: int, db: AsyncSession = Depends(get_db)
-):
+async def get_exercise_request_count(exercise_id: int, db: AsyncSession = Depends(get_db)):
     """Get the count of requests associated with an exercise"""
     query = select(ExerciseModel).filter(ExerciseModel.id == exercise_id)
     result = await db.execute(query)
@@ -199,9 +191,7 @@ async def set_default_exercise(exercise_id: int, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=404, detail="Exercise not found")
 
     if not exercise.is_active:
-        raise HTTPException(
-            status_code=400, detail="Cannot set an inactive exercise as default"
-        )
+        raise HTTPException(status_code=400, detail="Cannot set an inactive exercise as default")
 
     # Unset any existing default
     await _unset_default_exercise(db)
