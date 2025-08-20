@@ -65,8 +65,8 @@ async def create_or_update_embedding_config(
 
     if existing_config:
         # Update existing
-        existing_config.enabled = config_data.enabled
-        existing_config.embedding_template = config_data.embedding_template
+        existing_config.enabled = config_data.enabled  # type: ignore[assignment]
+        existing_config.embedding_template = config_data.embedding_template  # type: ignore[assignment]
     else:
         # Create new
         existing_config = WorkflowEmbeddingConfig(
@@ -101,9 +101,9 @@ async def update_embedding_config(
 
     # Update fields
     if config_data.enabled is not None:
-        config.enabled = config_data.enabled
+        config.enabled = config_data.enabled  # type: ignore[assignment]
     if config_data.embedding_template is not None:
-        config.embedding_template = config_data.embedding_template
+        config.embedding_template = config_data.embedding_template  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(config)
@@ -175,7 +175,7 @@ async def create_or_update_similarity_config(
 
     if existing_config:
         # Update existing
-        existing_config.fields = [field.dict() for field in config_data.fields]
+        existing_config.fields = [field.dict() for field in config_data.fields]  # type: ignore[assignment]
     else:
         # Create new
         existing_config = WorkflowSimilarityConfig(

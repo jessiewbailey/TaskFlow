@@ -1,4 +1,5 @@
-from typing import List, Optional
+from datetime import datetime
+from typing import Any, List, Optional, cast
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -40,9 +41,9 @@ async def create_ground_truth(
         if existing:
             # Update existing ground truth
             existing.ground_truth_value = ground_truth.ground_truth_value
-            existing.ai_value = ground_truth.ai_value
-            existing.notes = ground_truth.notes
-            existing.created_by = current_user_id
+            existing.ai_value = ground_truth.ai_value  # type: ignore[assignment]
+            existing.notes = ground_truth.notes  # type: ignore[assignment]
+            existing.created_by = current_user_id  # type: ignore[assignment]
             db_ground_truth = existing
         else:
             # Create new ground truth
@@ -72,18 +73,18 @@ async def create_ground_truth(
         user = user_result.scalar_one_or_none()
 
         return GroundTruthResponse(
-            id=db_ground_truth.id,
-            request_id=db_ground_truth.request_id,
-            workflow_block_id=db_ground_truth.workflow_block_id,
-            field_path=db_ground_truth.field_path,
+            id=cast(int, db_ground_truth.id),
+            request_id=cast(int, db_ground_truth.request_id),
+            workflow_block_id=cast(int, db_ground_truth.workflow_block_id),
+            field_path=cast(str, db_ground_truth.field_path),
             ai_value=db_ground_truth.ai_value,
             ground_truth_value=db_ground_truth.ground_truth_value,
-            created_by=db_ground_truth.created_by,
-            created_at=db_ground_truth.created_at,
-            updated_at=db_ground_truth.updated_at,
-            notes=db_ground_truth.notes,
-            workflow_block_name=block.name if block else None,
-            created_by_name=user.name if user else None,
+            created_by=cast(int, db_ground_truth.created_by),
+            created_at=cast(datetime, db_ground_truth.created_at),
+            updated_at=cast(datetime, db_ground_truth.updated_at),
+            notes=cast(Optional[str], db_ground_truth.notes),
+            workflow_block_name=cast(str, block.name) if block else None,
+            created_by_name=cast(str, user.name) if user else None,
         )
 
     except Exception as e:
@@ -113,18 +114,18 @@ async def get_ground_truth_for_request(request_id: int, db: AsyncSession = Depen
 
             response_data.append(
                 GroundTruthResponse(
-                    id=gt.id,
-                    request_id=gt.request_id,
-                    workflow_block_id=gt.workflow_block_id,
-                    field_path=gt.field_path,
+                    id=cast(int, gt.id),
+                    request_id=cast(int, gt.request_id),
+                    workflow_block_id=cast(int, gt.workflow_block_id),
+                    field_path=cast(str, gt.field_path),
                     ai_value=gt.ai_value,
                     ground_truth_value=gt.ground_truth_value,
-                    created_by=gt.created_by,
-                    created_at=gt.created_at,
-                    updated_at=gt.updated_at,
-                    notes=gt.notes,
-                    workflow_block_name=block.name if block else None,
-                    created_by_name=user.name if user else None,
+                    created_by=cast(int, gt.created_by),
+                    created_at=cast(datetime, gt.created_at),
+                    updated_at=cast(datetime, gt.updated_at),
+                    notes=cast(Optional[str], gt.notes),
+                    workflow_block_name=cast(str, block.name) if block else None,
+                    created_by_name=cast(str, user.name) if user else None,
                 )
             )
 
@@ -167,18 +168,18 @@ async def get_ground_truth_for_field(
         user = user_result.scalar_one_or_none()
 
         return GroundTruthResponse(
-            id=ground_truth.id,
-            request_id=ground_truth.request_id,
-            workflow_block_id=ground_truth.workflow_block_id,
-            field_path=ground_truth.field_path,
+            id=cast(int, ground_truth.id),
+            request_id=cast(int, ground_truth.request_id),
+            workflow_block_id=cast(int, ground_truth.workflow_block_id),
+            field_path=cast(str, ground_truth.field_path),
             ai_value=ground_truth.ai_value,
             ground_truth_value=ground_truth.ground_truth_value,
-            created_by=ground_truth.created_by,
-            created_at=ground_truth.created_at,
-            updated_at=ground_truth.updated_at,
-            notes=ground_truth.notes,
-            workflow_block_name=block.name if block else None,
-            created_by_name=user.name if user else None,
+            created_by=cast(int, ground_truth.created_by),
+            created_at=cast(datetime, ground_truth.created_at),
+            updated_at=cast(datetime, ground_truth.updated_at),
+            notes=cast(Optional[str], ground_truth.notes),
+            workflow_block_name=cast(str, block.name) if block else None,
+            created_by_name=cast(str, user.name) if user else None,
         )
 
     except Exception as e:

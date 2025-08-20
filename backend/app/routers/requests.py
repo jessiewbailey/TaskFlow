@@ -1,7 +1,7 @@
 import asyncio
 import io
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Union
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Union, cast
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -21,12 +21,15 @@ from app.models.pydantic_models import (
     BulkRerunResponse,
     CreateRequestRequest,
     CreateRequestResponse,
+    EmbeddingStatus as PydanticEmbeddingStatus,
     Exercise,
     JobProgressResponse,
+    JobStatus as PydanticJobStatus,
     ProcessJobResponse,
     ProcessRequestRequest,
     RequestListResponse,
     RequestResponse,
+    RequestStatus as PydanticRequestStatus,
     UpdateRequestRequest,
     UpdateRequestStatusRequest,
     UserResponse,
@@ -130,13 +133,13 @@ async def _build_similarity_display(
     results_by_block = {}
     if ai_output and ai_output.summary:
         try:
-            summary_data = json.loads(ai_output.summary)
+            summary_data = json.loads(cast(str, ai_output.summary))
             results_by_block = summary_data
         except Exception as e:
             logger.warning(f"Failed to parse AI output summary: {str(e)}")
 
     # Process each configured field
-    for field_config in similarity_config.fields:
+    for field_config in cast(List[Dict[str, Any]], similarity_config.fields):
         field_name = field_config.get("name", "")
         field_source = field_config.get("source", "")
         field_type = field_config.get("type", "text")
@@ -145,20 +148,20 @@ async def _build_similarity_display(
             continue
 
         # Get value based on source
-        value = None
+        value: Any = None
 
         if field_source == "TASK_ID":
-            value = task_request.id
+            value = cast(int, task_request.id)
         elif field_source == "REQUEST_TEXT":
-            value = task_request.text
+            value = cast(str, task_request.text)
         elif field_source == "SIMILARITY_SCORE":
             value = similarity_score
         elif field_source == "STATUS":
             value = task_request.status.value if task_request.status else ""
         elif field_source == "CREATED_AT":
-            value = task_request.created_at.isoformat() if task_request.created_at else ""
+            value = cast(datetime, task_request.created_at).isoformat() if task_request.created_at else ""
         elif field_source == "REQUESTER":
-            value = task_request.requester
+            value = cast(Optional[str], task_request.requester)
         elif "." in field_source:
             # Handle block output fields (e.g., "Summarize.executive_summary")
             block_name, field_path = field_source.split(".", 1)
@@ -201,15 +204,16 @@ async def _build_similarity_display(
             custom_data[safe_field_name] = value
 
     # Always include these core fields
-    custom_data["task_id"] = task_request.id
+    custom_data["task_id"] = cast(int, task_request.id)
     custom_data["similarity_score"] = similarity_score
 
     # Add fields expected by frontend
     if "title" not in custom_data:
-        custom_data["title"] = f"Request #{task_request.id}"
+        custom_data["title"] = f"Request #{cast(int, task_request.id)}"
     if "description" not in custom_data:
+        request_text = cast(str, task_request.text)
         custom_data["description"] = (
-            task_request.text[:200] + "..." if len(task_request.text) > 200 else task_request.text
+            request_text[:200] + "..." if len(request_text) > 200 else request_text
         )
 
     return custom_data
@@ -300,11 +304,12 @@ async def list_requests(
 
         # Group by request_id and keep only the latest
         for job in failed_jobs:
+            request_id = cast(int, job.request_id)
             if (
-                job.request_id not in failed_jobs_dict
-                or job.created_at > failed_jobs_dict[job.request_id].created_at
+                request_id not in failed_jobs_dict
+                or cast(datetime, job.created_at) > cast(datetime, failed_jobs_dict[request_id].created_at)
             ):
-                failed_jobs_dict[job.request_id] = job
+                failed_jobs_dict[request_id] = job
 
     # Convert to response format
     request_responses = []
@@ -315,36 +320,37 @@ async def list_requests(
             latest_ai_output = max(req.ai_outputs, key=lambda x: x.version)
 
         # Check if this request has active jobs
-        has_active_jobs = req.id in active_job_request_ids
+        req_id = cast(int, req.id)
+        has_active_jobs = req_id in active_job_request_ids
 
         # Get latest failed job if any
         latest_failed_job = None
-        if req.id in failed_jobs_dict:
-            failed_job = failed_jobs_dict[req.id]
+        if req_id in failed_jobs_dict:
+            failed_job = failed_jobs_dict[req_id]
             latest_failed_job = JobProgressResponse(
                 job_id=str(failed_job.id),
-                request_id=failed_job.request_id,
-                status=failed_job.status,
-                error_message=failed_job.error_message,
-                started_at=failed_job.started_at,
-                completed_at=failed_job.completed_at,
-                created_at=failed_job.created_at,
+                request_id=cast(int, failed_job.request_id),
+                status=cast(PydanticJobStatus, failed_job.status),
+                error_message=cast(Optional[str], failed_job.error_message),
+                started_at=cast(Optional[datetime], failed_job.started_at),
+                completed_at=cast(Optional[datetime], failed_job.completed_at),
+                created_at=cast(datetime, failed_job.created_at),
             )
 
         request_responses.append(
             RequestResponse(
-                id=req.id,
-                text=req.text,
-                requester=req.requester,
-                date_received=req.date_received,
-                assigned_analyst_id=req.assigned_analyst_id,
-                workflow_id=req.workflow_id,
-                exercise_id=req.exercise_id,
-                status=req.status,
-                embedding_status=req.embedding_status,
-                due_date=req.due_date,
-                created_at=req.created_at,
-                updated_at=req.updated_at,
+                id=cast(int, req.id),
+                text=cast(str, req.text),
+                requester=cast(Optional[str], req.requester),
+                date_received=cast(date, req.date_received),
+                assigned_analyst_id=cast(Optional[int], req.assigned_analyst_id),
+                workflow_id=cast(Optional[int], req.workflow_id),
+                exercise_id=cast(Optional[int], req.exercise_id),
+                status=cast(PydanticRequestStatus, req.status),
+                embedding_status=cast(PydanticEmbeddingStatus, req.embedding_status),
+                due_date=cast(Optional[date], req.due_date),
+                created_at=cast(datetime, req.created_at),
+                updated_at=cast(datetime, req.updated_at),
                 assigned_analyst=(
                     UserResponse.from_orm(req.assigned_analyst) if req.assigned_analyst else None
                 ),
@@ -357,12 +363,12 @@ async def list_requests(
             )
         )
 
-    total_pages = (total + page_size - 1) // page_size
+    total_pages = (cast(int, total) + page_size - 1) // page_size
     has_next = page < total_pages
 
     return RequestListResponse(
         requests=request_responses,
-        total=total,
+        total=cast(int, total),
         page=page,
         page_size=page_size,
         total_pages=total_pages,
@@ -380,7 +386,7 @@ async def create_request(request: CreateRequestRequest, db: AsyncSession = Depen
         default_workflow_result = await db.execute(select(Workflow).where(Workflow.is_default))
         default_workflow = default_workflow_result.scalar_one_or_none()
         if default_workflow:
-            workflow_id = default_workflow.id
+            workflow_id = cast(int, default_workflow.id)
 
     # Create TaskFlow request
     taskflow_request = Request(
@@ -399,7 +405,7 @@ async def create_request(request: CreateRequestRequest, db: AsyncSession = Depen
     job_service = JobService(db)
     if workflow_id:
         job_id = await job_service.create_job(
-            taskflow_request.id, job_type=JobType.WORKFLOW, workflow_id=workflow_id
+            cast(int, taskflow_request.id), job_type=JobType.WORKFLOW, workflow_id=workflow_id
         )
     else:
         # If no workflow found, this is an error - all requests must use workflows
@@ -416,7 +422,7 @@ async def create_request(request: CreateRequestRequest, db: AsyncSession = Depen
     # NOTE: Embedding generation is now triggered after workflow completion
     # See the workflow completion handler in the ai-worker for embedding logic
 
-    return CreateRequestResponse(id=taskflow_request.id, job_id=job_id)
+    return CreateRequestResponse(id=cast(int, taskflow_request.id), job_id=job_id)
 
 
 @router.get("/{request_id}", response_model=RequestResponse)
@@ -481,12 +487,12 @@ async def get_request(request_id: int, db: AsyncSession = Depends(get_db)):
     if failed_job:
         latest_failed_job = JobProgressResponse(
             job_id=str(failed_job.id),
-            request_id=failed_job.request_id,
-            status=failed_job.status,
-            error_message=failed_job.error_message,
-            started_at=failed_job.started_at,
-            completed_at=failed_job.completed_at,
-            created_at=failed_job.created_at,
+            request_id=cast(int, failed_job.request_id),
+            status=cast(PydanticJobStatus, failed_job.status),
+            error_message=cast(Optional[str], failed_job.error_message),
+            started_at=cast(Optional[datetime], failed_job.started_at),
+            completed_at=cast(Optional[datetime], failed_job.completed_at),
+            created_at=cast(datetime, failed_job.created_at),
         )
 
     # Debug logging
@@ -495,18 +501,18 @@ async def get_request(request_id: int, db: AsyncSession = Depends(get_db)):
     )
 
     return RequestResponse(
-        id=request.id,
-        text=request.text,
-        requester=request.requester,
-        date_received=request.date_received,
-        assigned_analyst_id=request.assigned_analyst_id,
-        workflow_id=request.workflow_id,
-        exercise_id=request.exercise_id,
-        status=request.status,
-        embedding_status=request.embedding_status,
-        due_date=request.due_date,
-        created_at=request.created_at,
-        updated_at=request.updated_at,
+        id=cast(int, request.id),
+        text=cast(str, request.text),
+        requester=cast(Optional[str], request.requester),
+        date_received=cast(date, request.date_received),
+        assigned_analyst_id=cast(Optional[int], request.assigned_analyst_id),
+        workflow_id=cast(Optional[int], request.workflow_id),
+        exercise_id=cast(Optional[int], request.exercise_id),
+        status=cast(PydanticRequestStatus, request.status),
+        embedding_status=cast(PydanticEmbeddingStatus, request.embedding_status),
+        due_date=cast(Optional[date], request.due_date),
+        created_at=cast(datetime, request.created_at),
+        updated_at=cast(datetime, request.updated_at),
         assigned_analyst=(
             UserResponse.from_orm(request.assigned_analyst) if request.assigned_analyst else None
         ),
@@ -592,7 +598,7 @@ async def process_request(
         job_id = await job_service.create_job(
             request_id=request_id,
             job_type=JobType.WORKFLOW,
-            workflow_id=request.workflow_id,
+            workflow_id=cast(Optional[int], request.workflow_id),
             custom_instructions=None,  # Custom instructions will be fetched by workflow processor
         )
         logger.info(
@@ -638,7 +644,7 @@ async def assign_workflow(
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     # Update request workflow
-    request.workflow_id = assign_request.workflow_id
+    request.workflow_id = assign_request.workflow_id  # type: ignore[assignment]
 
     job_id = None
     if assign_request.reprocess:
@@ -689,9 +695,9 @@ async def update_request_status(
         raise HTTPException(status_code=404, detail="Request not found")
 
     # Update fields
-    request.status = status_update.status
+    request.status = status_update.status  # type: ignore[assignment]
     if status_update.assigned_analyst_id is not None:
-        request.assigned_analyst_id = status_update.assigned_analyst_id
+        request.assigned_analyst_id = status_update.assigned_analyst_id  # type: ignore[assignment]
 
     await db.commit()
 
@@ -722,19 +728,19 @@ async def update_request(
 
     # Update fields if provided
     if update_data.text is not None:
-        request.text = update_data.text
+        request.text = update_data.text  # type: ignore[assignment]
     if update_data.requester is not None:
-        request.requester = update_data.requester
+        request.requester = update_data.requester  # type: ignore[assignment]
     if update_data.status is not None:
-        request.status = update_data.status
+        request.status = update_data.status  # type: ignore[assignment]
     if update_data.assigned_analyst_id is not None:
-        request.assigned_analyst_id = update_data.assigned_analyst_id
+        request.assigned_analyst_id = update_data.assigned_analyst_id  # type: ignore[assignment]
     if update_data.exercise_id is not None:
-        request.exercise_id = update_data.exercise_id
+        request.exercise_id = update_data.exercise_id  # type: ignore[assignment]
     if update_data.due_date is not None:
         from datetime import datetime
 
-        request.due_date = datetime.fromisoformat(update_data.due_date).date()
+        request.due_date = datetime.fromisoformat(update_data.due_date).date()  # type: ignore[assignment]
 
     await db.commit()
 
@@ -756,17 +762,18 @@ async def update_request(
     logger.info("Updated request", request_id=request_id)
 
     return RequestResponse(
-        id=updated_request.id,
-        text=updated_request.text,
-        requester=updated_request.requester,
-        date_received=updated_request.date_received,
-        assigned_analyst_id=updated_request.assigned_analyst_id,
-        workflow_id=updated_request.workflow_id,
-        status=updated_request.status,
-        embedding_status=updated_request.embedding_status,
-        due_date=updated_request.due_date,
-        created_at=updated_request.created_at,
-        updated_at=updated_request.updated_at,
+        id=cast(int, updated_request.id),
+        text=cast(str, updated_request.text),
+        requester=cast(Optional[str], updated_request.requester),
+        date_received=cast(date, updated_request.date_received),
+        assigned_analyst_id=cast(Optional[int], updated_request.assigned_analyst_id),
+        workflow_id=cast(Optional[int], updated_request.workflow_id),
+        exercise_id=cast(Optional[int], updated_request.exercise_id),
+        status=cast(PydanticRequestStatus, updated_request.status),
+        embedding_status=cast(PydanticEmbeddingStatus, updated_request.embedding_status),
+        due_date=cast(Optional[date], updated_request.due_date),
+        created_at=cast(datetime, updated_request.created_at),
+        updated_at=cast(datetime, updated_request.updated_at),
         assigned_analyst=(
             UserResponse.from_orm(updated_request.assigned_analyst)
             if updated_request.assigned_analyst
@@ -847,7 +854,7 @@ async def search_similar_tasks_by_text(
                 )
             )
 
-        return SimilaritySearchResponse(similar_tasks=response_tasks)
+        return SimilaritySearchResponse(similar_tasks=cast(List[Dict[str, Any]], response_tasks))
 
     except Exception as e:
         logger.error("Similarity search failed", error=str(e))
@@ -931,7 +938,7 @@ async def search_similar_tasks_by_id(
                     }
                 )
 
-        return SimilaritySearchResponse(similar_tasks=response_tasks)
+        return SimilaritySearchResponse(similar_tasks=cast(List[Dict[str, Any]], response_tasks))
 
     except Exception as e:
         logger.error("Similarity search failed", request_id=request_id, error=str(e))
@@ -942,7 +949,7 @@ async def search_similar_tasks_by_id(
 async def test_exercise_assignment(db: AsyncSession = Depends(get_db)):
     """Test endpoint to debug exercise assignment"""
     # Get exercises
-    exercise_result = await db.execute(select(ExerciseModel).where(Exercise.name == "FOIA"))
+    exercise_result = await db.execute(select(ExerciseModel).where(ExerciseModel.name == "FOIA"))
     exercise = exercise_result.scalar_one_or_none()
 
     if not exercise:
@@ -1061,7 +1068,7 @@ async def batch_upload_requests(
                 )
 
                 # Handle workflow - support both workflow_id (legacy) and workflow_name
-                workflow_id = default_workflow_id
+                workflow_id: Optional[int] = cast(Optional[int], default_workflow_id)
                 if not pd.isna(row.get("workflow_id")):
                     # Legacy support for workflow_id
                     workflow_id = int(row["workflow_id"])
@@ -1073,7 +1080,7 @@ async def batch_upload_requests(
                     )
                     workflow = workflow_result.scalar_one_or_none()
                     if workflow:
-                        workflow_id = workflow.id
+                        workflow_id = cast(int, workflow.id)
                     else:
                         errors.append(
                             BatchUploadError(
@@ -1169,7 +1176,7 @@ async def batch_upload_requests(
                 # Create processing job if workflow is assigned
                 if workflow_id:
                     await job_service.create_job(
-                        request.id, job_type=JobType.WORKFLOW, workflow_id=workflow_id
+                        cast(int, request.id), job_type=JobType.WORKFLOW, workflow_id=cast(Optional[int], workflow_id)
                     )
 
                 success_count += 1
@@ -1259,18 +1266,18 @@ async def bulk_rerun_requests(request: BulkRerunRequest, db: AsyncSession = Depe
             try:
                 # Update request workflow if different
                 if req.workflow_id != request.workflow_id:
-                    req.workflow_id = request.workflow_id
+                    req.workflow_id = request.workflow_id  # type: ignore[assignment]
 
                 # Create new processing job
                 await job_service.create_job(
-                    req.id, job_type=JobType.WORKFLOW, workflow_id=request.workflow_id
+                    cast(int, req.id), job_type=JobType.WORKFLOW, workflow_id=request.workflow_id
                 )
 
                 success_count += 1
 
             except Exception as e:
                 errors.append(
-                    BulkRerunError(task_id=req.id, message=f"Error creating job: {str(e)}")
+                    BulkRerunError(task_id=cast(int, req.id), message=f"Error creating job: {str(e)}")
                 )
                 continue
 

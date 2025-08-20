@@ -1,4 +1,5 @@
-from typing import Optional
+from datetime import datetime
+from typing import Any, Dict, Optional, cast
 
 import httpx
 import structlog
@@ -144,23 +145,23 @@ async def list_workflows(
 
         workflow_responses.append(
             WorkflowResponse(
-                id=workflow.id,
-                name=workflow.name,
-                description=workflow.description,
+                id=cast(int, workflow.id),
+                name=cast(str, workflow.name),
+                description=cast(Optional[str], workflow.description),
                 status=workflow.status.value,
-                is_default=workflow.is_default,
-                created_by=workflow.created_by,
+                is_default=cast(bool, workflow.is_default),
+                created_by=cast(int, workflow.created_by),
                 blocks=blocks,
-                created_at=workflow.created_at,
-                updated_at=workflow.updated_at,
+                created_at=cast(datetime, workflow.created_at),
+                updated_at=cast(datetime, workflow.updated_at),
             )
         )
 
-    total_pages = (total + page_size - 1) // page_size
+    total_pages = (cast(int, total) + page_size - 1) // page_size
 
     return WorkflowListResponse(
         workflows=workflow_responses,
-        total=total,
+        total=cast(int, total),
         page=page,
         page_size=page_size,
         total_pages=total_pages,
@@ -215,15 +216,15 @@ async def get_default_workflow(db: AsyncSession = Depends(get_db)):
         )
 
     return WorkflowResponse(
-        id=workflow.id,
-        name=workflow.name,
-        description=workflow.description,
+        id=cast(int, workflow.id),
+        name=cast(str, workflow.name),
+        description=cast(Optional[str], workflow.description),
         status=workflow.status.value,
-        is_default=workflow.is_default,
-        created_by=workflow.created_by,
+        is_default=cast(bool, workflow.is_default),
+        created_by=cast(int, workflow.created_by),
         blocks=blocks,
-        created_at=workflow.created_at,
-        updated_at=workflow.updated_at,
+        created_at=cast(datetime, workflow.created_at),
+        updated_at=cast(datetime, workflow.updated_at),
     )
 
 
@@ -240,7 +241,7 @@ async def create_workflow(workflow: CreateWorkflowRequest, db: AsyncSession = De
         await db.execute(select(Workflow).where(Workflow.is_default))
         existing_defaults = await db.execute(select(Workflow).where(Workflow.is_default))
         for existing_default in existing_defaults.scalars():
-            existing_default.is_default = False
+            existing_default.is_default = False  # type: ignore[assignment]
         await db.flush()
 
     # Create workflow
@@ -376,11 +377,11 @@ async def update_workflow(
 
     # Update basic fields
     if workflow_update.name is not None:
-        db_workflow.name = workflow_update.name
+        db_workflow.name = workflow_update.name  # type: ignore[assignment]
     if workflow_update.description is not None:
-        db_workflow.description = workflow_update.description
+        db_workflow.description = workflow_update.description  # type: ignore[assignment]
     if workflow_update.status is not None:
-        db_workflow.status = WorkflowStatus(workflow_update.status)
+        db_workflow.status = WorkflowStatus(workflow_update.status)  # type: ignore[assignment]
     if workflow_update.is_default is not None:
         # If setting this workflow as default, unset all other defaults first
         if workflow_update.is_default:
@@ -391,7 +392,7 @@ async def update_workflow(
                 update(Workflow).where(Workflow.id != workflow_id).values(is_default=False)
             )
             await db.flush()
-        db_workflow.is_default = workflow_update.is_default
+        db_workflow.is_default = workflow_update.is_default  # type: ignore[assignment]
 
     # Update blocks if provided
     if workflow_update.blocks is not None:
@@ -399,7 +400,7 @@ async def update_workflow(
         existing_blocks_result = await db.execute(
             select(WorkflowBlock).where(WorkflowBlock.workflow_id == workflow_id)
         )
-        existing_blocks = {block.name: block for block in existing_blocks_result.scalars().all()}
+        existing_blocks = {cast(str, block.name): block for block in existing_blocks_result.scalars().all()}
 
         # Delete existing blocks
         await db.execute(delete(WorkflowBlock).where(WorkflowBlock.workflow_id == workflow_id))
@@ -412,7 +413,7 @@ async def update_workflow(
             if block_data.block_type == "CORE":
                 existing_block = existing_blocks.get(block_data.name)
                 if existing_block and existing_block.output_schema:
-                    output_schema = existing_block.output_schema
+                    output_schema = cast(Optional[Dict[str, Any]], existing_block.output_schema)
 
             db_block = WorkflowBlock(
                 workflow_id=workflow_id,
@@ -517,8 +518,8 @@ async def create_or_update_dashboard_config(
 
     if existing_config:
         # Update existing config
-        existing_config.fields = [field.dict() for field in dashboard_config.fields]
-        existing_config.layout = DashboardLayout(dashboard_config.layout)
+        existing_config.fields = [field.dict() for field in dashboard_config.fields]  # type: ignore[assignment]
+        existing_config.layout = DashboardLayout(dashboard_config.layout)  # type: ignore[assignment]
         await db.commit()
         await db.refresh(existing_config)
         return existing_config
@@ -587,13 +588,13 @@ async def _workflow_to_response(workflow: Workflow) -> WorkflowResponse:
         )
 
     return WorkflowResponse(
-        id=workflow.id,
-        name=workflow.name,
-        description=workflow.description,
+        id=cast(int, workflow.id),
+        name=cast(str, workflow.name),
+        description=cast(Optional[str], workflow.description),
         status=workflow.status.value,
-        is_default=workflow.is_default,
-        created_by=workflow.created_by,
+        is_default=cast(bool, workflow.is_default),
+        created_by=cast(int, workflow.created_by),
         blocks=blocks,
-        created_at=workflow.created_at,
-        updated_at=workflow.updated_at,
+        created_at=cast(datetime, workflow.created_at),
+        updated_at=cast(datetime, workflow.updated_at),
     )

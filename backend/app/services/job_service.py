@@ -3,7 +3,7 @@ import json
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, Set
+from typing import Optional, Set, cast
 
 import httpx
 import structlog
@@ -11,7 +11,7 @@ from sqlalchemy import and_, delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.pydantic_models import JobProgressResponse
+from app.models.pydantic_models import JobProgressResponse, JobStatus as PydanticJobStatus
 from app.models.schemas import (
     AIOutput,
     JobStatus,
@@ -135,12 +135,12 @@ class JobService:
 
         return JobProgressResponse(
             job_id=str(job.id),
-            request_id=job.request_id,
-            status=job.status,
-            error_message=job.error_message,
-            started_at=job.started_at,
-            completed_at=job.completed_at,
-            created_at=job.created_at,
+            request_id=cast(int, job.request_id),
+            status=cast(PydanticJobStatus, job.status),
+            error_message=cast(Optional[str], job.error_message),
+            started_at=cast(Optional[datetime], job.started_at),
+            completed_at=cast(Optional[datetime], job.completed_at),
+            created_at=cast(datetime, job.created_at),
         )
 
     def _get_max_retries(self, job_type: JobType) -> int:
@@ -364,19 +364,19 @@ class JobService:
             if ai_output and ai_output.summary:
                 try:
                     # Parse the summary JSON which contains all workflow outputs
-                    summary_data = json.loads(ai_output.summary)
+                    summary_data = json.loads(cast(str, ai_output.summary))
 
                     # Add each block's output to context
                     for block_name, block_data in summary_data.items():
                         if isinstance(block_data, dict):
                             # Add individual fields
                             for key, value in block_data.items():
-                                context[f"{block_name}.{key}"] = str(value)
+                                context[f"{block_name}.{key}"] = str(value)  # type: ignore[assignment]
                             # Also add the full block data as JSON
-                            context[block_name] = json.dumps(block_data)
+                            context[block_name] = json.dumps(block_data)  # type: ignore[assignment]
                         else:
                             # If not a dict, just add as string
-                            context[block_name] = str(block_data)
+                            context[block_name] = str(block_data)  # type: ignore[assignment]
                 except Exception as e:
                     logger.warning(
                         "Failed to parse AI output summary",
@@ -385,14 +385,14 @@ class JobService:
                     )
 
             # Process the template
-            embedding_text = embedding_config.embedding_template
+            embedding_text = cast(str, embedding_config.embedding_template)
 
             # Replace all variables in the template
             for var_match in re.findall(r"\{\{([^}]+)\}\}", embedding_text):
                 var_name = var_match.strip()
                 if var_name in context:
                     embedding_text = embedding_text.replace(
-                        f"{{{{{var_name}}}}}", context[var_name]
+                        f"{{{{{var_name}}}}}", str(context[var_name])
                     )
                 else:
                     # Handle nested field access (e.g., BlockName.field)

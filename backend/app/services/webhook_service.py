@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import json
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 import httpx
 import structlog
@@ -57,39 +57,39 @@ class WebhookService:
 
     async def _deliver_webhook(self, webhook: Webhook, delivery: WebhookDelivery):
         """Deliver a webhook with retry logic"""
-        for attempt in range(webhook.retry_count + 1):
+        for attempt in range(cast(int, webhook.retry_count) + 1):
             try:
-                delivery.attempts = attempt + 1
+                delivery.attempts = attempt + 1  # type: ignore[assignment]
 
                 # Prepare headers
-                headers = webhook.headers.copy() if webhook.headers else {}
-                headers["Content-Type"] = "application/json"
-                headers["X-TaskFlow-Event"] = delivery.event_type
-                headers["X-TaskFlow-Delivery-ID"] = str(delivery.id)
+                headers = webhook.headers.copy() if webhook.headers else {}  # type: ignore[union-attr]
+                headers["Content-Type"] = "application/json"  # type: ignore[index]
+                headers["X-TaskFlow-Event"] = cast(str, delivery.event_type)  # type: ignore[index]
+                headers["X-TaskFlow-Delivery-ID"] = str(delivery.id)  # type: ignore[index]
 
                 # Add signature if secret token is configured
                 if webhook.secret_token:
                     payload_bytes = json.dumps(delivery.event_data).encode()
                     signature = hmac.new(
-                        webhook.secret_token.encode(), payload_bytes, hashlib.sha256
+                        cast(str, webhook.secret_token).encode(), payload_bytes, hashlib.sha256
                     ).hexdigest()
-                    headers["X-TaskFlow-Signature"] = f"sha256={signature}"
+                    headers["X-TaskFlow-Signature"] = f"sha256={signature}"  # type: ignore[index]
 
                 # Send the webhook
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
-                        webhook.url,
+                        cast(str, webhook.url),
                         json=delivery.event_data,
-                        headers=headers,
-                        timeout=webhook.timeout_seconds,
+                        headers=headers,  # type: ignore[arg-type]
+                        timeout=cast(int, webhook.timeout_seconds),
                     )
 
-                    delivery.response_status = response.status_code
-                    delivery.response_body = response.text[:1000]  # Limit stored response size
+                    delivery.response_status = response.status_code  # type: ignore[assignment]
+                    delivery.response_body = response.text[:1000]  # type: ignore[assignment]
 
                     if response.is_success:
-                        delivery.status = WebhookDeliveryStatus.SUCCESS
-                        delivery.delivered_at = datetime.utcnow()
+                        delivery.status = WebhookDeliveryStatus.SUCCESS  # type: ignore[assignment]
+                        delivery.delivered_at = datetime.utcnow()  # type: ignore[assignment]
 
                         # Update delivery in database
                         await self._update_delivery(delivery)
@@ -100,24 +100,23 @@ class WebhookService:
                         )
                         return
                     else:
-                        delivery.error_message = (
-                            f"HTTP {response.status_code}: {response.text[:500]}"
-                        )
+                        error_msg = f"HTTP {response.status_code}: {response.text[:500]}"
+                        delivery.error_message = error_msg  # type: ignore[assignment]
 
             except Exception as e:
-                delivery.error_message = str(e)
+                delivery.error_message = str(e)  # type: ignore[assignment]
                 logger.error(f"Error delivering webhook {webhook.id}: {str(e)}")
 
             # If not the last attempt, wait before retrying
-            if attempt < webhook.retry_count:
+            if attempt < cast(int, webhook.retry_count):
                 wait_time = min(2**attempt, 60)  # Exponential backoff, max 60 seconds
                 await asyncio.sleep(wait_time)
 
         # All attempts failed
-        delivery.status = WebhookDeliveryStatus.FAILED
+        delivery.status = WebhookDeliveryStatus.FAILED  # type: ignore[assignment]
         await self._update_delivery(delivery)
         logger.error(
-            f"Failed to deliver webhook {webhook.id} after {webhook.retry_count + 1} attempts"
+            f"Failed to deliver webhook {webhook.id} after {cast(int, webhook.retry_count) + 1} attempts"
         )
 
     async def _update_delivery(self, delivery: WebhookDelivery):
@@ -159,28 +158,28 @@ class WebhookService:
             }
 
         # Prepare headers
-        headers = webhook.headers.copy() if webhook.headers else {}
-        headers["Content-Type"] = "application/json"
-        headers["X-TaskFlow-Event"] = event_type
-        headers["X-TaskFlow-Test"] = "true"
+        headers = webhook.headers.copy() if webhook.headers else {}  # type: ignore[union-attr]
+        headers["Content-Type"] = "application/json"  # type: ignore[index]
+        headers["X-TaskFlow-Event"] = event_type  # type: ignore[index]
+        headers["X-TaskFlow-Test"] = "true"  # type: ignore[index]
 
         # Add signature if secret token is configured
         if webhook.secret_token:
             payload_bytes = json.dumps(sample_data).encode()
             signature = hmac.new(
-                webhook.secret_token.encode(), payload_bytes, hashlib.sha256
+                cast(str, webhook.secret_token).encode(), payload_bytes, hashlib.sha256
             ).hexdigest()
-            headers["X-TaskFlow-Signature"] = f"sha256={signature}"
+            headers["X-TaskFlow-Signature"] = f"sha256={signature}"  # type: ignore[index]
 
         start_time = time.time()
 
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    webhook.url,
+                    cast(str, webhook.url),
                     json=sample_data,
-                    headers=headers,
-                    timeout=webhook.timeout_seconds,
+                    headers=headers,  # type: ignore[arg-type]
+                    timeout=cast(int, webhook.timeout_seconds),
                 )
 
                 duration_ms = (time.time() - start_time) * 1000

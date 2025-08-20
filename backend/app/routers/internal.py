@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, cast
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -80,7 +80,7 @@ async def update_embedding_status(
 
     # Update embedding status
     try:
-        request.embedding_status = EmbeddingStatus(status_update.embedding_status)
+        request.embedding_status = EmbeddingStatus(status_update.embedding_status)  # type: ignore[assignment]
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -145,7 +145,7 @@ async def create_internal_job(job_request: CreateJobRequest, db: AsyncSession = 
     # For embedding jobs, use the request's workflow_id
     workflow_id = job_request.workflow_id
     if not workflow_id and job_request.job_type == "EMBEDDING":
-        workflow_id = request.workflow_id
+        workflow_id = cast(Optional[int], request.workflow_id)
 
     # Create job using JobService
     job_service = JobService(db)
