@@ -11,7 +11,8 @@ from sqlalchemy import and_, delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.pydantic_models import JobProgressResponse, JobStatus as PydanticJobStatus
+from app.models.pydantic_models import JobProgressResponse
+from app.models.pydantic_models import JobStatus as PydanticJobStatus
 from app.models.schemas import (
     AIOutput,
     JobStatus,
@@ -371,7 +372,9 @@ class JobService:
                         if isinstance(block_data, dict):
                             # Add individual fields
                             for key, value in block_data.items():
-                                context[f"{block_name}.{key}"] = str(value)  # type: ignore[assignment]
+                                context[f"{block_name}.{key}"] = str(  # type: ignore[assignment]
+                                    value
+                                )
                             # Also add the full block data as JSON
                             context[block_name] = json.dumps(block_data)  # type: ignore[assignment]
                         else:

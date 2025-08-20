@@ -21,15 +21,18 @@ from app.models.pydantic_models import (
     BulkRerunResponse,
     CreateRequestRequest,
     CreateRequestResponse,
-    EmbeddingStatus as PydanticEmbeddingStatus,
-    Exercise,
-    JobProgressResponse,
-    JobStatus as PydanticJobStatus,
+)
+from app.models.pydantic_models import EmbeddingStatus as PydanticEmbeddingStatus
+from app.models.pydantic_models import Exercise, JobProgressResponse
+from app.models.pydantic_models import JobStatus as PydanticJobStatus
+from app.models.pydantic_models import (
     ProcessJobResponse,
     ProcessRequestRequest,
     RequestListResponse,
     RequestResponse,
-    RequestStatus as PydanticRequestStatus,
+)
+from app.models.pydantic_models import RequestStatus as PydanticRequestStatus
+from app.models.pydantic_models import (
     UpdateRequestRequest,
     UpdateRequestStatusRequest,
     UserResponse,
@@ -159,7 +162,11 @@ async def _build_similarity_display(
         elif field_source == "STATUS":
             value = task_request.status.value if task_request.status else ""
         elif field_source == "CREATED_AT":
-            value = cast(datetime, task_request.created_at).isoformat() if task_request.created_at else ""
+            value = (
+                cast(datetime, task_request.created_at).isoformat()
+                if task_request.created_at
+                else ""
+            )
         elif field_source == "REQUESTER":
             value = cast(Optional[str], task_request.requester)
         elif "." in field_source:
@@ -305,9 +312,8 @@ async def list_requests(
         # Group by request_id and keep only the latest
         for job in failed_jobs:
             request_id = cast(int, job.request_id)
-            if (
-                request_id not in failed_jobs_dict
-                or cast(datetime, job.created_at) > cast(datetime, failed_jobs_dict[request_id].created_at)
+            if request_id not in failed_jobs_dict or cast(datetime, job.created_at) > cast(
+                datetime, failed_jobs_dict[request_id].created_at
             ):
                 failed_jobs_dict[request_id] = job
 
@@ -740,7 +746,9 @@ async def update_request(
     if update_data.due_date is not None:
         from datetime import datetime
 
-        request.due_date = datetime.fromisoformat(update_data.due_date).date()  # type: ignore[assignment]
+        request.due_date = datetime.fromisoformat(  # type: ignore[assignment]
+            update_data.due_date
+        ).date()
 
     await db.commit()
 
@@ -1176,7 +1184,9 @@ async def batch_upload_requests(
                 # Create processing job if workflow is assigned
                 if workflow_id:
                     await job_service.create_job(
-                        cast(int, request.id), job_type=JobType.WORKFLOW, workflow_id=cast(Optional[int], workflow_id)
+                        cast(int, request.id),
+                        job_type=JobType.WORKFLOW,
+                        workflow_id=cast(Optional[int], workflow_id),
                     )
 
                 success_count += 1
@@ -1277,7 +1287,9 @@ async def bulk_rerun_requests(request: BulkRerunRequest, db: AsyncSession = Depe
 
             except Exception as e:
                 errors.append(
-                    BulkRerunError(task_id=cast(int, req.id), message=f"Error creating job: {str(e)}")
+                    BulkRerunError(
+                        task_id=cast(int, req.id), message=f"Error creating job: {str(e)}"
+                    )
                 )
                 continue
 

@@ -62,7 +62,9 @@ class WebhookService:
                 delivery.attempts = attempt + 1  # type: ignore[assignment]
 
                 # Prepare headers
-                headers = webhook.headers.copy() if webhook.headers else {}  # type: ignore[union-attr]
+                headers = (  # type: ignore[union-attr]
+                    webhook.headers.copy() if webhook.headers else {}
+                )
                 headers["Content-Type"] = "application/json"  # type: ignore[index]
                 headers["X-TaskFlow-Event"] = cast(str, delivery.event_type)  # type: ignore[index]
                 headers["X-TaskFlow-Delivery-ID"] = str(delivery.id)  # type: ignore[index]
@@ -116,7 +118,8 @@ class WebhookService:
         delivery.status = WebhookDeliveryStatus.FAILED  # type: ignore[assignment]
         await self._update_delivery(delivery)
         logger.error(
-            f"Failed to deliver webhook {webhook.id} after {cast(int, webhook.retry_count) + 1} attempts"
+            f"Failed to deliver webhook {webhook.id} after "
+            f"{cast(int, webhook.retry_count) + 1} attempts"
         )
 
     async def _update_delivery(self, delivery: WebhookDelivery):

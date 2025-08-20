@@ -80,7 +80,9 @@ async def update_embedding_status(
 
     # Update embedding status
     try:
-        request.embedding_status = EmbeddingStatus(status_update.embedding_status)  # type: ignore[assignment]
+        request.embedding_status = EmbeddingStatus(  # type: ignore[assignment]
+            status_update.embedding_status
+        )
     except ValueError:
         raise HTTPException(
             status_code=400,

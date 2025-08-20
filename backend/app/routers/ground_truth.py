@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Optional, cast
+from typing import List, Optional, cast
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException

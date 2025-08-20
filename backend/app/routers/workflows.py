@@ -400,7 +400,9 @@ async def update_workflow(
         existing_blocks_result = await db.execute(
             select(WorkflowBlock).where(WorkflowBlock.workflow_id == workflow_id)
         )
-        existing_blocks = {cast(str, block.name): block for block in existing_blocks_result.scalars().all()}
+        existing_blocks = {
+            cast(str, block.name): block for block in existing_blocks_result.scalars().all()
+        }
 
         # Delete existing blocks
         await db.execute(delete(WorkflowBlock).where(WorkflowBlock.workflow_id == workflow_id))
@@ -518,8 +520,12 @@ async def create_or_update_dashboard_config(
 
     if existing_config:
         # Update existing config
-        existing_config.fields = [field.dict() for field in dashboard_config.fields]  # type: ignore[assignment]
-        existing_config.layout = DashboardLayout(dashboard_config.layout)  # type: ignore[assignment]
+        existing_config.fields = [  # type: ignore[assignment]
+            field.dict() for field in dashboard_config.fields
+        ]
+        existing_config.layout = DashboardLayout(  # type: ignore[assignment]
+            dashboard_config.layout
+        )
         await db.commit()
         await db.refresh(existing_config)
         return existing_config
