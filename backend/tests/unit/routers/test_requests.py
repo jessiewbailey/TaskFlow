@@ -289,12 +289,12 @@ class TestRequestRoutes:
             )
         request_id = create_response.json()["id"]
 
-        # Mock AI output (unused in this test but kept for future)
-        _mock_ai_output = {
-            "summary": ('{"Analysis": {"summary": "Test summary", '
-                        '"insights": ["Insight 1", "Insight 2"]}}'),
-            "created_at": "2024-01-15T10:00:00Z",
-        }
+        # Mock AI output (placeholder for future test expansion)
+        # mock_ai_output = {
+        #     "summary": ('{"Analysis": {"summary": "Test summary", '
+        #                 '"insights": ["Insight 1", "Insight 2"]}}'),
+        #     "created_at": "2024-01-15T10:00:00Z",
+        # }
 
         # Get AI analysis (would need to mock the database query)
         response = await async_client.get(f"/api/requests/{request_id}/ai-analysis")

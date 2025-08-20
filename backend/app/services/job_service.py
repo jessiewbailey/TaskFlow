@@ -76,7 +76,7 @@ class JobQueueManager:
                 )
 
                 # Run job and remove from running set when done
-                _task = asyncio.create_task(self._run_job(job_id, job_coro))
+                asyncio.create_task(self._run_job(job_id, job_coro))
 
             except Exception as e:
                 logger.error(f"Error in queue processor: {str(e)}")

@@ -1212,7 +1212,7 @@ async def batch_upload_requests(
 
                 # Create processing job if workflow is assigned
                 if workflow_id:
-                    _job_id = await job_service.create_job(
+                    await job_service.create_job(
                         request.id, job_type=JobType.WORKFLOW, workflow_id=workflow_id
                     )
 
@@ -1252,7 +1252,8 @@ async def batch_upload_requests(
                 select(Request).order_by(Request.created_at.desc()).limit(success_count)
             )
 
-        _batch_requests = batch_requests_result.scalars().all()
+        # Get the batch requests (result currently unused but may be needed for future logging)
+        batch_requests_result.scalars().all()
 
         # NOTE: Embedding generation is now triggered after workflow completion
         # See the workflow completion handler in the ai-worker for embedding logic
@@ -1312,7 +1313,7 @@ async def bulk_rerun_requests(
                     req.workflow_id = request.workflow_id
 
                 # Create new processing job
-                _job_id = await job_service.create_job(
+                await job_service.create_job(
                     req.id, job_type=JobType.WORKFLOW, workflow_id=request.workflow_id
                 )
 

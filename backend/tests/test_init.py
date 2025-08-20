@@ -4,6 +4,7 @@ Initial test setup to mock external services before any imports
 
 import asyncio
 import os
+import requests as real_requests
 import sys
 from unittest.mock import MagicMock, Mock
 
@@ -138,7 +139,6 @@ mock_redis_module.from_url = lambda *args, **kwargs: MockRedis()
 sys.modules["redis.asyncio"] = mock_redis_module
 
 # Mock requests module selectively to avoid breaking kubernetes client
-import requests as real_requests
 
 
 class MockRequestsSession:

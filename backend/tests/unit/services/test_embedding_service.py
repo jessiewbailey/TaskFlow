@@ -317,7 +317,7 @@ class TestEmbeddingService:
         ):
             with patch("app.services.embedding_service.OllamaClient"):
                 with patch("app.services.embedding_service.requests.Session"):
-                    _service = EmbeddingService()
+                    EmbeddingService()  # Initialize service
 
         # Assert
         mock_qdrant_client.create_collection.assert_called_once()

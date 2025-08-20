@@ -123,7 +123,7 @@ async def test_polling_window_race_condition(db_session: AsyncSession):
         return active_job is not None
 
     # Start polling
-    _start_time = time.time()
+    time.time()  # Record start time
 
     # Poll 1: Should see active job (PENDING)
     has_active = await check_active_jobs()

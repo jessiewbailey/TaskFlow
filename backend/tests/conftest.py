@@ -5,6 +5,7 @@ This module provides common fixtures used across all test modules.
 """
 
 import asyncio
+import os
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, Mock
 
@@ -12,6 +13,11 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+
+from app.main import app
+from app.models.database import Base, get_db
+from app.models.pydantic_models import User, UserRole
+from app.routers.auth import get_current_user
 
 # Import test initialization first
 
@@ -21,16 +27,9 @@ AsyncClient = None
 
 # Test database URL - using PostgreSQL for tests to match production
 # This requires a PostgreSQL instance running (docker or local)
-import os
-
-# Now we can safely import the app
-from app.main import app
-from app.models.database import Base, get_db
-from app.models.pydantic_models import User, UserRole
 
 # Import all models to ensure they're registered with Base.metadata
 # Note: These imports are needed for SQLAlchemy to register the models
-from app.routers.auth import get_current_user
 
 # Use environment variable if set (for GitHub Actions), otherwise use local test DB
 TEST_DATABASE_URL = os.getenv(

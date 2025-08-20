@@ -146,7 +146,7 @@ async def test_queue_position_calculation_from_database(db_session: AsyncSession
     for i, job in enumerate(pending_jobs):
         # In a proper implementation, this would return the position
         # But currently it returns -1 because the queue is empty
-        _position = job_queue_manager.get_queue_position(str(job.id))
+        job_queue_manager.get_queue_position(str(job.id))  # Check position
         # This assertion will fail, demonstrating the bug
         # assert position == i  # Should be 0, 1, 2, 3, 4
 

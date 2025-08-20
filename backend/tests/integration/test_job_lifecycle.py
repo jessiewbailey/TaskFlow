@@ -256,7 +256,7 @@ async def test_embedding_job_after_workflow_completion(db_session: AsyncSession)
 
     # Create workflow job
     job_service = JobService(db_session)
-    _workflow_job_id = await job_service.create_job(
+    await job_service.create_job(
         request_id=request.id, job_type=JobType.WORKFLOW, workflow_id=workflow.id
     )
 
@@ -280,7 +280,7 @@ async def test_embedding_job_after_workflow_completion(db_session: AsyncSession)
 
     # In real scenario, the worker would create embedding job
     # Here we simulate it
-    _embedding_job_id = await job_service.create_job(
+    await job_service.create_job(
         request_id=request.id, job_type=JobType.EMBEDDING
     )
 

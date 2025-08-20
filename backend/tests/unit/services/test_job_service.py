@@ -132,7 +132,7 @@ class TestJobService:
                 new_callable=AsyncMock,
             ):
                 # Act
-                _job_id = await job_service.create_job(
+                await job_service.create_job(
                     request_id=request_id,
                     job_type=job_type,
                     custom_instructions=custom_instructions,
