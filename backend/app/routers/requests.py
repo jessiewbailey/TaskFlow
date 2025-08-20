@@ -31,7 +31,10 @@ from app.models.pydantic_models import (
     UpdateRequestStatusRequest,
     UserResponse,
 )
-from app.models.schemas import AIOutput, CustomInstruction
+from app.models.schemas import (
+    AIOutput,
+    CustomInstruction,
+)
 from app.models.schemas import Exercise as ExerciseModel
 from app.models.schemas import (
     JobStatus,
@@ -48,10 +51,12 @@ from app.services.job_service import JobService
 # Conditional import to prevent startup failures
 try:
     from app.services.embedding_service import LazyEmbeddingService, embedding_service
+
     embedding_service_instance: Union[LazyEmbeddingService, None] = embedding_service
 except Exception as e:
     print(f"WARNING: EmbeddingService failed to initialize: {e}")
     from app.services.embedding_service import LazyEmbeddingService
+
     embedding_service_instance = None
 import json
 

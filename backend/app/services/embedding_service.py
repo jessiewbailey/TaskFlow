@@ -171,6 +171,10 @@ class EmbeddingService:
                         # Return a zero vector as fallback to prevent crashes
                         logger.warning("Returning zero vector as fallback for failed embedding")
                         return [0.0] * self.vector_size
+            
+            # This should never be reached, but added for mypy completeness
+            logger.error("Unexpected end of embedding generation function")
+            return [0.0] * self.vector_size
 
     async def store_task_embedding(self, task_id: int, task_data: Dict[str, Any]) -> str:
         """Store task embedding in Qdrant."""

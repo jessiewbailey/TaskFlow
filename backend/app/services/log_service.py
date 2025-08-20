@@ -3,7 +3,7 @@ import json
 import os
 import re
 from datetime import datetime
-from typing import AsyncGenerator, List
+from typing import List
 
 import structlog
 from kubernetes import client, config

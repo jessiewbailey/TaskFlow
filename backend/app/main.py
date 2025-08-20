@@ -27,7 +27,12 @@ from app.routers import (
     requests,
 )
 from app.routers import settings as settings_router
-from app.routers import user_preferences, webhooks, workflow_embedding, workflows
+from app.routers import (
+    user_preferences,
+    webhooks,
+    workflow_embedding,
+    workflows,
+)
 
 try:
     from app.routers import config_api

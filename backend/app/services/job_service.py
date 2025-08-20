@@ -49,7 +49,7 @@ class JobQueueManager:
             return -1  # Job is already running
 
         # Convert queue to list to find position
-        queue_items = list(self.job_queue._queue)
+        queue_items = list(self.job_queue._queue)  # type: ignore[attr-defined]
         for i, (queued_job_id, _) in enumerate(queue_items):
             if queued_job_id == job_id:
                 return i
