@@ -2,12 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import get_db
-from app.models.pydantic_models import (
-    RAGSearchRequest,
-    RAGSearchResponse,
-    RAGSearchResult,
-    User,
-)
+from app.models.pydantic_models import RAGSearchRequest, RAGSearchResponse, RAGSearchResult, User
 from app.routers.auth import get_current_user
 
 # Conditional import to prevent startup failures

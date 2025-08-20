@@ -16,13 +16,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from app.models.pydantic_models import JobProgressResponse
-from app.models.schemas import (
-    JobStatus,
-    JobType,
-    ProcessingJob,
-    Request,
-    WorkflowEmbeddingConfig,
-)
+from app.models.schemas import JobStatus, JobType, ProcessingJob, Request, WorkflowEmbeddingConfig
 from app.services.job_service import JobQueueManager, JobService
 
 

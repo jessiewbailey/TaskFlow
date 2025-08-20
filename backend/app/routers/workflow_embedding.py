@@ -13,11 +13,7 @@ from app.models.pydantic_models import (
     WorkflowSimilarityConfigCreate,
     WorkflowSimilarityConfigResponse,
 )
-from app.models.schemas import (
-    Workflow,
-    WorkflowEmbeddingConfig,
-    WorkflowSimilarityConfig,
-)
+from app.models.schemas import Workflow, WorkflowEmbeddingConfig, WorkflowSimilarityConfig
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/workflows", tags=["workflow-embedding"])
