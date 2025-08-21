@@ -5,6 +5,7 @@ import uuid
 from asyncio import Semaphore
 from typing import Any, Dict, List, Optional, cast
 
+import requests
 from ollama import Client as OllamaClient
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
@@ -31,8 +32,6 @@ class EmbeddingService:
         self._embedding_semaphore = Semaphore(2)
 
         # Create a session for connection pooling
-        import requests
-
         self.session = requests.Session()
         self.session.mount("http://", requests.adapters.HTTPAdapter(max_retries=3))
 
