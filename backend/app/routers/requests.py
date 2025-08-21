@@ -23,10 +23,7 @@ from app.models.pydantic_models import (
     CreateRequestResponse,
 )
 from app.models.pydantic_models import EmbeddingStatus as PydanticEmbeddingStatus
-from app.models.pydantic_models import (
-    Exercise,
-    JobProgressResponse,
-)
+from app.models.pydantic_models import Exercise, JobProgressResponse
 from app.models.pydantic_models import JobStatus as PydanticJobStatus
 from app.models.pydantic_models import (
     ProcessJobResponse,
@@ -40,10 +37,7 @@ from app.models.pydantic_models import (
     UpdateRequestStatusRequest,
     UserResponse,
 )
-from app.models.schemas import (
-    AIOutput,
-    CustomInstruction,
-)
+from app.models.schemas import AIOutput, CustomInstruction
 from app.models.schemas import Exercise as ExerciseModel
 from app.models.schemas import (
     JobStatus,

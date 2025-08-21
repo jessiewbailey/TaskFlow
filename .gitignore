@@ -409,3 +409,4 @@ test-files/
 secrets.yaml
 CLAUDE.md
 01-init-complete.sql
+mypy-test-env/
