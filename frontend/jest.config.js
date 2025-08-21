@@ -9,8 +9,7 @@ export default {
   // Module paths
   moduleNameMapper: {
     // Handle CSS imports - fix regex pattern
-    '\\.css$': 'identity-obj-proxy',
-    '\\.(less|scss|sass)$': 'identity-obj-proxy',
+    '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',
     
     // Handle image imports
     '\\.(jpg|jpeg|png|gif|svg)$': '<rootDir>/__mocks__/fileMock.js',

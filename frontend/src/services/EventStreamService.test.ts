@@ -18,12 +18,14 @@ class MockEventSource {
   removeEventListener = jest.fn();
 }
 
-// Replace global EventSource with mock
+// Replace global EventSource with mock and define constants
 (global as any).EventSource = MockEventSource;
+(global as any).EventSource.CONNECTING = 0;
+(global as any).EventSource.OPEN = 1;
+(global as any).EventSource.CLOSED = 2;
 
 describe('EventStreamService', () => {
   let service: EventStreamService;
-  let mockEventSource: MockEventSource;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -31,241 +33,140 @@ describe('EventStreamService', () => {
   });
 
   afterEach(() => {
-    service.disconnect();
+    service.disconnectAll();
   });
 
   describe('connect', () => {
-    it('creates an EventSource connection', () => {
-      const url = '/api/events';
-      service.connect(url);
+    it('creates an EventSource connection for a request', () => {
+      const requestId = 123;
+      const eventSource = service.connect(requestId) as MockEventSource;
 
-      expect(service.isConnected()).toBe(false); // Still connecting
-      expect(service['eventSource']).toBeInstanceOf(MockEventSource);
-    });
-
-    it('calls onConnect when connection opens', () => {
-      const onConnect = jest.fn();
-      service.connect('/api/events', { onConnect });
-
-      mockEventSource = service['eventSource'] as MockEventSource;
-      mockEventSource.readyState = 1; // OPEN
-
-      // Simulate open event
-      const openEvent = new Event('open');
-      mockEventSource.onopen?.(openEvent);
-
-      expect(onConnect).toHaveBeenCalled();
-      expect(service.isConnected()).toBe(true);
-    });
-
-    it('handles connection errors', () => {
-      const onError = jest.fn();
-      service.connect('/api/events', { onError });
-
-      mockEventSource = service['eventSource'] as MockEventSource;
-
-      // Simulate error event
-      const errorEvent = new Event('error');
-      mockEventSource.onerror?.(errorEvent);
-
-      expect(onError).toHaveBeenCalledWith(errorEvent);
-    });
-
-    it('closes existing connection before creating new one', () => {
-      service.connect('/api/events1');
-      const firstEventSource = service['eventSource'] as MockEventSource;
-
-      service.connect('/api/events2');
+      expect(eventSource).toBeInstanceOf(MockEventSource);
       
-      expect(firstEventSource.close).toHaveBeenCalled();
+      // Initially connecting (readyState = 0)
+      expect(service.isConnected(requestId)).toBe(false);
+      
+      // Simulate connection open
+      eventSource.readyState = 1; // OPEN
+      expect(service.isConnected(requestId)).toBe(true);
+    });
+
+    it('returns existing connection if already connected', () => {
+      const requestId = 123;
+      const eventSource1 = service.connect(requestId);
+      const eventSource2 = service.connect(requestId);
+
+      expect(eventSource1).toBe(eventSource2);
     });
   });
 
   describe('disconnect', () => {
-    it('closes the EventSource connection', () => {
-      service.connect('/api/events');
-      mockEventSource = service['eventSource'] as MockEventSource;
+    it('closes the EventSource connection for a request', () => {
+      const requestId = 123;
+      const eventSource = service.connect(requestId) as MockEventSource;
+      eventSource.readyState = 1; // OPEN
+      
+      service.disconnect(requestId);
 
-      service.disconnect();
-
-      expect(mockEventSource.close).toHaveBeenCalled();
-      expect(service['eventSource']).toBeNull();
+      expect(eventSource.close).toHaveBeenCalled();
+      expect(service.isConnected(requestId)).toBe(false);
     });
 
     it('handles disconnect when not connected', () => {
-      expect(() => service.disconnect()).not.toThrow();
+      expect(() => service.disconnect(999)).not.toThrow();
     });
   });
 
-  describe('subscribe', () => {
-    beforeEach(() => {
-      service.connect('/api/events');
-      mockEventSource = service['eventSource'] as MockEventSource;
-    });
-
-    it('subscribes to event types', () => {
-      const handler = jest.fn();
-      const unsubscribe = service.subscribe('test-event', handler);
-
-      expect(mockEventSource.addEventListener).toHaveBeenCalledWith('test-event', expect.any(Function));
-      expect(typeof unsubscribe).toBe('function');
-    });
-
-    it('calls handler when event is received', () => {
-      const handler = jest.fn();
-      service.subscribe('test-event', handler);
-
-      // Get the actual handler that was registered
-      const registeredHandler = mockEventSource.addEventListener.mock.calls[0][1];
-
-      // Simulate event
-      const messageEvent = new MessageEvent('test-event', {
-        data: JSON.stringify({ message: 'test' }),
-      });
-
-      registeredHandler(messageEvent);
-
-      expect(handler).toHaveBeenCalledWith({ message: 'test' });
-    });
-
-    it('handles non-JSON data', () => {
-      const handler = jest.fn();
-      service.subscribe('test-event', handler);
-
-      const registeredHandler = mockEventSource.addEventListener.mock.calls[0][1];
-
-      // Simulate event with plain text
-      const messageEvent = new MessageEvent('test-event', {
-        data: 'plain text',
-      });
-
-      registeredHandler(messageEvent);
-
-      expect(handler).toHaveBeenCalledWith('plain text');
-    });
-
-    it('unsubscribes correctly', () => {
-      const handler = jest.fn();
-      const unsubscribe = service.subscribe('test-event', handler);
-
-      unsubscribe();
-
-      expect(mockEventSource.removeEventListener).toHaveBeenCalledWith('test-event', expect.any(Function));
-    });
-
-    it('returns noop unsubscribe if not connected', () => {
-      service.disconnect();
+  describe('disconnectAll', () => {
+    it('closes all connections', () => {
+      const requestId1 = 123;
+      const requestId2 = 456;
+      const eventSource1 = service.connect(requestId1) as MockEventSource;
+      const eventSource2 = service.connect(requestId2) as MockEventSource;
       
-      const handler = jest.fn();
-      const unsubscribe = service.subscribe('test-event', handler);
+      // Set as connected
+      eventSource1.readyState = 1; // OPEN
+      eventSource2.readyState = 1; // OPEN
 
-      expect(() => unsubscribe()).not.toThrow();
-      expect(handler).not.toHaveBeenCalled();
+      service.disconnectAll();
+
+      expect(eventSource1.close).toHaveBeenCalled();
+      expect(eventSource2.close).toHaveBeenCalled();
+      expect(service.isConnected(requestId1)).toBe(false);
+      expect(service.isConnected(requestId2)).toBe(false);
     });
   });
 
-  describe('onMessage', () => {
-    it('handles message events', () => {
-      const onMessage = jest.fn();
-      service.connect('/api/events', { onMessage });
+  describe('event listening', () => {
+    it('allows subscribing to events', () => {
+      const handler = jest.fn();
+      const unsubscribe = service.on('test-event', handler);
 
-      mockEventSource = service['eventSource'] as MockEventSource;
+      expect(typeof unsubscribe).toBe('function');
 
-      const messageEvent = new MessageEvent('message', {
-        data: JSON.stringify({ type: 'update', payload: 'test' }),
-      });
-
-      mockEventSource.onmessage?.(messageEvent);
-
-      expect(onMessage).toHaveBeenCalledWith(messageEvent);
+      // Test unsubscribe
+      unsubscribe();
     });
 
-    it('parses event data when possible', () => {
-      let receivedData: any;
-      const onMessage = (event: MessageEvent) => {
-        try {
-          receivedData = JSON.parse(event.data);
-        } catch {
-          receivedData = event.data;
-        }
-      };
+    it('calls event handlers when events are emitted', () => {
+      const handler = jest.fn();
+      service.on('test-event', handler);
 
-      service.connect('/api/events', { onMessage });
-      mockEventSource = service['eventSource'] as MockEventSource;
+      service.emit('test-event', { data: 'test' });
 
-      const messageEvent = new MessageEvent('message', {
-        data: JSON.stringify({ type: 'update', id: 123 }),
-      });
-
-      mockEventSource.onmessage?.(messageEvent);
-
-      expect(receivedData).toEqual({ type: 'update', id: 123 });
+      expect(handler).toHaveBeenCalledWith({ data: 'test' });
     });
   });
 
   describe('isConnected', () => {
-    it('returns false when not connected', () => {
-      expect(service.isConnected()).toBe(false);
+    it('returns false for non-existent connections', () => {
+      expect(service.isConnected(999)).toBe(false);
     });
 
-    it('returns false when connecting', () => {
-      service.connect('/api/events');
-      expect(service.isConnected()).toBe(false);
-    });
-
-    it('returns true when connected', () => {
-      service.connect('/api/events');
-      mockEventSource = service['eventSource'] as MockEventSource;
-      mockEventSource.readyState = 1; // OPEN
-
-      expect(service.isConnected()).toBe(true);
-    });
-
-    it('returns false when connection closed', () => {
-      service.connect('/api/events');
-      mockEventSource = service['eventSource'] as MockEventSource;
-      mockEventSource.readyState = 2; // CLOSED
-
-      expect(service.isConnected()).toBe(false);
+    it('returns true for active connections', () => {
+      const requestId = 123;
+      const eventSource = service.connect(requestId) as MockEventSource;
+      
+      // Initially connecting
+      expect(service.isConnected(requestId)).toBe(false);
+      
+      // Simulate connection open
+      eventSource.readyState = 1; // OPEN
+      expect(service.isConnected(requestId)).toBe(true);
     });
   });
 
-  describe('reconnection', () => {
-    it('attempts to reconnect on error if enabled', (done) => {
-      const reconnectDelay = 100;
-      service.connect('/api/events', { 
-        reconnect: true, 
-        reconnectDelay,
-        onConnect: () => {
-          done();
+  describe('connectToRequests', () => {
+    it('connects to multiple requests', () => {
+      const requestIds = [123, 456, 789];
+      service.connectToRequests(requestIds);
+
+      // Set all as connected
+      requestIds.forEach(id => {
+        const eventSource = service['connections'].get(id)?.eventSource as MockEventSource;
+        if (eventSource) {
+          eventSource.readyState = 1; // OPEN
         }
       });
 
-      mockEventSource = service['eventSource'] as MockEventSource;
+      requestIds.forEach(id => {
+        expect(service.isConnected(id)).toBe(true);
+      });
+    });
+  });
 
-      // Simulate error
-      const errorEvent = new Event('error');
-      mockEventSource.onerror?.(errorEvent);
+  describe('getActiveConnections', () => {
+    it('returns list of connected request IDs', () => {
+      const requestIds = [123, 456];
+      service.connectToRequests(requestIds);
 
-      // Should reconnect after delay
-      setTimeout(() => {
-        expect(service['eventSource']).toBeInstanceOf(MockEventSource);
-      }, reconnectDelay + 50);
+      const connected = service.getActiveConnections();
+      expect(connected).toEqual(expect.arrayContaining(requestIds));
+      expect(connected.length).toBe(2);
     });
 
-    it('does not reconnect if disabled', (done) => {
-      service.connect('/api/events', { reconnect: false });
-      mockEventSource = service['eventSource'] as MockEventSource;
-      const firstEventSource = mockEventSource;
-
-      // Simulate error
-      const errorEvent = new Event('error');
-      mockEventSource.onerror?.(errorEvent);
-
-      setTimeout(() => {
-        expect(service['eventSource']).toBe(firstEventSource);
-        done();
-      }, 200);
+    it('returns empty array when no connections', () => {
+      expect(service.getActiveConnections()).toEqual([]);
     });
   });
 });

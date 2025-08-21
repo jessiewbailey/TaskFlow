@@ -40,6 +40,7 @@ export const mockRequest = (overrides = {}) => ({
   requester: 'test@example.com',
   status: 'NEW',
   priority: 'medium',
+  date_received: new Date().toISOString(),
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   ...overrides,

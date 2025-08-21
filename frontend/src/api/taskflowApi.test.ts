@@ -1,28 +1,31 @@
 import axios from 'axios';
-import { taskflowApi } from './client';
 
-// Mock axios
+// Mock axios BEFORE importing the client
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
+// Create a persistent mock instance
+const mockApiInstance = {
+  get: jest.fn(),
+  post: jest.fn(),
+  put: jest.fn(),
+  delete: jest.fn(),
+  interceptors: {
+    request: { use: jest.fn() },
+    response: { use: jest.fn() },
+  },
+};
+
+// Mock axios.create immediately to prevent undefined interceptors error
+mockedAxios.create = jest.fn().mockReturnValue(mockApiInstance);
+
+import { taskflowApi } from './client';
+
 describe('TaskFlow API Client', () => {
-  let mockApiInstance: any;
 
   beforeEach(() => {
-    // Create a mock instance with all the methods we need
-    mockApiInstance = {
-      get: jest.fn(),
-      post: jest.fn(),
-      put: jest.fn(),
-      delete: jest.fn(),
-      interceptors: {
-        request: { use: jest.fn() },
-        response: { use: jest.fn() },
-      },
-    };
-
-    // Mock axios.create to return our mock instance
-    mockedAxios.create = jest.fn().mockReturnValue(mockApiInstance);
+    // Clear all mocks to reset call counts
+    jest.clearAllMocks();
   });
 
   afterEach(() => {

@@ -7,8 +7,10 @@
     "dev": "vite",
     "build": "vite build --mode production",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "type-check": "tsc --noEmit",
     "preview": "vite preview",
     "test": "jest",
+    "test:ci": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
